@@ -1,4 +1,4 @@
-name: pgpm tests
+name: CI
 on:
   pull_request:
     branches:
@@ -196,3 +196,33 @@ jobs:
           version: local
           comment: true
 
+  # The Python engine. It has no dependencies, so there is nothing to install
+  # but ffmpeg, which the default effects adapter drives as a separate program.
+  python:
+    name: Python ${{ matrix.python }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.11', '3.12', '3.13']
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Install ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+
+      - name: Test
+        run: PYTHONPATH=python python -m unittest discover -s tests -t . -v
+
+      - name: Build and install the package
+        run: |
+          python -m pip install .
+          cd "$RUNNER_TEMP" && python -c "from constructive_media import adapters; print(adapters.registry().describe('effects'))"

@@ -28,8 +28,8 @@ Early, and built in the open one layer at a time.
 | Layer | State |
 | --- | --- |
 | Schema modules (`packages/`) | Here, tested, audited |
+| Settings and the adapter interface for models and effects (`python/`) | Here, tested |
 | Engine and `me` command line (ingest, analyse, edit, generate) | Being brought in |
-| Adapter interface for models and effects | Being brought in |
 | [`.conv`](https://github.com/constructive-io/conv-spec) renderer | Being brought in |
 
 The roadmap is in [docs/ROADMAP.md](./docs/ROADMAP.md).
@@ -45,6 +45,11 @@ The roadmap is in [docs/ROADMAP.md](./docs/ROADMAP.md).
 `media-core` is the spine: a persona is the same row whether a model is
 speaking in their voice or recognising it in a recording. The other modules
 depend on it and never on each other.
+
+The Python engine in [`python/constructive_media`](./python/constructive_media)
+has no dependencies of its own. It reaches every model and every effect through
+an [adapter](./docs/ADAPTERS.md), so a model is swapped with a setting and a
+tool under another license plugs in from outside this repository.
 
 The engine ships no models, voices, footage or people. You bring your own.
 
@@ -74,12 +79,29 @@ pgpm deploy --database media --createdb --yes --package media-video
 pgpm deploy --database media --yes --package media-audio
 ```
 
+Use the engine from Python 3.11 or later:
+
+```sh
+pip install .
+```
+
+```python
+from constructive_media import effects
+
+effects.apply("line.wav", "line-wet.wav", effects.Effects(reverb="hall", gain=-3))
+```
+
+Effects run through the `ffmpeg` program by default. Settings are environment
+variables that start with `CONSTRUCTIVE_MEDIA_`; they are listed in
+[`settings.py`](./python/constructive_media/settings.py).
+
 Run the tests and the checks CI runs:
 
 ```sh
 pnpm test                          # each module, in a throwaway database
 pgpm test-packages --full-cycle    # deploy, verify, revert, deploy again
 pnpm run audit:db                  # schema audit (security and performance)
+PYTHONPATH=python python -m unittest discover -s tests -t .
 ```
 
 ## Licensing

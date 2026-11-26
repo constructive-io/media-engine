@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "constructive-media"
+dynamic = ["version"]
+description = "One engine for video, images, audio and voice, with Postgres as its memory."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Dan Lynch", email = "pyramation@gmail.com" }]
+keywords = ["media", "video", "audio", "voice", "postgres", "constructive"]
+# The core has no dependencies. Every model and library is reached through an
+# adapter, and an adapter's dependencies are installed with the adapter.
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/constructive-io/constructive-media"
+
+[tool.setuptools.dynamic]
+version = { attr = "constructive_media.__version__" }
+
+[tool.setuptools.packages.find]
+where = ["python"]

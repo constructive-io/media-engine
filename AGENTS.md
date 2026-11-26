@@ -19,6 +19,10 @@ PostgreSQL. `packages/` holds the schema modules (`media-core`, `media-video`,
 - **Nothing personal or local.** No real people, project names, machine paths or
   credentials in code, comments, tests, docs or commit messages. Tests use made-up data.
 - **Modules depend on `media-core`, never on each other.**
+- The Python engine (`python/constructive_media`) has no dependencies. A model or
+  library is reached through an adapter (`docs/ADAPTERS.md`) and imported only
+  inside that adapter's factory. Tests are standard-library `unittest`:
+  `PYTHONPATH=python python -m unittest discover -s tests -t .`
 
 ## The pgpm skill
 
