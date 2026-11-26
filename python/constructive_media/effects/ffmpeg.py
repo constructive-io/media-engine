@@ -15,6 +15,7 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
+from ..ffmpeg import FfmpegError, probe
 from . import EffectError, Effects
 
 #: ffmpeg's echo filter takes delays up to this many milliseconds.
@@ -82,7 +83,7 @@ class FfmpegEffects:
         command = [self.binary, "-hide_banner", "-loglevel", "error", "-y",
                    "-i", str(source), "-af", ",".join(chain)]
         if target.suffix.lower() == ".wav":
-            command += ["-c:a", "pcm_s16le"]
+            command += ["-c:a", _wav_codec(source)]
         command.append(str(scratch))
         try:
             subprocess.run(command, check=True, capture_output=True, text=True)
@@ -92,6 +93,24 @@ class FfmpegEffects:
         finally:
             scratch.unlink(missing_ok=True)
         return target
+
+
+def _wav_codec(source: Path) -> str:
+    """The WAV sample format that loses nothing the source had.
+
+    Floats stay floats, so sound that passes full scale is not clipped; deep
+    whole numbers stay deep; anything else is written as 16 bit.
+    """
+    try:
+        found = probe(source)
+    except FfmpegError:
+        found = None
+    codec = (found.codec if found else None) or ""
+    if codec.startswith(("pcm_f32", "pcm_f64")):
+        return "pcm_f32le"
+    if codec.startswith(("pcm_s24", "pcm_s32")):
+        return "pcm_s24le"
+    return "pcm_s16le"
 
 
 def _reverb(preset: str, mix: float | None) -> str:

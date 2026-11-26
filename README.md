@@ -31,6 +31,7 @@ Early, and built in the open one layer at a time.
 | Settings and the adapter interface for the database, models and effects (`python/`) | Here, tested |
 | Engine and `me` command line: ingest, lineage, shots, frames, signatures, detection, transcription, takes and sync, speakers, passages, flags, scores and rankings, decisions, shot selection and timelines, a ranker taught from preferences, interviews assembled from passages with footage laid over them, cuts rendered to a file and exported to an editing program, a text model's opinion of the best passages, search by meaning | Here, tested |
 | [`.conv`](https://github.com/constructive-io/conv-spec) scripts read and checked, held to the format's own conformance files | Here, tested |
+| The mix: clips on named tracks, brought to a level, looped, faded, ducked under speech and put through effects, written with a stem for each track | Here, tested |
 | Engine: generation | Being brought in |
 | `.conv` scripts rendered to sound | Being brought in |
 
@@ -88,7 +89,7 @@ path, and [whisper.cpp](https://github.com/ggml-org/whisper.cpp) for
 transcription (`brew install whisper.cpp`):
 
 ```sh
-pip install ".[video,detection,speakers]"   # or just `pip install .` for the core
+pip install ".[video,detection,speakers,audio]"   # or just `pip install .` for the core
 export CONSTRUCTIVE_MEDIA_DATABASE_URL=postgres://postgres:password@localhost:5432/media
 ```
 

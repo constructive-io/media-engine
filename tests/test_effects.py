@@ -76,6 +76,12 @@ class EffectsTest(unittest.TestCase):
                     compress=True, gain=-3.0),
         )
 
+    def test_overrides_are_read_as_a_parsed_script_spells_them(self):
+        asked = Effects.from_overrides({"reverb": "room", "reverb_mix": 0.2, "delay": 0.3,
+                                        "delay_feedback": 0.4, "delay_mix": 0.1, "compress": True})
+        self.assertEqual(asked, Effects(reverb="room", reverb_mix=0.2, delay=0.3, delay_feedback=0.4,
+                                        delay_mix=0.1, compress=True))
+
     def test_overrides_with_bad_values_are_errors(self):
         for overrides in ({"gain": "loud"}, {"compress": "maybe"}, {"delay": True}):
             with self.subTest(overrides=overrides), self.assertRaises(EffectError):
@@ -171,6 +177,20 @@ class ApplyTest(unittest.TestCase):
         self.assertEqual(frames, int(0.5 * RATE))
         peak = lambda raw: max(abs(s) for (s,) in struct.iter_unpack("<h", raw))
         self.assertAlmostEqual(peak(quiet) / peak(loud), 10 ** (-12 / 20), delta=0.02)
+
+    @unittest.skipUnless(shutil.which("ffmpeg"), "ffmpeg is not installed")
+    def test_floats_stay_floats_so_sound_past_full_scale_is_not_clipped(self):
+        loud = [1.5 * math.sin(2 * math.pi * 440 * n / RATE) for n in range(RATE // 2)]
+        data = struct.pack(f"<{len(loud)}f", *loud)
+        source = self.here / "loud.wav"
+        source.write_bytes(struct.pack("<4sI4s4sIHHIIHH4sI", b"RIFF", 36 + len(data), b"WAVE", b"fmt ", 16,
+                                       3, 1, RATE, RATE * 4, 4, 32, b"data", len(data)) + data)
+        target = effects.apply(source, self.here / "out.wav", Effects(gain=-6))
+        raw = target.read_bytes()
+        self.assertEqual(struct.unpack_from("<H", raw, 20)[0], 3, "the answer is a WAV file of floats")
+        samples = [s for (s,) in struct.iter_unpack("<f", raw[raw.index(b"data") + 8:])]
+        # Clipped to full scale first, it would have come out at a half.
+        self.assertAlmostEqual(max(samples), 1.5 * 10 ** (-6 / 20), delta=0.01)
 
     @unittest.skipUnless(shutil.which("ffmpeg"), "ffmpeg is not installed")
     def test_reverb_changes_the_audio_and_can_write_in_place(self):

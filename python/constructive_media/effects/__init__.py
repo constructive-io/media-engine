@@ -60,12 +60,15 @@ class Effects:
     def from_overrides(cls, overrides: Mapping[str, Any]) -> Effects:
         """Pick the effect keys out of a `.conv` override map.
 
-        Keys are spelled as the format spells them (`reverb-mix`). Keys that
-        are not effects belong to someone else and are left alone.
+        Keys are spelled as the format spells them (`reverb-mix`) or as a
+        parsed script spells them (`reverb_mix`). Keys that are not effects
+        belong to someone else and are left alone.
         """
         picked: dict[str, Any] = {}
         for f in fields(cls):
             key = f.name.replace("_", "-")
+            if key not in overrides:
+                key = f.name
             if key not in overrides:
                 continue
             raw = overrides[key]
@@ -88,7 +91,9 @@ class EffectBackend(Protocol):
         """Write `source` with `effects` applied to `target` and return it.
 
         `source` and `target` may be the same file. With no effects the audio
-        is copied through unchanged.
+        is copied through unchanged. A WAV file of floats is answered with one:
+        a track on its way into a mix may pass full scale, and whole numbers
+        would clip it.
         """
         ...
 

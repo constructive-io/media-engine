@@ -22,7 +22,8 @@ video = ["numpy>=1.26"]
 detection = ["numpy>=1.26", "pillow>=10", "onnxruntime>=1.17"]
 torchvision = ["numpy>=1.26", "pillow>=10", "torch>=2.4", "torchvision>=0.19"]
 speakers = ["numpy>=1.26", "onnxruntime>=1.17"]
-all = ["constructive-media[video,detection,torchvision,speakers]"]
+audio = ["numpy>=1.26"]
+all = ["constructive-media[video,detection,torchvision,speakers,audio]"]
 # What the tests use beyond the above: `onnx` builds a model small enough to test with.
 test = ["onnx>=1.16"]
 
