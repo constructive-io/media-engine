@@ -15,10 +15,12 @@ from .. import __version__
 from ..adapters import AdapterError
 from ..db import DatabaseError
 from ..ffmpeg import FfmpegError
+from ..models import ModelError
 from ..settings import SettingsError
-from . import analyze, library, system
+from ..transcription import TranscriptionError
+from . import analyze, library, listen, system
 
-GROUPS = (library, analyze, system)
+GROUPS = (library, analyze, listen, system)
 
 
 def parser() -> argparse.ArgumentParser:
@@ -36,7 +38,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     arguments = parser().parse_args(argv)
     try:
         return arguments.run(arguments) or 0
-    except (AdapterError, DatabaseError, FfmpegError, SettingsError) as error:
+    except (AdapterError, DatabaseError, FfmpegError, ModelError, SettingsError, TranscriptionError) as error:
         print(f"me: {error}", file=sys.stderr)
         return 1
     except ModuleNotFoundError as error:

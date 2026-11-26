@@ -16,6 +16,8 @@ COUNTED = (
     ("shots", "media_video.shots"),
     ("frames", "media_video.frames"),
     ("detections", "media_video.detections"),
+    ("segments", "media_video.segments"),
+    ("words", "media_video.words"),
     ("timelines", "media_video.timelines"),
     ("decisions", "media_video.decisions"),
     ("renders", "media_audio.renders"),

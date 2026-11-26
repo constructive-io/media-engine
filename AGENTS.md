@@ -26,6 +26,9 @@ PostgreSQL. `packages/` holds the schema modules (`media-core`, `media-video`,
   the package and its command line import with nothing else installed.
 - Video and audio are read and written by running the `ffmpeg` and `ffprobe` programs
   (`constructive_media/ffmpeg.py`). Do not add a library that links or bundles them.
+- Speech is transcribed by running whisper.cpp's programs
+  (`constructive_media/transcription/whispercpp.py`). The tests put small scripts in
+  their place and never run or download a model.
 - Tests are standard-library `unittest`:
   `PYTHONPATH=python python -m unittest discover -s tests -t .` Tests that need a package
   or program that is missing skip themselves. Tests that touch the database run when

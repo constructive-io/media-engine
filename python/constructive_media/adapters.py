@@ -191,6 +191,13 @@ def builtins() -> Iterator[Adapter]:
         summary="PostgreSQL through pg8000, a pure-Python driver",
     )
     yield Adapter(
+        slot="transcription",
+        name="whispercpp",
+        factory=lazy("constructive_media.transcription.whispercpp:WhisperCpp"),
+        license="MIT",
+        summary="Speech to timed words with Whisper, run by the whisper.cpp program",
+    )
+    yield Adapter(
         slot="detection",
         name="onnx",
         factory=lazy("constructive_media.detection.onnx:OnnxDetector"),

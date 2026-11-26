@@ -64,6 +64,8 @@ licensed ones are named:
 
 | Model | License | Where it is defined |
 | --- | --- | --- |
+| OpenAI's Whisper, in whisper.cpp's file format | MIT | `transcription/whispercpp.py` |
+| Silero VAD, which finds where the speech is | MIT | `transcription/whispercpp.py` |
 | D-FINE nano and small, trained on COCO | Apache-2.0 | `detection/onnx.py` |
 | torchvision's detection models, trained on COCO | BSD-3-Clause | chosen by name from torchvision |
 
@@ -72,7 +74,9 @@ matter for your use is yours to decide.
 
 ## Programs the engine calls
 
-`ffmpeg`, `ffprobe` and PostgreSQL are run as separate programs. They are not
-part of this repository, are not linked into it, and keep their own licenses:
-FFmpeg is LGPL or GPL depending on how your copy was built, PostgreSQL is under
-the PostgreSQL License. You install them yourself.
+`ffmpeg`, `ffprobe`, whisper.cpp's `whisper-cli` and
+`whisper-vad-speech-segments`, and PostgreSQL are run as separate programs.
+They are not part of this repository, are not linked into it, and keep their
+own licenses: FFmpeg is LGPL or GPL depending on how your copy was built,
+whisper.cpp is MIT, PostgreSQL is under the PostgreSQL License. You install
+them yourself.

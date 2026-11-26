@@ -29,8 +29,8 @@ Early, and built in the open one layer at a time.
 | --- | --- |
 | Schema modules (`packages/`) | Here, tested, audited |
 | Settings and the adapter interface for the database, models and effects (`python/`) | Here, tested |
-| Engine and `me` command line: ingest, lineage, shots, frames, signatures, detection | Here, tested |
-| Engine: transcription, editing, rendering, generation | Being brought in |
+| Engine and `me` command line: ingest, lineage, shots, frames, signatures, detection, transcription | Here, tested |
+| Engine: speakers, editing, rendering, generation | Being brought in |
 | [`.conv`](https://github.com/constructive-io/conv-spec) renderer | Being brought in |
 
 The roadmap is in [docs/ROADMAP.md](./docs/ROADMAP.md).
@@ -83,7 +83,8 @@ pgpm deploy --database media --yes --package media-audio
 ```
 
 Install the engine with Python 3.11 or later. You also need `ffmpeg` on your
-path:
+path, and [whisper.cpp](https://github.com/ggml-org/whisper.cpp) for
+transcription (`brew install whisper.cpp`):
 
 ```sh
 pip install ".[video,detection]"   # or just `pip install .` for the core
@@ -98,12 +99,16 @@ me shots                             # split each video into shots
 me frames                            # save and measure sample frames
 me signatures                        # a colour and motion signature per shot
 me detect                            # find objects and people in the frames
+me vocabulary Zentrova "Ottoline Varga" --project demo   # names to listen for
+me transcribe                        # what is said, sentence by sentence, word by word
 me lineage out.mp4                   # what a derived file was made from
 me status                            # where things are kept and what is held
 me adapters                          # every slot and what can fill it
 ```
 
-Every stage picks up where it left off and only works on what is new.
+Every stage picks up where it left off and only works on what is new. A model
+is downloaded the first time a stage needs it: 1.6 GB for the default
+transcriber.
 
 The same engine from Python:
 
@@ -139,8 +144,8 @@ Everything in this repository is MIT licensed, and it stays that way:
 - No copyleft code or dependency (GPL, AGPL, LGPL, MPL) is added here. Adapters
   for tools under those licenses live in a separate plugin repository, under
   their own license, and the engine works without any of them.
-- `ffmpeg` and PostgreSQL are programs the engine runs, not code it contains.
-  They keep their own licenses and you install them yourself.
+- `ffmpeg`, whisper.cpp and PostgreSQL are programs the engine runs, not code
+  it contains. They keep their own licenses and you install them yourself.
 - No model weights, voices, audio or footage are committed. A model's license
   applies to whoever downloads and runs it.
 

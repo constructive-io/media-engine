@@ -10,10 +10,11 @@ lands tested, with nothing in it that breaks [the licensing rule](./LICENSING.md
 | 3 | [Adapter interface](./ADAPTERS.md): a registry, plugin discovery, and the first built-in adapter (`ffmpeg` effects) | Done |
 | 4 | Engine and `me` command line, first part: the database driver, the `ffmpeg` bridge, ingest, lineage, shots, frames and colour signatures | Done |
 | 5 | Object detection on an Apache-2.0 detector (D-FINE through ONNX Runtime), with torchvision as a second choice | Done |
-| 6 | Engine, the rest: transcription, editing, rendering and export | Next |
-| 7 | Audio: the [`.conv`](https://github.com/constructive-io/conv-spec) renderer, with `ffmpeg` as the default effects backend | Planned |
-| 8 | Model list: every supported model, its source, its license | Planned |
-| 9 | Plugin repository for adapters that cannot live here | Planned |
+| 6 | Transcription: speech to sentences and timed words with Whisper through whisper.cpp, and a vocabulary to listen for | Done |
+| 7 | Engine, the rest: speakers, editing, rendering and export | Next |
+| 8 | Audio: the [`.conv`](https://github.com/constructive-io/conv-spec) renderer, with `ffmpeg` as the default effects backend | Planned |
+| 9 | Model list: every supported model, its source, its license | Planned |
+| 10 | Plugin repository for adapters that cannot live here | Planned |
 
 ## Ground rules for every layer
 
