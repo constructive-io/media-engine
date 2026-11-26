@@ -42,6 +42,7 @@ SLOTS: dict[str, str] = {
     "database": "the PostgreSQL driver",
     "transcription": "speech to text, with word timings",
     "detection": "objects and people in a frame",
+    "speaker": "a voice as numbers, alike for one person and apart for two",
     "speech": "text to speech",
     "voice_conversion": "one voice re-spoken in another",
     "image": "image generation",
@@ -210,6 +211,13 @@ def builtins() -> Iterator[Adapter]:
         factory=lazy("constructive_media.detection.torchvision:TorchvisionDetector"),
         license="BSD-3-Clause",
         summary="Objects and people with torchvision's detection models",
+    )
+    yield Adapter(
+        slot="speaker",
+        name="onnx",
+        factory=lazy("constructive_media.speakers.onnx:OnnxSpeaker"),
+        license="MIT",
+        summary="Who is speaking, with CAM++ and other ONNX speaker models, far faster than real time",
     )
     yield Adapter(
         slot="effects",

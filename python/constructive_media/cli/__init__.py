@@ -17,6 +17,7 @@ from ..db import DatabaseError
 from ..ffmpeg import FfmpegError
 from ..models import ModelError
 from ..settings import SettingsError
+from ..speakers import SpeakerError
 from ..takes import TakeError
 from ..transcription import TranscriptionError
 from . import analyze, library, listen, system, takes
@@ -40,7 +41,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         return arguments.run(arguments) or 0
     except (AdapterError, DatabaseError, FfmpegError, ModelError, SettingsError,
-            TakeError, TranscriptionError) as error:
+            SpeakerError, TakeError, TranscriptionError) as error:
         print(f"me: {error}", file=sys.stderr)
         return 1
     except ModuleNotFoundError as error:

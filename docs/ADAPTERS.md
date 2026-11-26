@@ -17,6 +17,7 @@ that does the job.
 | `database` | the PostgreSQL driver | `pg8000` |
 | `transcription` | speech to text, with word timings | `whispercpp` |
 | `detection` | objects and people in a frame | `onnx`, `torchvision` |
+| `speaker` | a voice as numbers, alike for one person and apart for two | `onnx` |
 | `speech` | text to speech | |
 | `voice_conversion` | one voice re-spoken in another | |
 | `image` | image generation | |
@@ -93,6 +94,7 @@ What an adapter must do is set by its slot:
 | `database` | `constructive_media.db.Driver` | `connect(database)` returns a connection whose cursors take `%s` parameters and return tuples |
 | `transcription` | `constructive_media.transcription.Transcriber` | `transcribe(audio, language, prompt)` returns what was said as segments, with a start and an end for every word |
 | `detection` | `constructive_media.detection.Detector` | `detect(images, confidence)` returns the detections for each image, boxes as shares of the frame |
+| `speaker` | `constructive_media.speakers.Embedder` | `embed(sounds)` returns one row of numbers for each stretch of sound, at unit length, close together for one voice |
 | `effects` | `constructive_media.effects.EffectBackend` | `apply(source, target, effects)` writes the audio with the effects applied |
 
 ## Transcription
@@ -184,6 +186,71 @@ measured here:
 | `onnx` | `dfine_s` | 27 on the CPU | 48.5 |
 | `torchvision` | `fasterrcnn_resnet50_fpn_v2` (default) | 9 on the GPU, 1 on the CPU | 46.7 |
 | `torchvision` | `fasterrcnn_mobilenet_v3_large_320_fpn` | 65 on the GPU, 9 on the CPU | 22.8 |
+
+## Speakers
+
+`onnx` runs speaker models through ONNX Runtime. It knows three
+[WeSpeaker](https://github.com/wenet-e2e/wespeaker) models by name and
+downloads the one you choose on first use, checked against a pinned hash. It
+also runs any model of the same shape, one that takes 80-band filterbank
+frames and gives one row per sound: point `CONSTRUCTIVE_MEDIA_MODEL_SPEAKER` at
+a folder holding `model.onnx`.
+
+Measured on the CPU of one Apple silicon desktop, on windows of a second and a
+half:
+
+| Model | File | Speed |
+| --- | --- | --- |
+| `campplus` (default) | 29 MB | 420 times real time |
+| `resnet34` | 27 MB | 165 times |
+| `resnet221_lm` | 95 MB | 36 times |
+
+The adapter only turns sound into numbers. What the engine does with them is
+the same whatever fills the slot:
+
+- **It listens where the transcript says someone spoke**, a second and a half
+  at a time, and groups what it hears. A line goes to the voice most of it
+  sounds like.
+- **Nobody has to say how many people there are.** A group is split while its
+  two halves sound like different people. `me diarize --voices 3` says it
+  outright when you know.
+- **A short "yes" is given to a voice only when it is clearly that voice**, and
+  is otherwise left unknown. A wrong name on a line is worse than none.
+- **When it is unsure whether there are two people or one, it says two.** Two
+  voices that turn out to be one person are put right by giving both the same
+  name. Two people merged into one voice cannot be put right without going
+  over the recording again.
+- **Names are yours to give.** A voice is `voice1` until `me name` says who it
+  is. Going over a recording again keeps its names, and a voice named in one
+  recording is suggested in the next, as a suggestion only.
+
+Measured on real recordings of people talking, checked against voices that had
+been named by hand:
+
+- One recording, an hour and three quarters: gone over in 15 seconds,
+  decoding included. Of what each voice was given, 99.3% belonged to one
+  person. One line in fourteen was left unknown, most of them too short to
+  try, under 0.4 seconds.
+- ECAPA through PyTorch, which this replaced, took 379 seconds on that
+  recording for the model alone where CAM++ takes 8, and agreed with the named voices less often: 94.2%
+  against 99.1%.
+- Five recordings of one event, on good microphones and poor ones: no two
+  people were merged into one voice in any of them, and between 93% and 100% of
+  each voice's time belonged to one person. Where 9, 5, 4, 4 and 5 people could
+  be told apart by hand, it found 12, 6, 5, 6 and 5 voices: someone who speaks
+  at length is now and then found twice.
+- That last default was learned the hard way. Set by one recording on a good
+  microphone, the bar for "two people" merged different people on three of the
+  other four. On a poor microphone the room is in every voice, and two people
+  measured as alike as 0.64 where on a good one they measured 0.47 at most.
+  `--alike` moves the bar.
+- Pieces shorter than a window, cut from the middle of longer speech so the
+  answer was known: at 0.4 seconds, 77% were clear enough to place and 97.6% of
+  those were placed right; at 0.8 seconds, 95% and 99.6%. A real "yes" is
+  harder than a piece cut from a sentence.
+- One person on two microphones measured 0.55 and up; two different people,
+  0.47 at most. That gap is why a name is suggested across recordings, and it
+  comes from one event, which is why it is only suggested.
 
 ## Effects
 

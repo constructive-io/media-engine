@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from .. import runtime
 from ..models import ModelError, Remote, fetch
 from ..settings import Settings
 from . import Detection
@@ -74,11 +75,6 @@ KNOWN: dict[str, Known] = {
     ),
 }
 
-#: The ONNX Runtime provider for each device setting. `auto` and `cpu` run on
-#: the CPU, which is where these models measured fastest on Apple hardware.
-PROVIDERS = {"cuda": "CUDAExecutionProvider", "mps": "CoreMLExecutionProvider"}
-
-
 class OnnxDetector:
     name = "onnx"
 
@@ -115,18 +111,13 @@ class OnnxDetector:
 
     def _load(self) -> Any:
         if self._session is None:
-            import onnxruntime
-
+            runtime.available()
             folder = self.folder()
             labels = json.loads((folder / CONFIG).read_text()).get("id2label")
             if not labels:
                 raise ModelError(f"{folder / CONFIG} names no labels (it has no id2label)")
             self._labels = {int(index): label for index, label in labels.items()}
-            options = onnxruntime.SessionOptions()
-            options.log_severity_level = 3
-            session = onnxruntime.InferenceSession(
-                str(folder / WEIGHTS), options, providers=_providers(self.device, onnxruntime)
-            )
+            session = runtime.session(folder / WEIGHTS, self.device)
             outputs = {output.name for output in session.get_outputs()}
             if not {"logits", "pred_boxes"} <= outputs:
                 raise ModelError(
@@ -184,15 +175,3 @@ def _pixels(path: Path) -> Any:
         square = image.convert("RGB").resize((INPUT_SIZE, INPUT_SIZE), Image.Resampling.BILINEAR)
     return np.asarray(square, dtype=np.float32).transpose(2, 0, 1) / 255.0
 
-
-def _providers(device: str, onnxruntime: Any) -> list[str]:
-    available = onnxruntime.get_available_providers()
-    wanted = PROVIDERS.get(device)
-    if device == "auto" and PROVIDERS["cuda"] in available:
-        wanted = PROVIDERS["cuda"]
-    if wanted and wanted not in available:
-        raise ModelError(
-            f"this ONNX Runtime cannot use {device!r} ({wanted} is not installed); "
-            f"it offers {', '.join(available)}"
-        )
-    return [*([wanted] if wanted else []), "CPUExecutionProvider"]

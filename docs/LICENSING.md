@@ -23,9 +23,9 @@ anything outside the rule or anything that declares no license at all.
 | Package | License | Used for | Installed by |
 | --- | --- | --- | --- |
 | `pg8000` | BSD-3-Clause | The PostgreSQL driver | the core |
-| `numpy` | BSD-3-Clause | Arithmetic on pixels | `[video]` |
+| `numpy` | BSD-3-Clause | Arithmetic on pixels and on sound | `[video]`, `[speakers]` |
 | `pillow` | MIT-CMU | Reading image files | `[detection]` |
-| `onnxruntime` | MIT | Running the default detector | `[detection]` |
+| `onnxruntime` | MIT | Running the default detector and the speaker models | `[detection]`, `[speakers]` |
 | `torch`, `torchvision` | BSD-3-Clause | The second detector | `[torchvision]` |
 | `onnx` | Apache-2.0 | Building a small model in the tests | `[test]` |
 
@@ -68,6 +68,7 @@ licensed ones are named:
 | Silero VAD, which finds where the speech is | MIT | `transcription/whispercpp.py` |
 | D-FINE nano and small, trained on COCO | Apache-2.0 | `detection/onnx.py` |
 | torchvision's detection models, trained on COCO | BSD-3-Clause | chosen by name from torchvision |
+| WeSpeaker's CAM++, ResNet34 and ResNet221, trained on VoxCeleb | Apache-2.0 | `speakers/onnx.py` |
 
 Weights are trained on datasets that carry terms of their own. Whether those
 matter for your use is yours to decide.

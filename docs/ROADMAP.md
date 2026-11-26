@@ -12,10 +12,20 @@ lands tested, with nothing in it that breaks [the licensing rule](./LICENSING.md
 | 5 | Object detection on an Apache-2.0 detector (D-FINE through ONNX Runtime), with torchvision as a second choice | Done |
 | 6 | Transcription: speech to sentences and timed words with Whisper through whisper.cpp, and a vocabulary to listen for | Done |
 | 7 | Takes and sync: recordings of one moment grouped by clock or matched by content, then placed on one timeline by shared words, by sound and by clock, each placing proved against what is said | Done |
-| 8 | Engine, the rest: speakers, editing, rendering and export | Next |
-| 9 | Audio: the [`.conv`](https://github.com/constructive-io/conv-spec) renderer, with `ffmpeg` as the default effects backend | Planned |
-| 10 | Model list: every supported model, its source, its license | Planned |
-| 11 | Plugin repository for adapters that cannot live here | Planned |
+| 8 | Speakers: the voices in a recording told apart by how they sound (CAM++ through ONNX Runtime), each line given to its voice, and voices given names that carry across recordings | Done |
+| 9 | Engine, the rest: editing, rendering and export | Next |
+| 10 | Audio: the [`.conv`](https://github.com/constructive-io/conv-spec) renderer, with `ffmpeg` as the default effects backend | Planned |
+| 11 | Model list: every supported model, its source, its license | Planned |
+| 12 | Plugin repository for adapters that cannot live here | Planned |
+
+## Left for later, and why
+
+- **Telling voices apart by pitch.** It was the first way tried and the voice
+  model replaced it: two people of similar pitch are one voice to it. The
+  `median_f0` column stays for anything that wants to record a pitch.
+- **Saying who spoke from whose microphone was loudest.** It needs to know
+  who wore which microphone, and it belongs with the audio layer, where the
+  microphones of a take are mixed. It comes in with that layer.
 
 ## Ground rules for every layer
 

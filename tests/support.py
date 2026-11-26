@@ -143,3 +143,74 @@ def write_transcript(asset_id, words) -> None:
              FROM jsonb_to_recordset(%s) AS w(idx integer, start_s double precision, word text)""",
         (segment, db.jsonb([{"idx": n, "start_s": when, "word": word} for n, (word, when) in enumerate(words)])),
     )
+
+
+#: Made-up voices: each "speaks" one wavering note, in hertz.
+NOTES = {"ada": 220.0, "ben": 660.0, "cy": 1980.0}
+
+
+def spoken(who: str, seconds: float, rate: int = 16000):
+    """A stretch of one made-up voice, as samples from -1 to 1.
+
+    The note wavers four times a second, as no steady tone does and every
+    voice does: a sound that never changes has nothing in it to tell apart.
+    """
+    import numpy as np
+
+    time = np.arange(round(seconds * rate)) / rate
+    waver = 0.15 * NOTES[who] / 4 * np.sin(2 * np.pi * 4 * time)
+    return (0.5 * np.sin(2 * np.pi * NOTES[who] * time + waver)).astype(np.float32)
+
+
+def make_voices(path: Path, lines, rate: int = 16000) -> list[tuple[float, float]]:
+    """Write a recording of `(who, seconds)` lines and return when each is spoken.
+
+    The lines follow one another with half a second of quiet between them.
+    `who` may be a tuple of voices, speaking one after the other in the line.
+    """
+    import wave
+
+    import numpy as np
+
+    sound, spans, now = [], [], 0.0
+    for who, seconds in lines:
+        people = who if isinstance(who, tuple) else (who,)
+        line = np.concatenate([spoken(person, seconds / len(people), rate) for person in people])
+        sound += [line, np.zeros(rate // 2, dtype=np.float32)]
+        spans.append((round(now, 3), round(now + len(line) / rate, 3)))
+        now += len(line) / rate + 0.5
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with wave.open(str(path), "wb") as file:
+        file.setnchannels(1)
+        file.setsampwidth(2)
+        file.setframerate(rate)
+        file.writeframes((np.concatenate(sound) * 32767).astype("<i2").tobytes())
+    return spans
+
+
+class ByNote:
+    """A stand-in embedder: where in the spectrum a sound's energy lies.
+
+    It tells the made-up voices apart as a real model tells people apart, and
+    counts what it is asked.
+    """
+
+    name = "by-note"
+    model = "by-note-1"
+    EDGES = (0, 400, 1200, 4000, 8000)
+
+    def __init__(self):
+        self.asked = 0
+
+    def embed(self, sounds):
+        import numpy as np
+
+        rows = []
+        for sound in sounds:
+            self.asked += 1
+            power = np.abs(np.fft.rfft(sound)) ** 2
+            hertz = np.fft.rfftfreq(len(sound), 1 / 16000)
+            row = np.array([power[(hertz >= low) & (hertz < high)].sum()
+                            for low, high in zip(self.EDGES, self.EDGES[1:])]) ** 0.5
+            rows.append(row / max(np.linalg.norm(row), 1e-12))
+        return np.stack(rows).astype(np.float32)

@@ -9,7 +9,15 @@ from unittest import mock
 from constructive_media import __version__, cli
 from constructive_media.transcription import Segment, Word
 
-from .support import HAVE_FFMPEG, HAVE_NUMPY, TEST_DATABASE_VARIABLE, DatabaseTest, make_video
+from .support import (
+    HAVE_FFMPEG,
+    HAVE_NUMPY,
+    TEST_DATABASE_VARIABLE,
+    ByNote,
+    DatabaseTest,
+    make_video,
+    make_voices,
+)
 
 
 def run(*arguments):
@@ -28,8 +36,8 @@ class CommandLineTest(unittest.TestCase):
         status, out, _ = run("--help")
         self.assertEqual(status, 0)
         for command in ("ingest", "lineage", "shots", "frames", "signatures", "detect",
-                        "transcribe", "vocabulary", "group", "match", "sync", "takes", "status",
-                        "adapters"):
+                        "transcribe", "vocabulary", "diarize", "speakers", "name", "group", "match", "sync",
+                        "takes", "status", "adapters"):
             self.assertIn(command, out)
 
     def test_version(self):
@@ -191,6 +199,78 @@ class ListeningCommandsTest(DatabaseTest):
         status, out, _ = run("status")
         self.assertRegex(out, r"segments +\d+")
         self.assertRegex(out, r"words +\d+")
+
+
+@unittest.skipUnless(HAVE_FFMPEG and HAVE_NUMPY, "ffmpeg and numpy are needed")
+class SpeakerCommandsTest(DatabaseTest):
+    @classmethod
+    def setUpClass(cls):
+        folder = tempfile.TemporaryDirectory()
+        cls.addClassCleanup(folder.cleanup)
+        cls.root = Path(folder.name).resolve()
+        cls.spans = make_voices(cls.root / "meeting.wav", [("ada", 30.0), ("ben", 20.0), ("ada", 0.2)])
+
+    def setUp(self):
+        super().setUp()
+        environment = mock.patch.dict(os.environ, {
+            "CONSTRUCTIVE_MEDIA_HOME": str(self.root / "home"),
+            "CONSTRUCTIVE_MEDIA_DATABASE_URL": os.environ[TEST_DATABASE_VARIABLE],
+        })
+        environment.start()
+        self.addCleanup(environment.stop)
+        ((self.asset,),) = self.query(
+            """INSERT INTO media.assets (medium, path, content_hash, has_audio)
+               VALUES ('audio', %s, 'made-up-meeting', true) RETURNING id""", (str(self.root / "meeting.wav"),))
+        for index, (start, end) in enumerate(self.spans):
+            self.query("""INSERT INTO media_video.segments (asset_id, idx, start_s, end_s, text)
+                          VALUES (%s, %s, %s, %s, 'made-up words') RETURNING id""", (self.asset, index, start, end))
+
+    def test_voices_are_found_listened_to_and_named(self):
+        cards = self.root / "home" / "work" / "speakers" / str(self.asset)[:8]
+        with mock.patch("constructive_media.speakers.embedder", return_value=ByNote()) as chosen:
+            status, out, _ = run("diarize", "--match", "meeting", "--adapter", "by-note")
+            again = run("diarize")[1]
+        chosen.assert_any_call("by-note")
+        self.assertEqual(status, 0)
+        self.assertEqual(out, (
+            "  meeting.wav\n"
+            "    voice1       1 segments    0:30\n"
+            f"             listen: {cards / 'voice1.wav'}\n"
+            "    voice2       1 segments    0:20\n"
+            f"             listen: {cards / 'voice2.wav'}\n"
+            "    1 segments left unknown: too short or too unclear to tell\n"
+            "1 recordings gone over with by-note (by-note-1): 2 voices\n"
+        ))
+        self.assertEqual(again, "0 recordings gone over with by-note (by-note-1): 0 voices\n")
+        self.assertTrue((cards / "voice2.wav").is_file())
+
+        self.assertEqual(run("name", "meeting", "voice1", "Ada Example"),
+                         (1, "", "me: nobody is called 'Ada Example' yet; add --new to add them\n"))
+        self.assertEqual(run("name", "meeting", "voice1", "Ada Example", "--new")[:2],
+                         (0, "voice1 in meeting.wav is Ada Example: 1 segments\n"))
+        self.assertEqual(run("name", "meeting", "voice1")[0], 2)
+        self.assertEqual(run("name", "meeting", "voice1", "Ada Example", "--clear")[0], 2)
+
+        status, out, _ = run("speakers", "meeting")
+        self.assertEqual(status, 0)
+        self.assertEqual(out, (
+            "  meeting.wav\n"
+            "    voice1       1 segments    0:30  Ada Example\n"
+            "    voice2       1 segments    0:20\n"
+            f"             listen: {cards / 'voice2.wav'}\n"
+            "    1 segments unknown\n"
+            "1 recordings, 1 voices without a name\n"
+        ))
+        self.assertEqual(run("name", "meeting", "voice1", "--clear")[:2],
+                         (0, "voice1 in meeting.wav has no name: 1 segments\n"))
+        self.assertEqual(run("speakers", "no-such-recording")[1], "0 recordings, 0 voices without a name\n")
+
+    def test_the_number_of_voices_and_how_alike_they_may_be_are_passed_on(self):
+        with mock.patch("constructive_media.speakers.embedder", return_value=ByNote()), \
+                mock.patch("constructive_media.speakers.voices.find", return_value=[]) as find:
+            run("diarize", "--voices", "2", "--alike", "0.6", "--force", "--no-cards")
+        (match,), options = find.call_args
+        self.assertEqual((match, options["voices"], options["alike"], options["force"]), (None, 2, 0.6, True))
 
 
 if __name__ == "__main__":

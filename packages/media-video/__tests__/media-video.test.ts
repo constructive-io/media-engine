@@ -67,3 +67,45 @@ describe('media_video.vocabulary', () => {
     expect(rows[0].n).toBe(0);
   });
 });
+
+describe('media_video.speaker_clusters', () => {
+  it('keeps what a voice sounds like, and how it was found', async () => {
+    const assetId = await asset();
+    const { rows } = await pg.query(
+      `INSERT INTO media_video.speaker_clusters
+         (asset_id, label, method, model, centroid, cohesion, n_windows, speech_s)
+       VALUES ($1, 'voice1', 'voice-embedding', 'example-model', '{0.6,0.8}', 0.74, 40, 61.5)
+       RETURNING centroid, cohesion, n_windows, speech_s`,
+      [assetId]
+    );
+    expect(rows[0]).toEqual({ centroid: [0.6, 0.8], cohesion: 0.74, n_windows: 40, speech_s: 61.5 });
+  });
+
+  it('asks how a voice was found instead of assuming', async () => {
+    const assetId = await asset();
+    await expect(
+      pg.query(`INSERT INTO media_video.speaker_clusters (asset_id, label) VALUES ($1, 'voice1')`, [assetId])
+    ).rejects.toThrow(/method/);
+  });
+
+  it('gives a segment the name its voice was given', async () => {
+    const assetId = await asset();
+    const persona = await pg.query(
+      `INSERT INTO media.personas (slug, name) VALUES ('ada-example', 'Ada Example') RETURNING id`
+    );
+    const voice = await pg.query(
+      `INSERT INTO media_video.speaker_clusters (asset_id, label, method)
+       VALUES ($1, 'voice1', 'voice-embedding') RETURNING id`,
+      [assetId]
+    );
+    await pg.query(
+      `INSERT INTO media_video.segments (asset_id, idx, start_s, end_s, text, cluster_id)
+       VALUES ($1, 0, 0, 2, 'made-up words', $2)`,
+      [assetId, voice.rows[0].id]
+    );
+    const who = () => pg.query(`SELECT who FROM media_video.v_dialogue WHERE asset_id = $1`, [assetId]);
+    expect((await who()).rows[0].who).toBe('voice1');
+    await pg.query(`UPDATE media_video.speaker_clusters SET persona_id = $1`, [persona.rows[0].id]);
+    expect((await who()).rows[0].who).toBe('Ada Example');
+  });
+});

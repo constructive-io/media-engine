@@ -39,3 +39,4 @@ schemas/media_video/tables/generations_medium [schemas/media_video/tables/genera
 schemas/media_video/indexes/foreign_keys [schemas/media_video/tables/generations_medium] 2017-08-11T08:11:51Z constructive <constructive@5b0c196eeb62> # foreign keys are indexed
 schemas/media_video/indexes/redundant [schemas/media_video/indexes/foreign_keys] 2017-08-11T08:11:51Z constructive <constructive@5b0c196eeb62> # drop indexes a unique key already covers
 schemas/media_video/indexes/embeddings [schemas/media_video/indexes/redundant] 2017-08-11T08:11:51Z constructive <constructive@5b0c196eeb62> # nearest-neighbour search over embeddings
+schemas/media_video/tables/voice_clusters [schemas/media_video/tables/transcript] 2026-11-25T18:00:00Z constructive <constructive@5b0c196eeb62> # a voice is found by what it sounds like

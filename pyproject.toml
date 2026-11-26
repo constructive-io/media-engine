@@ -21,7 +21,8 @@ dependencies = ["pg8000>=1.31"]
 video = ["numpy>=1.26"]
 detection = ["numpy>=1.26", "pillow>=10", "onnxruntime>=1.17"]
 torchvision = ["numpy>=1.26", "pillow>=10", "torch>=2.4", "torchvision>=0.19"]
-all = ["constructive-media[video,detection,torchvision]"]
+speakers = ["numpy>=1.26", "onnxruntime>=1.17"]
+all = ["constructive-media[video,detection,torchvision,speakers]"]
 # What the tests use beyond the above: `onnx` builds a model small enough to test with.
 test = ["onnx>=1.16"]
 
