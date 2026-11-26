@@ -7,8 +7,10 @@ those packages bring with them must not be copyleft. See docs/LICENSING.md.
 import re
 import tomllib
 import unittest
+from email.message import Message
 from importlib import metadata
 from pathlib import Path
+from types import SimpleNamespace
 
 PROJECT = Path(__file__).resolve().parent.parent / "pyproject.toml"
 
@@ -38,7 +40,16 @@ def declared(distribution: metadata.Distribution) -> str:
                    if line.startswith("License ::")]
     # Older packages put the whole license text in this field; its first line names it.
     text = (found.get("License") or "").strip().splitlines()[:1]
-    return "; ".join([*classifiers, *text])
+    if classifiers or text:
+        return "; ".join([*classifiers, *text])
+    # Some declare nothing and only ship the license itself; its opening names it.
+    return "; ".join(opening(distribution, name) for name in found.get_all("License-File") or ())
+
+
+def opening(distribution: metadata.Distribution, name: str) -> str:
+    """The first lines of a license file a package ships."""
+    text = distribution.read_text(f"licenses/{name}") or distribution.read_text(name) or ""
+    return " ".join([line.strip() for line in text.splitlines() if line.strip()][:3])
 
 
 def direct() -> dict[str, list[str]]:
@@ -99,6 +110,18 @@ class LicenseTest(unittest.TestCase):
                 license = declared(distribution)
                 self.assertTrue(license, f"{name} declares no license; read it and decide")
                 self.assertNotRegex(license, COPYLEFT)
+
+    def test_a_license_shipped_only_as_a_file_is_read(self):
+        def package(text):
+            found = Message()
+            found["License-File"] = "LICENSE"
+            return SimpleNamespace(metadata=found, read_text={"licenses/LICENSE": text}.get)
+
+        permissive = declared(package("\nPermission is hereby granted, free of charge, to any person\n"))
+        self.assertIn("Permission is hereby granted", permissive)
+        self.assertNotRegex(permissive, COPYLEFT)
+        self.assertRegex(declared(package("GNU GENERAL PUBLIC LICENSE\nVersion 3, 29 June 2007\n")), COPYLEFT)
+        self.assertEqual(declared(SimpleNamespace(metadata=Message(), read_text={}.get)), "")
 
     def test_the_markers_catch_what_they_should(self):
         for license in ("GPL-3.0-only", "LGPL-2.1-or-later", "AGPL-3.0", "MPL-2.0",

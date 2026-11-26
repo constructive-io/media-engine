@@ -202,6 +202,8 @@ jobs:
   python:
     name: Python ${{ matrix.python }}
     runs-on: ubuntu-latest
+    # A stalled download should fail the job, not hold it for hours.
+    timeout-minutes: 20
 
     strategy:
       fail-fast: false
