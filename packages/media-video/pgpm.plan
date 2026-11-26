@@ -1,0 +1,41 @@
+%syntax-version=1.0.0
+%project=media-video
+%uri=media-video
+
+schemas/media_video 2026-08-14T12:00:00Z constructive <constructive@5b0c196eeb62> # the media_video schema
+schemas/media_video/tables/shots [schemas/media_video] 2026-08-14T12:00:00Z constructive <constructive@5b0c196eeb62> # detected shots
+schemas/media_video/tables/frames [schemas/media_video/tables/shots] 2026-08-14T12:00:00Z constructive <constructive@5b0c196eeb62> # sampled frames and cv scores
+schemas/media_video/tables/signatures [schemas/media_video/tables/shots] 2026-08-14T12:00:00Z constructive <constructive@5b0c196eeb62> # colour and motion signature
+schemas/media_video/tables/detections [schemas/media_video/tables/frames] 2026-08-14T12:00:00Z constructive <constructive@5b0c196eeb62> # object boxes
+schemas/media_video/tables/transcript [schemas/media_video] 2026-08-14T12:00:00Z constructive <constructive@5b0c196eeb62> # segments, words, voice clusters
+schemas/media_video/tables/timelines [schemas/media_video/tables/shots schemas/media_video/tables/transcript] 2026-08-14T12:00:00Z constructive <constructive@5b0c196eeb62> # the edit as data
+schemas/media_video/tables/decisions [schemas/media_video/tables/timelines] 2026-08-14T12:00:00Z constructive <constructive@5b0c196eeb62> # the training set
+schemas/media_video/tables/audio_energy [schemas/media_video/tables/shots] 2026-08-14T12:00:00Z constructive <constructive@5b0c196eeb62> # crowd reaction as an interest signal
+schemas/media_video/tables/coordination [schemas/media_video/tables/shots] 2026-08-14T15:00:00Z constructive <constructive@5b0c196eeb62> # can you see the person causing the lasers to move
+schemas/media_video/views/shot_features [schemas/media_video/tables/decisions] 2026-08-14T14:00:00Z constructive <constructive@5b0c196eeb62> # the training set, as a view
+schemas/media_video/views/shot_features_coord [schemas/media_video/tables/coordination schemas/media_video/views/shot_features] 2026-08-14T16:00:00Z constructive <constructive@5b0c196eeb62> # coordination as a ranker feature
+schemas/media_video/tables/coordination_window [schemas/media_video/tables/coordination] 2026-08-14T17:00:00Z constructive <constructive@5b0c196eeb62> # where the coordination actually happens
+schemas/media_video/tables/recipes [schemas/media_video/tables/coordination] 2026-08-14T18:00:00Z constructive <constructive@5b0c196eeb62> # named selection strategies and per-domain models
+schemas/media_video/tables/passages [schemas/media_video/tables/transcript schemas/media_video/tables/recipes] 2026-08-14T19:00:00Z constructive <constructive@5b0c196eeb62> # the unit an interview is judged in
+schemas/media_video/tables/variants [schemas/media_video/tables/passages] 2026-08-14T21:00:00Z constructive <constructive@5b0c196eeb62> # regenerate, react, regenerate
+schemas/media_video/views/shot_content [schemas/media_video/tables/variants] 2026-08-14T23:00:00Z constructive <constructive@5b0c196eeb62> # is it safe to lay this over other audio
+schemas/media_video/tables/styles [schemas/media_video/views/shot_content] 2026-08-15T00:00:00Z constructive <constructive@5b0c196eeb62> # the kind of edit this is
+schemas/media_video/tables/passage_quality [schemas/media_video/tables/styles] 2026-08-15T01:00:00Z constructive <constructive@5b0c196eeb62> # is it worth listening to
+schemas/media_video/tables/vocabulary [schemas/media_video/tables/passage_quality] 2026-08-15T02:00:00Z constructive <constructive@5b0c196eeb62> # words a general model will not guess
+schemas/media_video/tables/passages_unique [schemas/media_video/tables/vocabulary] 2026-08-15T03:00:00Z constructive <constructive@5b0c196eeb62> # one passage per span
+schemas/media_video/tables/scores [schemas/media_video/tables/passages_unique] 2026-08-15T04:00:00Z constructive <constructive@5b0c196eeb62> # one ledger for every judgement
+schemas/media_video/tables/embeddings [schemas/media_video/tables/scores] 2026-08-15T05:00:00Z constructive <constructive@5b0c196eeb62> # ask the footage a question in words
+schemas/media_video/tables/corrections [schemas/media_video/tables/embeddings] 2026-08-15T06:00:00Z constructive <constructive@5b0c196eeb62> # corrections are a layer, never an overwrite
+schemas/media_video/tables/asr_model [schemas/media_video/tables/corrections] 2026-08-15T07:00:00Z constructive <constructive@5b0c196eeb62> # which recogniser produced this
+schemas/media_video/tables/audio_quality [schemas/media_video/tables/asr_model] 2026-08-15T08:00:00Z constructive <constructive@5b0c196eeb62> # how good does this actually sound
+schemas/media_video/tables/scores_integrity [schemas/media_video/tables/audio_quality] 2026-08-15T09:00:00Z constructive <constructive@5b0c196eeb62> # scores must not outlive what they describe
+schemas/media_video/tables/flags [schemas/media_video/tables/scores_integrity] 2026-08-15T10:00:00Z constructive <constructive@5b0c196eeb62> # suggested cuts, as data
+schemas/media_video/tables/flags_integrity [schemas/media_video/tables/flags] 2026-08-15T11:00:00Z constructive <constructive@5b0c196eeb62> # flags must not outlive what they describe
+schemas/media_video/views/timeline_geometry [schemas/media_video/tables/timelines media-core:schemas/media/tables/geometry] 2026-11-02T04:00:00Z constructive <constructive@5b0c196eeb62> # moved from media-core: the spine never references the domains
+schemas/media_video/tables/canvas [schemas/media_video/tables/flags_integrity schemas/media_video/views/timeline_geometry] 2026-08-15T13:00:00Z constructive <constructive@5b0c196eeb62> # a timeline knows its own shape
+schemas/media_video/tables/laughter [schemas/media_video/tables/canvas] 2026-08-15T14:00:00Z constructive <constructive@5b0c196eeb62> # where people laughed
+schemas/media_video/tables/generations [schemas/media_video/tables/laughter] 2026-08-16T02:00:00Z constructive <constructive@5b0c196eeb62> # video that was generated, not filmed
+schemas/media_video/tables/generations_medium [schemas/media_video/tables/generations] 2026-08-16T03:00:00Z constructive <constructive@5b0c196eeb62> # generations are not only video
+schemas/media_video/indexes/foreign_keys [schemas/media_video/tables/generations_medium] 2017-08-11T08:11:51Z constructive <constructive@5b0c196eeb62> # foreign keys are indexed
+schemas/media_video/indexes/redundant [schemas/media_video/indexes/foreign_keys] 2017-08-11T08:11:51Z constructive <constructive@5b0c196eeb62> # drop indexes a unique key already covers
+schemas/media_video/indexes/embeddings [schemas/media_video/indexes/redundant] 2017-08-11T08:11:51Z constructive <constructive@5b0c196eeb62> # nearest-neighbour search over embeddings

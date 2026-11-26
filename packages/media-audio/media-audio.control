@@ -1,0 +1,7 @@
+# media-audio extension
+comment = 'Speech synthesis: emotions, text models, renders and human review'
+default_version = '0.0.1'
+module_pathname = '$libdir/media-audio'
+requires = 'plpgsql,media-core'
+relocatable = false
+superuser = false

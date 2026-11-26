@@ -1,0 +1,34 @@
+{
+  "name": "media-video",
+  "version": "0.0.1",
+  "author": "Dan Lynch <pyramation@gmail.com>",
+  "description": "Shots, frames, transcripts, timelines and the editing decisions made about them",
+  "homepage": "https://github.com/constructive-io/constructive-media",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "restricted",
+    "directory": "dist"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/constructive-io/constructive-media"
+  },
+  "bugs": {
+    "url": "https://github.com/constructive-io/constructive-media/issues"
+  },
+  "scripts": {
+    "lint": "eslint . --fix",
+    "test": "jest",
+    "test:watch": "jest --watchAll"
+  },
+  "keywords": [
+    "postgres",
+    "pgpm",
+    "media",
+    "video"
+  ],
+  "devDependencies": {
+    "pgsql-test": "^5.9.7",
+    "makage": "^0.5.1"
+  }
+}

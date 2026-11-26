@@ -1,0 +1,10 @@
+%syntax-version=1.0.0
+%project=media-audio
+%uri=media-audio
+
+schemas/media_audio 2026-08-14T12:00:00Z constructive <constructive@5b0c196eeb62> # the media_audio schema
+schemas/media_audio/tables/emotions [schemas/media_audio] 2026-08-14T12:00:00Z constructive <constructive@5b0c196eeb62> # delivery vocabulary
+schemas/media_audio/tables/text_models [schemas/media_audio] 2026-08-14T12:00:00Z constructive <constructive@5b0c196eeb62> # per-persona text models
+schemas/media_audio/tables/renders [schemas/media_audio/tables/emotions] 2026-08-14T12:00:00Z constructive <constructive@5b0c196eeb62> # generated audio
+schemas/media_audio/tables/review [schemas/media_audio/tables/renders] 2026-08-14T12:00:00Z constructive <constructive@5b0c196eeb62> # human judgement on renders
+schemas/media_audio/indexes/foreign_keys [schemas/media_audio/tables/review] 2017-08-11T08:11:51Z constructive <constructive@5b0c196eeb62> # foreign keys are indexed

@@ -1,0 +1,269 @@
+{
+  "version": 1,
+  "findings": [
+    {
+      "code": "X8",
+      "schema": "media_audio",
+      "table": "renders",
+      "subject": "created_at"
+    },
+    {
+      "code": "X8",
+      "schema": "media_audio",
+      "table": "review_queue",
+      "subject": "created_at"
+    },
+    {
+      "code": "X8",
+      "schema": "media_audio",
+      "table": "review_queue",
+      "subject": "reviewed_at"
+    },
+    {
+      "code": "X8",
+      "schema": "media_audio",
+      "table": "text_models",
+      "subject": "created_at"
+    },
+    {
+      "code": "X8",
+      "schema": "media_video",
+      "table": "audio_quality",
+      "subject": "computed_at"
+    },
+    {
+      "code": "X8",
+      "schema": "media_video",
+      "table": "clip_notes",
+      "subject": "created_at"
+    },
+    {
+      "code": "X8",
+      "schema": "media_video",
+      "table": "coordination",
+      "subject": "computed_at"
+    },
+    {
+      "code": "X8",
+      "schema": "media_video",
+      "table": "corrections",
+      "subject": "applied_at"
+    },
+    {
+      "code": "X8",
+      "schema": "media_video",
+      "table": "decisions",
+      "subject": "decided_at"
+    },
+    {
+      "code": "X8",
+      "schema": "media_video",
+      "table": "detections",
+      "subject": "created_at"
+    },
+    {
+      "code": "X8",
+      "schema": "media_video",
+      "table": "exclusions",
+      "subject": "created_at"
+    },
+    {
+      "code": "X8",
+      "schema": "media_video",
+      "table": "flags",
+      "subject": "created_at"
+    },
+    {
+      "code": "X8",
+      "schema": "media_video",
+      "table": "flags",
+      "subject": "decided_at"
+    },
+    {
+      "code": "X8",
+      "schema": "media_video",
+      "table": "frames",
+      "subject": "created_at"
+    },
+    {
+      "code": "X8",
+      "schema": "media_video",
+      "table": "generations",
+      "subject": "created_at"
+    },
+    {
+      "code": "X8",
+      "schema": "media_video",
+      "table": "generations",
+      "subject": "updated_at"
+    },
+    {
+      "code": "X8",
+      "schema": "media_video",
+      "table": "laughter",
+      "subject": "detected_at"
+    },
+    {
+      "code": "X8",
+      "schema": "media_video",
+      "table": "models",
+      "subject": "trained_at"
+    },
+    {
+      "code": "X8",
+      "schema": "media_video",
+      "table": "passage_embeddings",
+      "subject": "computed_at"
+    },
+    {
+      "code": "X8",
+      "schema": "media_video",
+      "table": "passage_quality",
+      "subject": "computed_at"
+    },
+    {
+      "code": "X8",
+      "schema": "media_video",
+      "table": "passages",
+      "subject": "created_at"
+    },
+    {
+      "code": "X8",
+      "schema": "media_video",
+      "table": "render_geometry",
+      "subject": "rendered_at"
+    },
+    {
+      "code": "X8",
+      "schema": "media_video",
+      "table": "score_recipes",
+      "subject": "created_at"
+    },
+    {
+      "code": "X8",
+      "schema": "media_video",
+      "table": "scores",
+      "subject": "computed_at"
+    },
+    {
+      "code": "X8",
+      "schema": "media_video",
+      "table": "segments",
+      "subject": "created_at"
+    },
+    {
+      "code": "X8",
+      "schema": "media_video",
+      "table": "selectors",
+      "subject": "created_at"
+    },
+    {
+      "code": "X8",
+      "schema": "media_video",
+      "table": "selectors",
+      "subject": "updated_at"
+    },
+    {
+      "code": "X8",
+      "schema": "media_video",
+      "table": "shots",
+      "subject": "created_at"
+    },
+    {
+      "code": "X8",
+      "schema": "media_video",
+      "table": "signatures",
+      "subject": "computed_at"
+    },
+    {
+      "code": "X8",
+      "schema": "media_video",
+      "table": "speaker_clusters",
+      "subject": "created_at"
+    },
+    {
+      "code": "X8",
+      "schema": "media_video",
+      "table": "styles",
+      "subject": "created_at"
+    },
+    {
+      "code": "X8",
+      "schema": "media_video",
+      "table": "timelines",
+      "subject": "created_at"
+    },
+    {
+      "code": "X8",
+      "schema": "media_video",
+      "table": "timelines",
+      "subject": "run_at"
+    },
+    {
+      "code": "X8",
+      "schema": "media_video",
+      "table": "vocabulary",
+      "subject": "added_at"
+    },
+    {
+      "code": "X8",
+      "schema": "media",
+      "table": "assets",
+      "subject": "ingested_at"
+    },
+    {
+      "code": "X8",
+      "schema": "media",
+      "table": "derivations",
+      "subject": "created_at"
+    },
+    {
+      "code": "X8",
+      "schema": "media",
+      "table": "episodes",
+      "subject": "created_at"
+    },
+    {
+      "code": "X8",
+      "schema": "media",
+      "table": "episodes",
+      "subject": "updated_at"
+    },
+    {
+      "code": "X8",
+      "schema": "media",
+      "table": "personas",
+      "subject": "created_at"
+    },
+    {
+      "code": "X8",
+      "schema": "media",
+      "table": "personas",
+      "subject": "updated_at"
+    },
+    {
+      "code": "X8",
+      "schema": "media",
+      "table": "takes",
+      "subject": "created_at"
+    },
+    {
+      "code": "X8",
+      "schema": "media",
+      "table": "takes",
+      "subject": "started_at"
+    },
+    {
+      "code": "X8",
+      "schema": "media",
+      "table": "voices",
+      "subject": "created_at"
+    },
+    {
+      "code": "X8",
+      "schema": "media",
+      "table": "voices",
+      "subject": "updated_at"
+    }
+  ]
+}

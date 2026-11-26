@@ -1,0 +1,7 @@
+# media-video extension
+comment = 'Shots, frames, transcripts, timelines and the editing decisions made about them'
+default_version = '0.0.1'
+module_pathname = '$libdir/media-video'
+requires = 'vector,plpgsql,media-core'
+relocatable = false
+superuser = false

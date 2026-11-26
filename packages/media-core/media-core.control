@@ -1,0 +1,7 @@
+# media-core extension
+comment = 'The shared spine: personas, assets and voices that every medium is about'
+default_version = '0.0.1'
+module_pathname = '$libdir/media-core'
+requires = 'vector,plpgsql'
+relocatable = false
+superuser = false
