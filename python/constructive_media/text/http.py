@@ -29,75 +29,17 @@ model, the prompt and that the answer is to come whole.
 
 from __future__ import annotations
 
-import json
 import math
-import urllib.error
-import urllib.request
 from collections.abc import Sequence
 from typing import Any
-from urllib.parse import urlsplit
 
-from ..settings import ENV_PREFIX, Settings
+from ..servers import Server
 from . import TextError
 
-TIMEOUT_S = 180.0
-#: An example of where a server usually is, for the message that asks for one.
-EXAMPLE = "http://localhost:8080/v1"
 
-
-class _Server:
-    slot = ""
-    #: What kind of model it is, in words, and the request it answers.
-    serves = ""
-    path = ""
-
-    def __init__(
-        self, model: str | None = None, url: str | None = None, key: str | None = None, *,
-        settings: Settings | None = None, timeout_s: float = TIMEOUT_S,
-    ) -> None:
-        settings = settings or Settings.from_env()
-        variable = ENV_PREFIX + "{}_" + self.slot.upper()
-        self.url = (url or settings.url(self.slot) or "").rstrip("/")
-        if not self.url:
-            raise TextError(f"nothing says where the {self.serves} model is. Set {variable.format('URL')} to a "
-                            f"server that speaks the {self.path} API, such as {EXAMPLE}")
-        if urlsplit(self.url).scheme not in ("http", "https") or not urlsplit(self.url).netloc:
-            raise TextError(f"{variable.format('URL')} must be an http or https address, such as {EXAMPLE}")
-        self.model = model or settings.model(self.slot) or ""
-        if not self.model:
-            raise TextError(f"nothing says which {self.serves} model to ask for. Set {variable.format('MODEL')} "
-                            "to the name the server knows it by")
-        self.name = "http"
-        self.timeout_s = timeout_s
-        self._key = key or settings.key(self.slot)
-        try:
-            self.extra = json.loads(settings.extra(self.slot) or "{}")
-        except ValueError:
-            self.extra = None
-        if not isinstance(self.extra, dict):
-            raise TextError(f"{variable.format('EXTRA')} must be a JSON object, such as "
-                            '{"reasoning_effort": "none"}')
-        self._extra_variable = variable.format("EXTRA")
-
-    def _ask(self, body: dict[str, Any]) -> Any:
-        headers = {"Content-Type": "application/json"}
-        if self._key:
-            headers["Authorization"] = f"Bearer {self._key}"
-        request = urllib.request.Request(  # noqa: S310 - the scheme was checked when this was made
-            f"{self.url}/{self.path}", data=json.dumps(body).encode(), headers=headers)
-        try:
-            with urllib.request.urlopen(request, timeout=self.timeout_s) as answer:  # noqa: S310
-                return json.loads(answer.read())
-        except urllib.error.HTTPError as error:
-            with error:
-                said = " ".join(error.read(600).decode("utf-8", "replace").split())[:300]
-            raise TextError(f"the {self.serves} model at {self.url} refused with {error.code}"
-                            + (f": {said}" if said else "")) from None
-        except (urllib.error.URLError, TimeoutError, OSError) as error:
-            raise TextError(f"the {self.serves} model at {self.url} did not answer: "
-                            f"{getattr(error, 'reason', None) or error}") from None
-        except ValueError:
-            raise TextError(f"the {self.serves} model at {self.url} answered with something that is not JSON") from None
+class _Server(Server):
+    error = TextError
+    extra_example = '{"reasoning_effort": "none"}'
 
 
 class ChatServer(_Server):

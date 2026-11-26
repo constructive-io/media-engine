@@ -246,3 +246,110 @@ class ByNote:
                             for low, high in zip(self.EDGES, self.EDGES[1:])]) ** 0.5
             rows.append(row / max(np.linalg.norm(row), 1e-12))
         return np.stack(rows).astype(np.float32)
+
+
+def voiced(seconds: float, rate: int = 16_000, seed: int = 1):
+    """A made-up voice: a note that wanders, with overtones, louder and quieter three times a second."""
+    import numpy as np
+
+    chance = np.random.default_rng(seed)
+    time = np.arange(int(seconds * rate)) / rate
+    pitch = 120 + 40 * np.sin(2 * np.pi * 0.7 * time + seed) + np.cumsum(chance.standard_normal(len(time))) * 0.05
+    sound = sum(np.sin(2 * np.pi * np.cumsum(pitch * n) / rate) / n for n in range(1, 6))
+    sound = sound * (0.3 + 0.2 * np.sin(2 * np.pi * 3 * time))
+    return (0.2 * sound + 0.01 * chance.standard_normal(len(time))).astype(np.float32)
+
+
+def syllables(seconds: float, rate: int = 24_000, seed: int = 1):
+    """Made-up talk: one syllable after another, each a note that glides, no two alike.
+
+    A steady note is the same a moment later, which is what a stutter sounds
+    like. Talk is not: its pitch is always on the way somewhere.
+    """
+    import numpy as np
+
+    chance = np.random.default_rng(seed)
+    sound = np.zeros(int(seconds * rate), dtype=np.float32)
+    at = 0
+    while at < len(sound):
+        length = int(chance.uniform(0.18, 0.32) * rate)
+        time = np.arange(length) / rate
+        pitch = chance.uniform(100, 200) + chance.choice((-1, 1)) * chance.uniform(200, 380) * time
+        weights = chance.uniform(0.2, 1.0, 5)
+        note = sum(w * np.sin(2 * np.pi * np.cumsum(np.maximum(pitch, 40) * n) / rate + chance.uniform(0, 6.28)) / n
+                   for n, w in enumerate(weights, 1))
+        note = 0.1 * note * np.hanning(length)
+        room = min(length, len(sound) - at)
+        sound[at:at + room] += note[:room].astype(np.float32)
+        # The next begins while this one is still sounding: there is no quiet between them.
+        at += length // 2
+    return sound + (0.004 * chance.standard_normal(len(sound))).astype(np.float32)
+
+
+class Speaker:
+    """A stand-in for a speech model. It writes made-up talk, longer the more words there are.
+
+    `wrong` is asked about every reading, with the words and the seed, and
+    says what goes wrong with it: nothing, or "stutter" (a moment comes
+    twice), "cut" (it stops mid-sound), "empty" (a file with nothing in it),
+    or an exception to raise.
+    """
+
+    name, model = "stand-in", "made-up-voice"
+
+    def __init__(self, wrong=None, rate: int = 24_000):
+        self.wrong = wrong or (lambda text, seed: None)
+        self.rate = rate
+        self.asked: list[tuple[str, object, int | None]] = []
+        self.said: dict[str, tuple[str, int | None]] = {}
+
+    def say(self, text, target, *, voice, seed=None):
+        import numpy as np
+
+        from constructive_media.audio import pcm
+
+        self.asked.append((text, voice, seed))
+        self.said[str(target)] = (text, seed)
+        wrong = self.wrong(text, seed)
+        if isinstance(wrong, Exception):
+            raise wrong
+        target.parent.mkdir(parents=True, exist_ok=True)
+        if wrong == "empty":
+            target.write_bytes(b"")
+            return target
+        rate = self.rate
+        seconds = 0.6 + 0.3 * len(text.split())
+        sound = syllables(max(seconds, 3.4) if wrong else seconds, rate, seed=(seed or 0) + len(text))
+        edge = int(0.25 * rate)
+        sound[-edge:] *= np.linspace(1, 0, edge, dtype=np.float32) ** 3
+        if wrong == "cut":
+            # The last sound is still at its loudest when the file ends.
+            sound = np.concatenate([sound, voiced(0.2, rate)])
+        if wrong == "stutter":
+            # 180 thousandths of a second come twice, 60 apart.
+            a, b, c = rate, rate + int(0.18 * rate), rate + int(0.24 * rate)
+            sound = np.concatenate([sound[:b], sound[b:c] * 0.02, sound[a:b], sound[b:]])
+        pcm.write(target, sound, rate, bits=16)
+        return target
+
+
+class Listener:
+    """A stand-in for a speech-to-text model. It hears what the stand-in speaker was given.
+
+    `hears` is asked about every reading, with the words and the seed, and
+    says what was heard instead.
+    """
+
+    name, model = "stand-in", "made-up-ears"
+
+    def __init__(self, speaker: Speaker, hears=None):
+        self.speaker = speaker
+        self.hears = hears or (lambda text, seed: text)
+        self.listened: list[str] = []
+
+    def transcribe(self, audio, *, language="en", prompt=None):
+        from constructive_media.transcription import Segment
+
+        self.listened.append(str(audio))
+        text, seed = self.speaker.said[str(audio)]
+        return [Segment(0.0, 1.0, self.hears(text, seed))]

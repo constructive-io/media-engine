@@ -227,6 +227,13 @@ def builtins() -> Iterator[Adapter]:
         summary="Reverb, delay, compression and gain through the ffmpeg program",
     )
     yield Adapter(
+        slot="speech",
+        name="http",
+        factory=lazy("constructive_media.speech.http:SpeechServer"),
+        license="MIT",
+        summary="Words said aloud, by any server that speaks the audio/speech API",
+    )
+    yield Adapter(
         slot="text",
         name="http",
         factory=lazy("constructive_media.text.http:ChatServer"),

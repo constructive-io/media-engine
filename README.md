@@ -33,6 +33,7 @@ Early, and built in the open one layer at a time.
 | [`.conv`](https://github.com/constructive-io/conv-spec) scripts read and checked, held to the format's own conformance files | Here, tested |
 | The mix: clips on named tracks, brought to a level, looped, faded, ducked under speech and put through effects, written with a stem for each track | Here, tested |
 | The check on a spoken line: what was heard against what was meant, a voice's reference recording leaking into the line, a stutter, a line cut off, a click at the start | Here, tested |
+| Speech: voices kept by persona and emotion, a client for any server that speaks, and a line said again with another seed until a take of it passes the check | Here, tested with stand-ins for the models |
 | Engine: generation | Being brought in |
 | `.conv` scripts rendered to sound | Being brought in |
 

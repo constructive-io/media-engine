@@ -8,6 +8,7 @@ import unittest
 from constructive_media.audio import check
 
 from .support import HAVE_NUMPY, needs_numpy
+from .support import voiced as voice
 
 if HAVE_NUMPY:
     import numpy as np
@@ -151,16 +152,6 @@ class Calming(unittest.TestCase):
         text = "The lantern is lit at dusk."
         self.assertEqual(check.calm(text), (text, False))
         self.assertEqual(check.calm(""), ("", False))
-
-
-def voice(seconds, rate=16_000, seed=1):
-    """A made-up voice: a note that wanders, with overtones, louder and quieter three times a second."""
-    chance = np.random.default_rng(seed)
-    time = np.arange(int(seconds * rate)) / rate
-    pitch = 120 + 40 * np.sin(2 * np.pi * 0.7 * time + seed) + np.cumsum(chance.standard_normal(len(time))) * 0.05
-    sound = sum(np.sin(2 * np.pi * np.cumsum(pitch * n) / rate) / n for n in range(1, 6))
-    sound = sound * (0.3 + 0.2 * np.sin(2 * np.pi * 3 * time))
-    return (0.2 * sound + 0.01 * chance.standard_normal(len(time))).astype(np.float32)
 
 
 @needs_numpy

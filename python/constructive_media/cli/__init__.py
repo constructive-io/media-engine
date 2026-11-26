@@ -20,12 +20,13 @@ from ..ffmpeg import FfmpegError
 from ..models import ModelError
 from ..settings import SettingsError
 from ..speakers import SpeakerError
+from ..speech import SpeechError
 from ..takes import TakeError
 from ..text import TextError
 from ..transcription import TranscriptionError
-from . import analyze, cut, edit, library, listen, scripts, system, takes
+from . import analyze, cut, edit, library, listen, scripts, speech, system, takes
 
-GROUPS = (library, analyze, listen, takes, edit, cut, scripts, system)
+GROUPS = (library, analyze, listen, takes, edit, cut, scripts, speech, system)
 
 
 def parser() -> argparse.ArgumentParser:
@@ -44,7 +45,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         return arguments.run(arguments) or 0
     except (AdapterError, ConvError, DatabaseError, EditError, FfmpegError, ModelError, SettingsError,
-            SpeakerError, TakeError, TextError, TranscriptionError) as error:
+            SpeakerError, SpeechError, TakeError, TextError, TranscriptionError) as error:
         print(f"me: {error}", file=sys.stderr)
         return 1
     except ModuleNotFoundError as error:

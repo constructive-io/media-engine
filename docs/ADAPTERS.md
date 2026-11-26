@@ -18,7 +18,7 @@ that does the job.
 | `transcription` | speech to text, with word timings | `whispercpp` |
 | `detection` | objects and people in a frame | `onnx`, `torchvision` |
 | `speaker` | a voice as numbers, alike for one person and apart for two | `onnx` |
-| `speech` | text to speech | |
+| `speech` | text to speech | `http` |
 | `voice_conversion` | one voice re-spoken in another | |
 | `image` | image generation | |
 | `video` | video generation | |
@@ -251,6 +251,57 @@ been named by hand:
 - One person on two microphones measured 0.55 and up; two different people,
   0.47 at most. That gap is why a name is suggested across recordings, and it
   comes from one event, which is why it is only suggested.
+
+## Speech
+
+A synthesizer is given words and a voice and writes a recording of them being
+said:
+
+```python
+from constructive_media import speech
+
+voice = speech.Voice("ada", emotion="warm", profile="the-name-the-server-knows-her-by")
+speech.synthesizer().say("The lantern is lit at dusk.", "line.wav", voice=voice, seed=507)
+```
+
+A voice belongs to a persona and has an emotion. A line asks for a persona and
+an emotion; when the persona has no voice for that emotion its neutral voice
+speaks, and failing that the first it has. No voice is kept in this
+repository, and no recording: a voice is a row that says which adapter speaks
+it and what that adapter knows it by.
+
+```sh
+me voice "Ada Field" the-name-the-server-knows-her-by --new
+me voice ada-field another-name --emotion whisper --seed 31
+me voices
+```
+
+The built-in adapter reaches any server that answers the `audio/speech`
+request, which many programs that run a speech model do. Nothing is sent until
+you name the server and the model:
+
+```sh
+export CONSTRUCTIVE_MEDIA_URL_SPEECH=http://localhost:8080/v1
+export CONSTRUCTIVE_MEDIA_MODEL_SPEECH=the-name-the-server-knows-it-by
+```
+
+`CONSTRUCTIVE_MEDIA_KEY_SPEECH` holds a key for a server that wants one.
+`CONSTRUCTIVE_MEDIA_EXTRA_SPEECH` is a JSON object sent with every request,
+such as `{"speed": 0.95}`. The server is asked for a WAV file; whatever else it
+sends is made into one.
+
+A speech model does not always say what it was given, and what it gets wrong
+changes with the seed. So a line is said, listened back to through the
+`transcription` slot, checked, and said again with another seed until a take
+passes (`constructive_media.audio.line`). The seed is sent as `seed`, which is
+not part of the usual request: a server that takes it gives another reading
+each time, and one that refuses it can be spared it with
+`CONSTRUCTIVE_MEDIA_EXTRA_SPEECH={"seed": null}`. A server that says a line the
+same way whatever the seed cannot mend a bad take by saying it again.
+
+A model that clones a voice from a recording on your own machine is a plugin:
+its adapter is handed the voice's reference recording and the words said in
+it, and it is chosen per voice, by the voice's `engine`.
 
 ## Effects
 

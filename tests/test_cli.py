@@ -40,7 +40,7 @@ class CommandLineTest(unittest.TestCase):
                         "takes", "passages", "flag", "score", "rank", "recipe", "judge", "index", "search", "fit", "models", "assemble", "cutaways", "styles",
                         "compile", "selectors", "timelines",
                         "timeline", "note", "keep", "cut", "prefer", "pairs", "decisions", "script", "render", "export",
-                        "conv",
+                        "conv", "voices", "voice",
                         "status", "adapters"):
             self.assertIn(command, out)
 
