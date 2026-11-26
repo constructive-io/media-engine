@@ -29,8 +29,8 @@ Early, and built in the open one layer at a time.
 | --- | --- |
 | Schema modules (`packages/`) | Here, tested, audited |
 | Settings and the adapter interface for the database, models and effects (`python/`) | Here, tested |
-| Engine and `me` command line: ingest, lineage, shots, frames, signatures, detection, transcription, takes and sync, speakers, passages, flags, scores and rankings, decisions, shot selection and timelines, a ranker taught from preferences, interviews assembled from passages with footage laid over them, cuts rendered to a file | Here, tested |
-| Engine: export to an editor, generation | Being brought in |
+| Engine and `me` command line: ingest, lineage, shots, frames, signatures, detection, transcription, takes and sync, speakers, passages, flags, scores and rankings, decisions, shot selection and timelines, a ranker taught from preferences, interviews assembled from passages with footage laid over them, cuts rendered to a file and exported to an editing program | Here, tested |
+| Engine: generation | Being brought in |
 | [`.conv`](https://github.com/constructive-io/conv-spec) renderer | Being brought in |
 
 The roadmap is in [docs/ROADMAP.md](./docs/ROADMAP.md).
@@ -123,6 +123,7 @@ me recipe reel --like broll --weigh preferred=0.5   # a recipe that ranks by it
 me assemble talk --take interview    # the best passages as a cut, each seen and heard through the right recording
 me cutaways talk-over --over talk    # other footage over some of it, the sound untouched
 me render talk-over                  # the cut as a file to watch
+me export talk-over --to handover/   # the cut for an editing program, pointed at the recordings themselves
 me lineage out.mp4                   # what a derived file was made from
 me status                            # where things are kept and what is held
 me adapters                          # every slot and what can fill it
@@ -213,6 +214,19 @@ ingest unless `--originals` is given, and `--megabytes` holds the file to a
 size. When it is done it looks at frames through the file and says so if
 they are not all the size that was asked for, and the file is recorded with
 the recordings it was made from, so `me lineage` can answer for it.
+
+`me export` hands a cut to an editing program. It writes FCPXML, which Final
+Cut, Resolve and Premiere import as a timeline, the same cut as a CMX3600
+edit decision list for anything else, and a page that says what both point
+at. Nothing is copied: the files name the original recordings where they are
+kept. Times are exact fractions of a second at the rate the footage was shot
+at, so 29.97 is 30000 frames in 1001 seconds and not a rounding of it, and
+each is given on the recording's own clock where it has one: the timecode a
+camera wrote for its first frame, drop-frame or not, and the time after
+midnight a sound recorder stored. A clip heard through another recording has
+that sound under it and the camera's own switched off. A cut whose footage
+was shot at more than one rate says so, and so does one that points at a
+recording that is not there.
 
 The same engine from Python:
 

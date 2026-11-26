@@ -13,6 +13,7 @@ import subprocess
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 from datetime import datetime
+from fractions import Fraction
 from functools import cache
 from pathlib import Path
 
@@ -97,6 +98,41 @@ def created(path: str | Path) -> datetime | None:
             raise
         return None
     return found if found.tzinfo else None
+
+
+@dataclass(frozen=True)
+class Start:
+    """Where a recording's own clock begins.
+
+    A camera writes a timecode for its first frame, as text. A sound recorder
+    writes how long after midnight its first sample was, which is `seconds`.
+    """
+    timecode: str | None = None
+    seconds: Fraction | None = None
+
+
+def start(path: str | Path) -> Start:
+    """The time a file gives its own first frame or sample, where it gives one."""
+    try:
+        done = run(FFPROBE, "-v", "quiet", "-print_format", "json", "-show_entries",
+                   "format_tags=timecode,time_reference:stream_tags=timecode:stream=codec_type,sample_rate", path)
+        described = json.loads(done.stdout)
+    except (FfmpegError, json.JSONDecodeError) as error:
+        if "was not found" in str(error):
+            raise
+        return Start()
+    streams = described.get("streams") or []
+    tags = [(described.get("format") or {}).get("tags") or {}] + [each.get("tags") or {} for each in streams]
+    timecode = next((each["timecode"] for each in tags if each.get("timecode")), None)
+    seconds = None
+    samples = next((each["sample_rate"] for each in streams
+                    if each.get("codec_type") == "audio" and each.get("sample_rate")), None)
+    try:
+        if tags[0].get("time_reference") is not None and samples:
+            seconds = Fraction(int(tags[0]["time_reference"]), int(samples))
+    except (ValueError, ZeroDivisionError):
+        seconds = None
+    return Start(timecode, seconds)
 
 
 @cache

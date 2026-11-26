@@ -20,11 +20,14 @@ the next step, or a person, can read it:
               was rolling and the microphone that heard it best
 - `render`    a cut made into a file to watch, its picture and sound in step
               and its sound unbroken wherever the recording carried on
+- `export`    a cut handed to an editing program, pointed at the recordings
+              themselves, on each one's own timecode
 
 Nothing here runs a model. It all works from what transcription, sync and the
 video analysis have already stored, so it is cheap enough to run over
 everything before anything expensive is allowed near it. Only `render` reads
-the recordings themselves, and it does that through `ffmpeg`.
+the recordings themselves, and it does that through `ffmpeg`; `export` asks
+`ffprobe` what time each one says it began.
 
 The word lists (fillers, hedges, words a sentence cannot end on) are English.
 Speech in another language still gets every measure that does not lean on them.

@@ -1,4 +1,4 @@
-"""Commands for cutting: compile, timelines, note, keep, cut, prefer, pairs, script, render."""
+"""Commands for cutting: compile, timelines, note, keep, cut, prefer, pairs, script, render, export."""
 
 from __future__ import annotations
 
@@ -216,6 +216,19 @@ def register(commands: Any) -> None:
     command.add_argument("--as-recorded", action="store_true", help="leave the sound as loud as it was recorded")
     command.add_argument("--megabytes", type=float, metavar="N", help="make the file about this big, to send")
     command.set_defaults(run=run_render)
+
+    command = commands.add_parser(
+        "export", help="hand a cut to an editing program, pointed at the recordings themselves",
+        description="Write a cut as FCPXML and as a CMX3600 edit decision list, with a page that says "
+                    "what they point at. Both name the original recordings where they are kept, on each "
+                    "recording's own timecode, and nothing is copied.",
+    )
+    command.add_argument("name", help="the cut to export")
+    command.add_argument("--to", type=Path, metavar="FOLDER",
+                         help="where to write (default: exports/NAME in the work folder)")
+    command.add_argument("--fps", type=float, metavar="N",
+                         help="frames a second (default: what most of the cut was shot at)")
+    command.set_defaults(run=run_export)
 
     command = commands.add_parser("decisions", help="count the rulings made, and show the latest")
     command.add_argument("--recent", type=int, default=10, metavar="N", help="how many to show (default %(default)s)")
@@ -507,6 +520,27 @@ def run_render(arguments: argparse.Namespace) -> int:
     for each in wrong:
         print(f"me: {each}", file=sys.stderr)
     return 1 if wrong else 0
+
+
+def run_export(arguments: argparse.Namespace) -> int:
+    from ..edit import clock, export
+    from ..settings import Settings
+
+    folder = arguments.to or Settings.from_env().work_dir / "exports" / arguments.name
+    made = export.export(arguments.name, folder, fps=arguments.fps)
+    print(f"{arguments.name}: {made.clips} clips, {clock(made.duration_s)}, at {float(made.rate):.5g} "
+          f"frames a second, from {made.sources} recordings")
+    if made.left_out:
+        print(f"  too short for a frame, and left out: clip {', '.join(map(str, made.left_out))}")
+    if made.mixed:
+        print(f"  shot at {', '.join(f'{float(each):.5g}' for each in made.rates)} frames a second: "
+              "check the last clip against its sound")
+    for written in (made.fcpxml, made.edl, made.readme):
+        print(written)
+    if made.missing:
+        print(f"me: {len(made.missing)} of the recordings it points at are not there: "
+              + ", ".join(file.name for file in made.missing), file=sys.stderr)
+    return 1 if made.missing else 0
 
 
 def _tested(model: Any) -> str:
