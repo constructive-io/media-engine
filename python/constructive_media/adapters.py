@@ -5,8 +5,8 @@ asks a registry for whatever fills a *slot* ("effects", "transcription", ...)
 and is handed an object that does the job. Three things follow:
 
 - Swapping a model is a setting, not a code change.
-- Every slot has a built-in default, so the engine runs with nothing extra
-  installed.
+- Built-in adapters are MIT, Apache-2.0 or BSD, and so is everything they
+  import.
 - A tool whose license cannot live in this repository is still usable: its
   adapter ships in a separate package and is found at run time.
 
@@ -35,10 +35,11 @@ ENTRY_POINT_GROUP = "constructive_media.adapters"
 BUILTIN = "builtin"
 
 #: Licenses a built-in adapter, and everything it imports, may carry.
-PERMISSIVE = frozenset({"MIT", "Apache-2.0"})
+PERMISSIVE = frozenset({"MIT", "Apache-2.0", "BSD-2-Clause", "BSD-3-Clause"})
 
 #: Every slot the engine knows, and what fills it.
 SLOTS: dict[str, str] = {
+    "database": "the PostgreSQL driver",
     "transcription": "speech to text, with word timings",
     "detection": "objects and people in a frame",
     "speech": "text to speech",
@@ -107,9 +108,8 @@ class Registry:
             )
         if adapter.origin == BUILTIN and adapter.license not in PERMISSIVE:
             raise LicenseError(
-                f"built-in adapter {adapter.slot}/{adapter.name} is {adapter.license}; "
-                f"built-in adapters are {' or '.join(sorted(PERMISSIVE))} only. "
-                "Ship it as a plugin."
+                f"built-in adapter {adapter.slot}/{adapter.name} is {adapter.license!r}; "
+                "built-in adapters are MIT, Apache-2.0 or BSD only. Ship it as a plugin."
             )
         key = (adapter.slot, adapter.name)
         if key in self._adapters:
@@ -183,6 +183,27 @@ class Registry:
 
 def builtins() -> Iterator[Adapter]:
     """The adapters this repository ships. Each is the default for its slot."""
+    yield Adapter(
+        slot="database",
+        name="pg8000",
+        factory=lazy("constructive_media.db.pg8000:Pg8000Driver"),
+        license="BSD-3-Clause",
+        summary="PostgreSQL through pg8000, a pure-Python driver",
+    )
+    yield Adapter(
+        slot="detection",
+        name="onnx",
+        factory=lazy("constructive_media.detection.onnx:OnnxDetector"),
+        license="MIT",
+        summary="Objects and people with D-FINE and other ONNX detectors, real-time on a CPU",
+    )
+    yield Adapter(
+        slot="detection",
+        name="torchvision",
+        factory=lazy("constructive_media.detection.torchvision:TorchvisionDetector"),
+        license="BSD-3-Clause",
+        summary="Objects and people with torchvision's detection models",
+    )
     yield Adapter(
         slot="effects",
         name="ffmpeg",

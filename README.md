@@ -28,8 +28,9 @@ Early, and built in the open one layer at a time.
 | Layer | State |
 | --- | --- |
 | Schema modules (`packages/`) | Here, tested, audited |
-| Settings and the adapter interface for models and effects (`python/`) | Here, tested |
-| Engine and `me` command line (ingest, analyse, edit, generate) | Being brought in |
+| Settings and the adapter interface for the database, models and effects (`python/`) | Here, tested |
+| Engine and `me` command line: ingest, lineage, shots, frames, signatures, detection | Here, tested |
+| Engine: transcription, editing, rendering, generation | Being brought in |
 | [`.conv`](https://github.com/constructive-io/conv-spec) renderer | Being brought in |
 
 The roadmap is in [docs/ROADMAP.md](./docs/ROADMAP.md).
@@ -47,9 +48,11 @@ speaking in their voice or recognising it in a recording. The other modules
 depend on it and never on each other.
 
 The Python engine in [`python/constructive_media`](./python/constructive_media)
-has no dependencies of its own. It reaches every model and every effect through
-an [adapter](./docs/ADAPTERS.md), so a model is swapped with a setting and a
-tool under another license plugs in from outside this repository.
+needs only a database driver; each part of it adds what it uses as an optional
+extra. It reaches the database, every model and every effect through an
+[adapter](./docs/ADAPTERS.md), so a model is swapped with a setting and a tool
+under another license plugs in from outside this repository. Video and audio
+are read and written by the `ffmpeg` program.
 
 The engine ships no models, voices, footage or people. You bring your own.
 
@@ -79,11 +82,30 @@ pgpm deploy --database media --createdb --yes --package media-video
 pgpm deploy --database media --yes --package media-audio
 ```
 
-Use the engine from Python 3.11 or later:
+Install the engine with Python 3.11 or later. You also need `ffmpeg` on your
+path:
 
 ```sh
-pip install .
+pip install ".[video,detection]"   # or just `pip install .` for the core
+export CONSTRUCTIVE_MEDIA_DATABASE_URL=postgres://postgres:password@localhost:5432/media
 ```
+
+Then point it at some media:
+
+```sh
+me ingest ~/footage --project demo   # register every file, once
+me shots                             # split each video into shots
+me frames                            # save and measure sample frames
+me signatures                        # a colour and motion signature per shot
+me detect                            # find objects and people in the frames
+me lineage out.mp4                   # what a derived file was made from
+me status                            # where things are kept and what is held
+me adapters                          # every slot and what can fill it
+```
+
+Every stage picks up where it left off and only works on what is new.
+
+The same engine from Python:
 
 ```python
 from constructive_media import effects
@@ -91,9 +113,8 @@ from constructive_media import effects
 effects.apply("line.wav", "line-wet.wav", effects.Effects(reverb="hall", gain=-3))
 ```
 
-Effects run through the `ffmpeg` program by default. Settings are environment
-variables that start with `CONSTRUCTIVE_MEDIA_`; they are listed in
-[`settings.py`](./python/constructive_media/settings.py).
+Settings are environment variables that start with `CONSTRUCTIVE_MEDIA_`; they
+are listed in [`settings.py`](./python/constructive_media/settings.py).
 
 Run the tests and the checks CI runs:
 
@@ -104,14 +125,22 @@ pnpm run audit:db                  # schema audit (security and performance)
 PYTHONPATH=python python -m unittest discover -s tests -t .
 ```
 
+The Python tests make their own media with `ffmpeg` and skip what your machine
+cannot run. Those that touch the database run when
+`CONSTRUCTIVE_MEDIA_TEST_DATABASE_URL` names a database with the modules
+deployed, and roll back everything they do.
+
 ## Licensing
 
 Everything in this repository is MIT licensed, and it stays that way:
 
-- Code here is MIT. Dependencies are MIT or Apache-2.0.
-- No copyleft code or dependency (GPL, AGPL, LGPL) is added here. Adapters for
-  tools under those licenses live in a separate plugin repository, under their
-  own license, and the engine works without any of them.
+- Code here is MIT. Dependencies are MIT, Apache-2.0 or BSD, and a test fails
+  the build on one that is not.
+- No copyleft code or dependency (GPL, AGPL, LGPL, MPL) is added here. Adapters
+  for tools under those licenses live in a separate plugin repository, under
+  their own license, and the engine works without any of them.
+- `ffmpeg` and PostgreSQL are programs the engine runs, not code it contains.
+  They keep their own licenses and you install them yourself.
 - No model weights, voices, audio or footage are committed. A model's license
   applies to whoever downloads and runs it.
 

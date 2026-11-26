@@ -41,13 +41,13 @@ class RegisterTest(unittest.TestCase):
         with self.assertRaises(AdapterError):
             Registry().register(adapter(slot="teleportation"))
 
-    def test_builtin_must_be_mit_or_apache(self):
+    def test_builtin_must_be_mit_apache_or_bsd(self):
         registry = Registry()
-        registry.register(adapter("a", license="MIT"))
-        registry.register(adapter("b", license="Apache-2.0"))
-        for license in ("GPL-3.0-only", "AGPL-3.0-only", "LGPL-3.0-only", "BSD-3-Clause", ""):
+        for name, license in enumerate(("MIT", "Apache-2.0", "BSD-2-Clause", "BSD-3-Clause")):
+            registry.register(adapter(str(name), license=license))
+        for license in ("GPL-3.0-only", "AGPL-3.0-only", "LGPL-3.0-only", "MPL-2.0", "CC-BY-NC-4.0", ""):
             with self.subTest(license=license), self.assertRaises(LicenseError):
-                registry.register(adapter("c", license=license))
+                registry.register(adapter("refused", license=license))
 
     def test_a_plugin_may_carry_any_license(self):
         registry = Registry()

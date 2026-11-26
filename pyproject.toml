@@ -12,9 +12,22 @@ license = "MIT"
 license-files = ["LICENSE"]
 authors = [{ name = "Dan Lynch", email = "pyramation@gmail.com" }]
 keywords = ["media", "video", "audio", "voice", "postgres", "constructive"]
-# The core has no dependencies. Every model and library is reached through an
-# adapter, and an adapter's dependencies are installed with the adapter.
-dependencies = []
+# Every dependency is MIT, Apache-2.0 or BSD licensed; see docs/LICENSING.md.
+# The core needs only the database driver. Each extra adds what one part of
+# the engine uses, and nothing is imported until that part runs.
+dependencies = ["pg8000>=1.31"]
+
+[project.optional-dependencies]
+video = ["numpy>=1.26"]
+detection = ["numpy>=1.26", "pillow>=10", "onnxruntime>=1.17"]
+torchvision = ["numpy>=1.26", "pillow>=10", "torch>=2.4", "torchvision>=0.19"]
+all = ["constructive-media[video,detection,torchvision]"]
+# What the tests use beyond the above: `onnx` builds a model small enough to test with.
+test = ["onnx>=1.16"]
+
+[project.scripts]
+me = "constructive_media.cli:main"
+constructive-media = "constructive_media.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/constructive-io/constructive-media"

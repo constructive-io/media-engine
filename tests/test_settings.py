@@ -1,7 +1,7 @@
 import unittest
 from pathlib import Path
 
-from constructive_media.settings import Settings
+from constructive_media.settings import Database, Settings, SettingsError
 
 
 class SettingsTest(unittest.TestCase):
@@ -10,8 +10,10 @@ class SettingsTest(unittest.TestCase):
         self.assertEqual(settings.home, Path("~/.constructive-media").expanduser())
         self.assertEqual(settings.work_dir, settings.home / "work")
         self.assertEqual(settings.models_dir, settings.home / "models")
-        self.assertIsNone(settings.database_url)
+        self.assertEqual(settings.database, Database())
+        self.assertEqual(settings.device, "auto")
         self.assertEqual(dict(settings.adapters), {})
+        self.assertEqual(dict(settings.models), {})
 
     def test_home_moves_everything_under_it(self):
         settings = Settings.from_env({"CONSTRUCTIVE_MEDIA_HOME": "/srv/media"})
@@ -26,12 +28,56 @@ class SettingsTest(unittest.TestCase):
         self.assertEqual(settings.models_dir, Path("/mnt/models"))
         self.assertEqual(settings.work_dir, Path("/srv/media/work"))
 
-    def test_database_url_is_read_and_blank_means_unset(self):
-        url = "postgres://example.test/media"
+    def test_database_url_is_taken_apart(self):
+        settings = Settings.from_env({
+            "CONSTRUCTIVE_MEDIA_DATABASE_URL": "postgres://editor:s%40fe@db.example.test:6543/library",
+        })
         self.assertEqual(
-            Settings.from_env({"CONSTRUCTIVE_MEDIA_DATABASE_URL": url}).database_url, url
+            settings.database,
+            Database(name="library", host="db.example.test", port=6543, user="editor", password="s@fe"),
         )
-        self.assertIsNone(Settings.from_env({"CONSTRUCTIVE_MEDIA_DATABASE_URL": ""}).database_url)
+
+    def test_database_falls_back_to_the_standard_variables(self):
+        settings = Settings.from_env({
+            "CONSTRUCTIVE_MEDIA_DATABASE_URL": "",
+            "PGHOST": "db.example.test", "PGPORT": "6543", "PGUSER": "editor",
+            "PGPASSWORD": "made-up", "PGDATABASE": "library",
+        })
+        self.assertEqual(
+            settings.database,
+            Database(name="library", host="db.example.test", port=6543, user="editor", password="made-up"),
+        )
+        self.assertEqual(Settings.from_env({}).database.name, "media")
+
+    def test_the_url_wins_over_the_standard_variables(self):
+        settings = Settings.from_env({
+            "CONSTRUCTIVE_MEDIA_DATABASE_URL": "postgresql://db.example.test/library",
+            "PGHOST": "elsewhere.example.test", "PGDATABASE": "other",
+        })
+        self.assertEqual((settings.database.host, settings.database.name), ("db.example.test", "library"))
+        self.assertEqual(settings.database.port, 5432)
+
+    def test_a_bad_database_setting_is_an_error(self):
+        for env in (
+            {"CONSTRUCTIVE_MEDIA_DATABASE_URL": "mysql://db.example.test/library"},
+            {"CONSTRUCTIVE_MEDIA_DATABASE_URL": "postgres://db.example.test:port/library"},
+            {"PGPORT": "five"},
+        ):
+            with self.subTest(env=env), self.assertRaises(SettingsError):
+                Settings.from_env(env)
+
+    def test_the_password_stays_out_of_what_is_printed(self):
+        settings = Settings.from_env({"PGPASSWORD": "made-up"})
+        self.assertNotIn("made-up", repr(settings))
+
+    def test_device_and_model_choice(self):
+        settings = Settings.from_env({
+            "CONSTRUCTIVE_MEDIA_DEVICE": "CPU",
+            "CONSTRUCTIVE_MEDIA_MODEL_DETECTION": "fasterrcnn_mobilenet_v3_large_fpn",
+        })
+        self.assertEqual(settings.device, "cpu")
+        self.assertEqual(settings.model("detection"), "fasterrcnn_mobilenet_v3_large_fpn")
+        self.assertIsNone(settings.model("speech"))
 
     def test_adapter_choice_per_slot(self):
         settings = Settings.from_env({

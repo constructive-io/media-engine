@@ -4,13 +4,18 @@ Nothing else in the engine reads an environment variable, expands a home
 directory or names a database. A module that needs to know where something
 lives, or which adapter to use, asks for a `Settings`.
 
-| Variable                                | Meaning                                  | Default                     |
-| --------------------------------------- | ---------------------------------------- | --------------------------- |
-| `CONSTRUCTIVE_MEDIA_HOME`               | Root for everything the engine writes    | `~/.constructive-media`     |
-| `CONSTRUCTIVE_MEDIA_WORK_DIR`           | Derived files; safe to delete            | `<home>/work`               |
-| `CONSTRUCTIVE_MEDIA_MODELS_DIR`         | Models you downloaded                    | `<home>/models`             |
-| `CONSTRUCTIVE_MEDIA_DATABASE_URL`       | PostgreSQL connection string             | unset: the `PG*` variables  |
-| `CONSTRUCTIVE_MEDIA_ADAPTER_<SLOT>`     | Adapter to use for a slot                | the slot's default          |
+| Variable                              | Meaning                                | Default                    |
+| ------------------------------------- | -------------------------------------- | -------------------------- |
+| `CONSTRUCTIVE_MEDIA_HOME`             | Root for everything the engine writes  | `~/.constructive-media`    |
+| `CONSTRUCTIVE_MEDIA_WORK_DIR`         | Derived files; safe to delete          | `<home>/work`              |
+| `CONSTRUCTIVE_MEDIA_MODELS_DIR`       | Models you downloaded                  | `<home>/models`            |
+| `CONSTRUCTIVE_MEDIA_DATABASE_URL`     | `postgres://user:pass@host:port/name`  | the `PG*` variables        |
+| `CONSTRUCTIVE_MEDIA_DEVICE`           | `auto`, `cpu`, `mps` or `cuda`         | `auto`                     |
+| `CONSTRUCTIVE_MEDIA_ADAPTER_<SLOT>`   | Adapter to use for a slot              | the slot's default         |
+| `CONSTRUCTIVE_MEDIA_MODEL_<SLOT>`     | Model that slot's adapter should load  | the adapter's default      |
+
+Without a database URL the standard `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`
+and `PGDATABASE` are used, and the database is called `media`.
 """
 
 from __future__ import annotations
@@ -20,21 +25,75 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from types import MappingProxyType
+from urllib.parse import unquote, urlsplit
 
 ENV_PREFIX = "CONSTRUCTIVE_MEDIA_"
 ADAPTER_PREFIX = ENV_PREFIX + "ADAPTER_"
+MODEL_PREFIX = ENV_PREFIX + "MODEL_"
 DEFAULT_HOME = "~/.constructive-media"
+DEFAULT_DATABASE = "media"
+
+
+class SettingsError(ValueError):
+    """A setting has a value that cannot be used."""
+
+
+@dataclass(frozen=True)
+class Database:
+    """Where the engine's PostgreSQL database is."""
+
+    name: str = DEFAULT_DATABASE
+    host: str = "localhost"
+    port: int = 5432
+    user: str = "postgres"
+    password: str | None = field(default=None, repr=False)
+
+    @classmethod
+    def from_url(cls, url: str) -> Database:
+        parts = urlsplit(url)
+        if parts.scheme not in ("postgres", "postgresql"):
+            raise SettingsError("the database URL must start with postgres:// or postgresql://")
+        try:
+            port = parts.port or 5432
+        except ValueError:
+            raise SettingsError("the database URL has a port that is not a number") from None
+        return cls(
+            name=unquote(parts.path.lstrip("/")) or DEFAULT_DATABASE,
+            host=parts.hostname or "localhost",
+            port=port,
+            user=unquote(parts.username) if parts.username else "postgres",
+            password=unquote(parts.password) if parts.password else None,
+        )
+
+    @classmethod
+    def from_env(cls, env: Mapping[str, str]) -> Database:
+        port = env.get("PGPORT") or "5432"
+        if not port.isdigit():
+            raise SettingsError(f"PGPORT must be a number, got {port!r}")
+        return cls(
+            name=env.get("PGDATABASE") or DEFAULT_DATABASE,
+            host=env.get("PGHOST") or "localhost",
+            port=int(port),
+            user=env.get("PGUSER") or "postgres",
+            password=env.get("PGPASSWORD") or None,
+        )
+
+
+def _frozen() -> Mapping[str, str]:
+    return MappingProxyType({})
 
 
 @dataclass(frozen=True)
 class Settings:
-    """Where things live and which adapters are chosen."""
+    """Where things live and which adapters and models are chosen."""
 
     home: Path
     work_dir: Path
     models_dir: Path
-    database_url: str | None = None
-    adapters: Mapping[str, str] = field(default_factory=lambda: MappingProxyType({}))
+    database: Database = field(default_factory=Database)
+    device: str = "auto"
+    adapters: Mapping[str, str] = field(default_factory=_frozen)
+    models: Mapping[str, str] = field(default_factory=_frozen)
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> Settings:
@@ -48,20 +107,29 @@ class Settings:
             raw = value(name)
             return Path(raw).expanduser() if raw else default
 
+        def per_slot(prefix: str) -> Mapping[str, str]:
+            return MappingProxyType({
+                key[len(prefix):].lower(): chosen
+                for key, chosen in env.items()
+                if key.startswith(prefix) and chosen
+            })
+
         home = Path(value("HOME") or DEFAULT_HOME).expanduser()
-        adapters = {
-            key[len(ADAPTER_PREFIX):].lower(): chosen
-            for key, chosen in env.items()
-            if key.startswith(ADAPTER_PREFIX) and chosen
-        }
+        url = value("DATABASE_URL")
         return cls(
             home=home,
             work_dir=path("WORK_DIR", home / "work"),
             models_dir=path("MODELS_DIR", home / "models"),
-            database_url=value("DATABASE_URL"),
-            adapters=MappingProxyType(adapters),
+            database=Database.from_url(url) if url else Database.from_env(env),
+            device=(value("DEVICE") or "auto").lower(),
+            adapters=per_slot(ADAPTER_PREFIX),
+            models=per_slot(MODEL_PREFIX),
         )
 
     def adapter(self, slot: str) -> str | None:
         """The adapter chosen for `slot`, or None to use the slot's default."""
         return self.adapters.get(slot)
+
+    def model(self, slot: str) -> str | None:
+        """The model chosen for `slot`, or None to use the adapter's default."""
+        return self.models.get(slot)

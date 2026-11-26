@@ -1,0 +1,47 @@
+"""The `me` command line.
+
+Each group of commands lives in its own module and adds itself to the parser
+with a `register(commands)` function. A command is a function that takes the
+parsed arguments, prints what it did, and returns an exit status or None.
+"""
+
+from __future__ import annotations
+
+import argparse
+import sys
+from collections.abc import Sequence
+
+from .. import __version__
+from ..adapters import AdapterError
+from ..db import DatabaseError
+from ..ffmpeg import FfmpegError
+from ..settings import SettingsError
+from . import analyze, library, system
+
+GROUPS = (library, analyze, system)
+
+
+def parser() -> argparse.ArgumentParser:
+    root = argparse.ArgumentParser(
+        prog="me", description="Constructive Media: one engine for video, images, audio and voice.",
+    )
+    root.add_argument("--version", action="version", version=f"constructive-media {__version__}")
+    commands = root.add_subparsers(dest="command", required=True, metavar="command")
+    for group in GROUPS:
+        group.register(commands)
+    return root
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    arguments = parser().parse_args(argv)
+    try:
+        return arguments.run(arguments) or 0
+    except (AdapterError, DatabaseError, FfmpegError, SettingsError) as error:
+        print(f"me: {error}", file=sys.stderr)
+        return 1
+    except ModuleNotFoundError as error:
+        print(f"me: this command needs the {error.name!r} package, which is not installed. "
+              "See the README for what to install.", file=sys.stderr)
+        return 1
+    except KeyboardInterrupt:
+        return 130

@@ -196,8 +196,9 @@ jobs:
           version: local
           comment: true
 
-  # The Python engine. It has no dependencies, so there is nothing to install
-  # but ffmpeg, which the default effects adapter drives as a separate program.
+  # The Python engine. The suite runs twice: first with nothing installed, to
+  # prove the package and its command line need no optional library, then with
+  # everything, against a database that has the three schema modules deployed.
   python:
     name: Python ${{ matrix.python }}
     runs-on: ubuntu-latest
@@ -206,6 +207,27 @@ jobs:
       fail-fast: false
       matrix:
         python: ['3.11', '3.12', '3.13']
+
+    env:
+      PGHOST: localhost
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: password
+      PGPM_VERSION: 5.30.6
+
+    services:
+      pg_db:
+        image: constructiveio/postgres-plus:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 3s
+          --health-timeout 5s
+          --health-retries 10
+        ports:
+          - 5432:5432
 
     steps:
       - name: Checkout
@@ -219,10 +241,54 @@ jobs:
       - name: Install ffmpeg
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
 
-      - name: Test
-        run: PYTHONPATH=python python -m unittest discover -s tests -t . -v
+      - name: Test with nothing installed
+        run: PYTHONPATH=python python -m unittest discover -s tests -t .
 
-      - name: Build and install the package
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install
+        run: pnpm install
+
+      - name: Cache pgpm CLI
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: pgpm-${{ env.PGPM_VERSION }}
+
+      - name: Install pgpm CLI globally
+        run: npm install -g pgpm@${{ env.PGPM_VERSION }}
+
+      - name: Deploy the schema into a test database
         run: |
-          python -m pip install .
-          cd "$RUNNER_TEMP" && python -c "from constructive_media import adapters; print(adapters.registry().describe('effects'))"
+          pgpm admin-users bootstrap --yes
+          pgpm deploy --database constructive_media_test --createdb --yes --no-tty --package media-video
+          pgpm deploy --database constructive_media_test --yes --no-tty --package media-audio
+
+      # PyTorch comes from its CPU index: the default Linux build brings
+      # NVIDIA's proprietary GPU packages, which the license test would refuse.
+      - name: Install the engine with every extra
+        run: |
+          python -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install ".[all,test]"
+
+      # PYTHONPATH is not set, so the installed package is what gets tested.
+      # With everything present no test may skip itself.
+      - name: Test with everything installed
+        shell: bash
+        env:
+          CONSTRUCTIVE_MEDIA_TEST_DATABASE_URL: postgres://postgres:password@localhost:5432/constructive_media_test
+        run: |
+          python -W error::DeprecationWarning -m unittest discover -s tests -t . 2>&1 | tee "$RUNNER_TEMP/tests.log"
+          if grep -q "skipped" "$RUNNER_TEMP/tests.log"; then echo "a test skipped itself"; exit 1; fi
+
+      - name: The installed command line answers
+        run: cd "$RUNNER_TEMP" && me --version && me adapters
