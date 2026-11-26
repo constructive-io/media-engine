@@ -37,7 +37,7 @@ class CommandLineTest(unittest.TestCase):
         self.assertEqual(status, 0)
         for command in ("ingest", "lineage", "shots", "frames", "signatures", "detect",
                         "transcribe", "vocabulary", "diarize", "speakers", "name", "group", "match", "sync",
-                        "takes", "status", "adapters"):
+                        "takes", "passages", "flag", "score", "rank", "status", "adapters"):
             self.assertIn(command, out)
 
     def test_version(self):

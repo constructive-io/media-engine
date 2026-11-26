@@ -14,15 +14,16 @@ from collections.abc import Sequence
 from .. import __version__
 from ..adapters import AdapterError
 from ..db import DatabaseError
+from ..edit import EditError
 from ..ffmpeg import FfmpegError
 from ..models import ModelError
 from ..settings import SettingsError
 from ..speakers import SpeakerError
 from ..takes import TakeError
 from ..transcription import TranscriptionError
-from . import analyze, library, listen, system, takes
+from . import analyze, edit, library, listen, system, takes
 
-GROUPS = (library, analyze, listen, takes, system)
+GROUPS = (library, analyze, listen, takes, edit, system)
 
 
 def parser() -> argparse.ArgumentParser:
@@ -40,7 +41,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     arguments = parser().parse_args(argv)
     try:
         return arguments.run(arguments) or 0
-    except (AdapterError, DatabaseError, FfmpegError, ModelError, SettingsError,
+    except (AdapterError, DatabaseError, EditError, FfmpegError, ModelError, SettingsError,
             SpeakerError, TakeError, TranscriptionError) as error:
         print(f"me: {error}", file=sys.stderr)
         return 1

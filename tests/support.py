@@ -145,6 +145,38 @@ def write_transcript(asset_id, words) -> None:
     )
 
 
+def write_lines(asset_id, lines, *, pace_s: float = 0.3) -> list:
+    """Store `(start, text)` or `(start, text, fields)` as an asset's transcript, a line each.
+
+    The words of a line follow one another every `pace_s`, a quarter of a
+    second long. `fields` are other columns of the line: `speaker`,
+    `avg_logprob`, `no_speech_prob`. Returns the ids of the lines.
+    """
+    cur = db.cursor()
+    cur.execute("SELECT coalesce(max(idx) + 1, 0) FROM media_video.segments WHERE asset_id = %s", (asset_id,))
+    first = cur.fetchone()[0]
+    stored = []
+    for at, (start, text, *rest) in enumerate(lines):
+        fields = rest[0] if rest else {}
+        words = text.split()
+        cur.execute(
+            """INSERT INTO media_video.segments
+                      (asset_id, idx, start_s, end_s, text, speaker, avg_logprob, no_speech_prob)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id""",
+            (asset_id, first + at, start, start + (len(words) - 1) * pace_s + 0.25, text,
+             fields.get("speaker"), fields.get("avg_logprob"), fields.get("no_speech_prob")),
+        )
+        stored.append(cur.fetchone()[0])
+        cur.execute(
+            """INSERT INTO media_video.words (segment_id, idx, start_s, end_s, word)
+               SELECT %s, w.idx, w.start_s, w.start_s + 0.25, w.word
+                 FROM jsonb_to_recordset(%s) AS w(idx integer, start_s double precision, word text)""",
+            (stored[-1], db.jsonb([{"idx": n, "start_s": start + n * pace_s, "word": word}
+                                   for n, word in enumerate(words)])),
+        )
+    return stored
+
+
 #: Made-up voices: each "speaks" one wavering note, in hertz.
 NOTES = {"ada": 220.0, "ben": 660.0, "cy": 1980.0}
 

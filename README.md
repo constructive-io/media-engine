@@ -29,8 +29,8 @@ Early, and built in the open one layer at a time.
 | --- | --- |
 | Schema modules (`packages/`) | Here, tested, audited |
 | Settings and the adapter interface for the database, models and effects (`python/`) | Here, tested |
-| Engine and `me` command line: ingest, lineage, shots, frames, signatures, detection, transcription, takes and sync, speakers | Here, tested |
-| Engine: editing, rendering, generation | Being brought in |
+| Engine and `me` command line: ingest, lineage, shots, frames, signatures, detection, transcription, takes and sync, speakers, passages, flags, scores and rankings | Here, tested |
+| Engine: timelines, rendering, generation | Being brought in |
 | [`.conv`](https://github.com/constructive-io/conv-spec) renderer | Being brought in |
 
 The roadmap is in [docs/ROADMAP.md](./docs/ROADMAP.md).
@@ -108,6 +108,9 @@ me takes                             # each take and how much of it is placed
 me diarize                           # tell the voices in each recording apart
 me speakers                          # each recording's voices, and a clip of each to listen to
 me name interview voice1 "Ottoline Varga" --new   # say whose voice it is
+me passages                          # cut each take's speech into passages worth using
+me score                             # flag what to cut, then score every passage and shot
+me rank interview --top 10           # the best of them, and how much each was measured
 me lineage out.mp4                   # what a derived file was made from
 me status                            # where things are kept and what is held
 me adapters                          # every slot and what can fill it
@@ -131,6 +134,15 @@ say who it is with `me name`, once, and every line that voice spoke carries the
 name. A voice already named in one recording is suggested when it is heard in
 another, and never applied without you. An hour and three quarters of talk is
 gone over in about fifteen seconds.
+
+`me passages` reads a take as one conversation, however many microphones
+heard it, and cuts it where the talking stops. `me score` flags the fillers,
+stutters, dead air and lines the recogniser guessed at, then scores each
+passage and shot from what was read, heard and seen. A score nobody measured
+is left out, never counted as a zero, and `me rank` says how much of its
+recipe each result was measured on. A passage in which someone asks for
+something not to be used is never ranked, whatever it scores, until a person
+dismisses that flag. `me flag` runs the flags on their own.
 
 The same engine from Python:
 
