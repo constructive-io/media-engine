@@ -37,7 +37,7 @@ class CommandLineTest(unittest.TestCase):
         self.assertEqual(status, 0)
         for command in ("ingest", "lineage", "shots", "frames", "signatures", "detect",
                         "transcribe", "vocabulary", "diarize", "speakers", "name", "group", "match", "sync",
-                        "takes", "passages", "flag", "score", "rank", "recipe", "fit", "models", "assemble", "cutaways", "styles",
+                        "takes", "passages", "flag", "score", "rank", "recipe", "judge", "index", "search", "fit", "models", "assemble", "cutaways", "styles",
                         "compile", "selectors", "timelines",
                         "timeline", "note", "keep", "cut", "prefer", "pairs", "decisions", "script", "render", "export",
                         "status", "adapters"):

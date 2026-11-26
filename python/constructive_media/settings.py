@@ -13,6 +13,9 @@ lives, or which adapter to use, asks for a `Settings`.
 | `CONSTRUCTIVE_MEDIA_DEVICE`           | `auto`, `cpu`, `mps` or `cuda`         | `auto`                     |
 | `CONSTRUCTIVE_MEDIA_ADAPTER_<SLOT>`   | Adapter to use for a slot              | the slot's default         |
 | `CONSTRUCTIVE_MEDIA_MODEL_<SLOT>`     | Model that slot's adapter should load  | the adapter's default      |
+| `CONSTRUCTIVE_MEDIA_URL_<SLOT>`       | Server that slot's adapter talks to    | none                       |
+| `CONSTRUCTIVE_MEDIA_KEY_<SLOT>`       | Key to send that server, if it asks    | none                       |
+| `CONSTRUCTIVE_MEDIA_EXTRA_<SLOT>`     | More to send it with each request, as a JSON object | none          |
 
 Without a database URL the standard `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`
 and `PGDATABASE` are used, and the database is called `media`.
@@ -30,6 +33,9 @@ from urllib.parse import unquote, urlsplit
 ENV_PREFIX = "CONSTRUCTIVE_MEDIA_"
 ADAPTER_PREFIX = ENV_PREFIX + "ADAPTER_"
 MODEL_PREFIX = ENV_PREFIX + "MODEL_"
+URL_PREFIX = ENV_PREFIX + "URL_"
+KEY_PREFIX = ENV_PREFIX + "KEY_"
+EXTRA_PREFIX = ENV_PREFIX + "EXTRA_"
 DEFAULT_HOME = "~/.constructive-media"
 DEFAULT_DATABASE = "media"
 
@@ -94,6 +100,10 @@ class Settings:
     device: str = "auto"
     adapters: Mapping[str, str] = field(default_factory=_frozen)
     models: Mapping[str, str] = field(default_factory=_frozen)
+    urls: Mapping[str, str] = field(default_factory=_frozen)
+    #: Never shown: a key is a secret.
+    keys: Mapping[str, str] = field(default_factory=_frozen, repr=False)
+    extras: Mapping[str, str] = field(default_factory=_frozen)
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> Settings:
@@ -124,6 +134,9 @@ class Settings:
             device=(value("DEVICE") or "auto").lower(),
             adapters=per_slot(ADAPTER_PREFIX),
             models=per_slot(MODEL_PREFIX),
+            urls=per_slot(URL_PREFIX),
+            keys=per_slot(KEY_PREFIX),
+            extras=per_slot(EXTRA_PREFIX),
         )
 
     def adapter(self, slot: str) -> str | None:
@@ -133,3 +146,15 @@ class Settings:
     def model(self, slot: str) -> str | None:
         """The model chosen for `slot`, or None to use the adapter's default."""
         return self.models.get(slot)
+
+    def url(self, slot: str) -> str | None:
+        """The server the adapter for `slot` talks to, for adapters that talk to one."""
+        return self.urls.get(slot)
+
+    def key(self, slot: str) -> str | None:
+        """The key to send that server, or None when it asks for none."""
+        return self.keys.get(slot)
+
+    def extra(self, slot: str) -> str | None:
+        """What else that server is to be sent with each request, as it was written."""
+        return self.extras.get(slot)

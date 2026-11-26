@@ -24,8 +24,8 @@ that does the job.
 | `video` | video generation | |
 | `lip_sync` | a face re-timed to new speech | |
 | `effects` | audio effects | `ffmpeg` |
-| `text` | text generation and judgement | |
-| `embedding` | text and image embeddings | |
+| `text` | text generation and judgement | `http` |
+| `embedding` | text and image embeddings | `http` |
 
 Slots fill in as the engine lands; see the [roadmap](./ROADMAP.md). `me adapters`
 lists what is installed on your machine, built in and plugged in.

@@ -330,3 +330,33 @@ def withheld(passage_ids: Iterable[Any]) -> set[str]:
     asked = standing({take_id for _, take_id, _, _ in passages}, kind="off_record")
     return {str(passage_id) for passage_id, take_id, start, end in passages
             if take_id in asked and asked[take_id].within(float(start), float(end))}
+
+
+def held_back(passages: Iterable[tuple[Any, str | None]]) -> set[str]:
+    """Which of these passages, given as `(id, text)`, must not be sent to a model.
+
+    The ones `withheld` names, and any whose own words ask, whether or not
+    the flags have been scanned since they were said: a transcript made this
+    morning must not leave because nobody has run the scan yet. Only a person
+    dismissing the flag lets such a passage go.
+    """
+    passages = [(str(passage_id), said) for passage_id, said in passages]
+    held = withheld(passage_id for passage_id, _ in passages)
+    asking = [passage_id for passage_id, said in passages if passage_id not in held
+              and any(_has(tokens(said or ""), phrase) for phrase in OFF_RECORD)]
+    if asking:
+        cur = db.cursor()
+        cur.execute(
+            """SELECT DISTINCT p.id
+                 FROM media_video.passages p
+                 JOIN media.take_assets ta
+                   ON ta.take_id = p.take_id AND (ta.is_primary OR ta.offset_method IS NOT NULL)
+                 JOIN media_video.flags f
+                   ON f.asset_id = ta.asset_id AND f.kind = 'off_record' AND f.accepted = false
+                WHERE p.id = ANY(%s::uuid[])
+                  AND f.start_s + ta.offset_s < p.end_s AND f.end_s + ta.offset_s > p.start_s""",
+            (asking,),
+        )
+        dismissed = {str(passage_id) for (passage_id,) in cur.fetchall()}
+        held |= {passage_id for passage_id in asking if passage_id not in dismissed}
+    return held

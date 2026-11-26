@@ -1,4 +1,4 @@
-"""Commands for finding what is worth using: passages, flag, score and rank."""
+"""Commands for finding what is worth using: passages, flag, score, rank, judge, index and search."""
 
 from __future__ import annotations
 
@@ -82,6 +82,52 @@ def register(commands: Any) -> None:
                          help="how many senses must have a score before a thing ranks")
     command.add_argument("--describe", metavar="TEXT", help="what the recipe is for")
     command.set_defaults(run=run_recipe)
+
+    command = commands.add_parser(
+        "judge", help="have a text model read the best passages and say whether anything is said in them",
+        description="Send the passages a recipe already ranks to the text model, most said in the least "
+                    "time first, and store what it makes of each as scores: substance, interest and "
+                    "self contained. Only passages this model has not read are sent, and never one in "
+                    "which someone asks for it not to be used. A recipe counts the scores once it "
+                    "weighs them: `me recipe NAME --like interview --weigh substance=1`.",
+    )
+    command.add_argument("--project", help="only this project's passages")
+    command.add_argument("--limit", type=int, default=200, metavar="N",
+                         help="the most passages to read this time (default %(default)s)")
+    command.add_argument("--recipe", default="interview",
+                         help="the recipe whose ranked passages are read (default %(default)s)")
+    command.set_defaults(run=run_judge)
+
+    command = commands.add_parser(
+        "index", help="make every passage findable by what it means",
+        description="Send each passage's words to the embedding model and keep what comes back, so "
+                    "`me search` can find it. Only passages that are new, or whose words have changed, "
+                    "are sent, and never one in which someone asks for it not to be used.",
+    )
+    command.add_argument("--project", help="only this project's passages")
+    command.add_argument("--take", help="only this take's passages")
+    command.set_defaults(run=run_index)
+
+    command = commands.add_parser(
+        "search", help="find the passages that answer to a question, or make a cut of them",
+        description="List the indexed passages nearest in meaning to a question, weighed with how good "
+                    "each one is. With --cut, store the best of them as a cut instead.",
+    )
+    command.add_argument("question", help="what to look for, in words")
+    command.add_argument("--project", help="only this project's passages")
+    command.add_argument("--take", help="only this take's passages")
+    command.add_argument("--top", type=int, default=10, metavar="N", help="how many to list (default %(default)s)")
+    command.add_argument("--relevance", type=float, default=0.65, metavar="SHARE",
+                         help="how much being on the subject counts beside being good, 0 to 1 "
+                              "(default %(default)g)")
+    command.add_argument("--answers", action="store_true",
+                         help="have the text model check that each one answers the question, and rank by that")
+    command.add_argument("--cut", metavar="NAME", help="store the best of them as a cut called NAME")
+    command.add_argument("--seconds", type=float, default=90.0, metavar="N",
+                         help="with --cut, how long a cut to make (default %(default)g)")
+    command.add_argument("--best-first", action="store_true",
+                         help="with --cut, put the best first, not everything in the order it was said")
+    command.set_defaults(run=run_search)
 
 
 def run_passages(arguments: argparse.Namespace) -> None:
@@ -176,3 +222,67 @@ def run_rank(arguments: argparse.Namespace) -> None:
     print(f"{len(ranking.entries)} {ranking.recipe.subject}s by {ranking.recipe.name}")
     if ranking.withheld:
         print(f"{ranking.withheld} left out: someone in them asks for it not to be used")
+
+
+def _progress(what: str) -> Any:
+    """Something to call with how far along a long round is, when anyone is watching."""
+    import sys
+
+    if not sys.stderr.isatty():
+        return None
+
+    def show(done: int, of: int) -> None:
+        print(f"\r  {done} of {of} {what}", end="\n" if done >= of else "", file=sys.stderr, flush=True)
+    return show
+
+
+def run_judge(arguments: argparse.Namespace) -> int | None:
+    from ..edit import judge
+
+    done = judge.run(arguments.project, limit=arguments.limit, recipe=arguments.recipe,
+                     progress=_progress("passages read"))
+    if not done.considered:
+        print(f"nothing to read: {done.model} has read every passage {arguments.recipe} ranks")
+        return None
+    print(f"{done.judged} passages read by {done.model}")
+    if done.unread:
+        print(f"{done.unread} of its answers could not be read; those passages will be asked about again")
+    return 1 if done.unread and not done.judged else None
+
+
+def run_index(arguments: argparse.Namespace) -> None:
+    from ..edit import search
+
+    done = search.index(arguments.project, arguments.take, progress=_progress("passages indexed"))
+    print(f"{done.embedded} passages indexed by {done.model}" if done.considered
+          else f"nothing to index: {done.model} has every passage as it now reads")
+
+
+def run_search(arguments: argparse.Namespace) -> int | None:
+    from ..edit import clock, judge, search
+
+    if arguments.cut:
+        made = search.cut(arguments.question, arguments.cut, target_s=arguments.seconds,
+                          chronological=not arguments.best_first, project=arguments.project,
+                          take=arguments.take, relevance=arguments.relevance)
+        cut = made.timeline
+        for index, part in enumerate(made.parts, 1):
+            said = part.clip.label or ""
+            print(f"  {index:>3}  {part.take}  {clock(part.start_s)}-{clock(part.end_s)}  "
+                  f"({part.clip.duration_s:.1f}s)  {said if len(said) <= 72 else said[:71].rstrip() + '…'}".rstrip())
+        print(f"{len(cut.clips)} clips, {clock(cut.duration_s)}, stored as {cut.name}")
+        return None
+    found = search.search(arguments.question, project=arguments.project, take=arguments.take,
+                          top=arguments.top, relevance=arguments.relevance)
+    hits = judge.answering(arguments.question, found.hits, top=arguments.top) if arguments.answers else found.hits
+    for hit in hits:
+        said = hit.text if len(hit.text) <= 72 else hit.text[:71].rstrip() + "…"
+        asked = "" if hit.answers is None else f"  answers {hit.answers:.2f}" + (f" ({hit.why})" if hit.why else "")
+        print(f"  {hit.score:.2f}  {hit.take}  {clock(hit.start_s)}-{clock(hit.end_s)}  "
+              f"near {hit.similarity:.2f}  good {hit.quality:.2f}{asked}  {said}")
+    print(f"{len(hits)} passages found by {found.model}")
+    if found.withheld:
+        print(f"{found.withheld} left out: someone in them asks for it not to be used")
+    if found.unindexed:
+        print(f"{found.unindexed} passages are not indexed as they now read; `me index` takes them in")
+    return None

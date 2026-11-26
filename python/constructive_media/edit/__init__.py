@@ -22,12 +22,19 @@ the next step, or a person, can read it:
               and its sound unbroken wherever the recording carried on
 - `export`    a cut handed to an editing program, pointed at the recordings
               themselves, on each one's own timecode
+- `judge`     a text model's opinion of the best passages: whether anything
+              is said in them
+- `search`    passages found by what they mean, and a cut made of them
 
-Nothing here runs a model. It all works from what transcription, sync and the
-video analysis have already stored, so it is cheap enough to run over
-everything before anything expensive is allowed near it. Only `render` reads
-the recordings themselves, and it does that through `ffmpeg`; `export` asks
-`ffprobe` what time each one says it began.
+All but the last two run no model. They work from what transcription, sync
+and the video analysis have already stored, so they are cheap enough to run
+over everything before anything expensive is allowed near it. `judge` and
+`search` send a passage's words to a text model, through the `text` and
+`embedding` slots, and only to a server the settings name: `judge` after
+everything cheaper has ranked the passages, and neither ever a passage in
+which someone asks for it not to be used. Only `render` reads the recordings
+themselves, and it does that through `ffmpeg`; `export` asks `ffprobe` what
+time each one says it began.
 
 The word lists (fillers, hedges, words a sentence cannot end on) are English.
 Speech in another language still gets every measure that does not lean on them.

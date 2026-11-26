@@ -226,6 +226,20 @@ def builtins() -> Iterator[Adapter]:
         license="MIT",
         summary="Reverb, delay, compression and gain through the ffmpeg program",
     )
+    yield Adapter(
+        slot="text",
+        name="http",
+        factory=lazy("constructive_media.text.http:ChatServer"),
+        license="MIT",
+        summary="A model that reads and answers, on any server that speaks the chat-completions API",
+    )
+    yield Adapter(
+        slot="embedding",
+        name="http",
+        factory=lazy("constructive_media.text.http:EmbeddingServer"),
+        license="MIT",
+        summary="Text as numbers to search by, from any server that speaks the embeddings API",
+    )
 
 
 _registry: Registry | None = None

@@ -29,7 +29,7 @@ Early, and built in the open one layer at a time.
 | --- | --- |
 | Schema modules (`packages/`) | Here, tested, audited |
 | Settings and the adapter interface for the database, models and effects (`python/`) | Here, tested |
-| Engine and `me` command line: ingest, lineage, shots, frames, signatures, detection, transcription, takes and sync, speakers, passages, flags, scores and rankings, decisions, shot selection and timelines, a ranker taught from preferences, interviews assembled from passages with footage laid over them, cuts rendered to a file and exported to an editing program | Here, tested |
+| Engine and `me` command line: ingest, lineage, shots, frames, signatures, detection, transcription, takes and sync, speakers, passages, flags, scores and rankings, decisions, shot selection and timelines, a ranker taught from preferences, interviews assembled from passages with footage laid over them, cuts rendered to a file and exported to an editing program, a text model's opinion of the best passages, search by meaning | Here, tested |
 | Engine: generation | Being brought in |
 | [`.conv`](https://github.com/constructive-io/conv-spec) renderer | Being brought in |
 
@@ -111,6 +111,10 @@ me name interview voice1 "Ottoline Varga" --new   # say whose voice it is
 me passages                          # cut each take's speech into passages worth using
 me score                             # flag what to cut, then score every passage and shot
 me rank interview --top 10           # the best of them, and how much each was measured
+me judge                             # a text model reads the best of them and says whether anything is said
+me index                             # make every passage findable by what it means
+me search "the winter the boats came in close"         # the passages that answer to it
+me search "why the light went out" --cut dark --seconds 60   # or a cut of them
 me script --out script.md            # the best passages as a document to mark keep, cut or trim
 me script --read script.md           # store the marks as decisions
 me compile reel --count 12           # shots that are good and unalike, stored as a cut
@@ -156,6 +160,46 @@ is left out, never counted as a zero, and `me rank` says how much of its
 recipe each result was measured on. A passage in which someone asks for
 something not to be used is never ranked, whatever it scores, until a person
 dismisses that flag. `me flag` runs the flags on their own.
+
+`me judge` asks what no measurement can: whether anything is said. A passage
+of thanks scores as well as an explanation on every measure of form, so the
+best-ranked passages, most said in the least time first, are read by a text
+model, and what it makes of each is stored as three more scores with the
+model's name on them: `substance`, `interest` and `self_contained`. They are
+scores like any other, counted by a recipe that weighs them
+(`me recipe said --like interview --weigh substance=1`), and a passage is
+read once by each model. `me index` keeps every passage as an embedding and
+`me search` finds the ones nearest a question in meaning, weighed with how
+good each is, so a passage that is on the subject and unusable does not come
+first. `--answers` has the text model check that each one answers the
+question and is not only about it, and `--cut` stores what was found as a
+cut. A passage whose words have been corrected drops out of search until it
+is indexed again.
+
+Both models are reached over HTTP, on any server that speaks the
+chat-completions and embeddings API: llama.cpp, Ollama, vLLM, or a hosted
+one. Nothing is sent until you name the server and the model, so your
+transcripts go where you send them and nowhere else, and a passage in which
+someone asks for it not to be used is never sent at all:
+
+```sh
+export CONSTRUCTIVE_MEDIA_URL_TEXT=http://localhost:11434/v1
+export CONSTRUCTIVE_MEDIA_MODEL_TEXT=the-name-the-server-knows-it-by
+export CONSTRUCTIVE_MEDIA_URL_EMBEDDING=http://localhost:11434/v1
+export CONSTRUCTIVE_MEDIA_MODEL_EMBEDDING=a-model-that-gives-1024-numbers
+```
+
+`CONSTRUCTIVE_MEDIA_KEY_TEXT` and `CONSTRUCTIVE_MEDIA_KEY_EMBEDDING` hold a key
+for a server that wants one. `CONSTRUCTIVE_MEDIA_EXTRA_TEXT` is a JSON object
+sent with every request, for whatever a server calls its own options. A model
+that thinks before it answers needs it, either to be told not to
+(`{"reasoning_effort": "none"}`, on a server that takes that) or to be allowed
+enough for both (`{"max_tokens": 2000}`); `me judge` says so when a model
+spends everything it was allowed and answers nothing.
+
+Try a model on a few passages you know before trusting it. One that marks
+filler as highly as an explanation adds noise, and small ones are strict to a
+fault about what answers a question.
 
 What a person decides is kept, with who decided and when. `me keep` and
 `me cut` rule a passage or a shot in or out, everywhere or for one episode,
