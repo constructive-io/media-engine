@@ -12,6 +12,7 @@ from ..settings import Settings
 COUNTED = (
     ("personas", "media.personas"),
     ("assets", "media.assets"),
+    ("takes", "media.takes"),
     ("voices", "media.voices"),
     ("shots", "media_video.shots"),
     ("frames", "media_video.frames"),

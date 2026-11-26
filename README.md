@@ -29,7 +29,7 @@ Early, and built in the open one layer at a time.
 | --- | --- |
 | Schema modules (`packages/`) | Here, tested, audited |
 | Settings and the adapter interface for the database, models and effects (`python/`) | Here, tested |
-| Engine and `me` command line: ingest, lineage, shots, frames, signatures, detection, transcription | Here, tested |
+| Engine and `me` command line: ingest, lineage, shots, frames, signatures, detection, transcription, takes and sync | Here, tested |
 | Engine: speakers, editing, rendering, generation | Being brought in |
 | [`.conv`](https://github.com/constructive-io/conv-spec) renderer | Being brought in |
 
@@ -101,6 +101,10 @@ me signatures                        # a colour and motion signature per shot
 me detect                            # find objects and people in the frames
 me vocabulary Zentrova "Ottoline Varga" --project demo   # names to listen for
 me transcribe                        # what is said, sentence by sentence, word by word
+me group                             # recordings that rolled together become a take
+me match                             # a recorder with no clock finds its camera by what was said
+me sync                              # place every recording on its take's timeline, and prove it
+me takes                             # each take and how much of it is placed
 me lineage out.mp4                   # what a derived file was made from
 me status                            # where things are kept and what is held
 me adapters                          # every slot and what can fill it
@@ -109,6 +113,13 @@ me adapters                          # every slot and what can fill it
 Every stage picks up where it left off and only works on what is new. A model
 is downloaded the first time a stage needs it: 1.6 GB for the default
 transcriber.
+
+A take is the camera and the microphones that recorded one moment. `me sync`
+works out how far apart they started from the words they share, then from how
+the sound rises and falls, then from the devices' clocks once those are shown
+to agree. Every answer is checked against what is actually said at the same
+moment in both, and one that fails the check is not stored. `me sync --check`
+runs that check on what is stored and changes nothing.
 
 The same engine from Python:
 

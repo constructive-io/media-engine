@@ -87,3 +87,59 @@ def make_still(path: Path, size: str = "160x90") -> Path:
     ffmpeg.run("ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi",
                "-i", f"testsrc=s={size}", "-frames:v", "1", "-update", "1", path)
     return path
+
+
+_SYLLABLES = ("ba", "ko", "mi", "ru", "te", "la", "no", "si", "du", "fe", "ga", "po", "vi", "zu", "he")
+#: Six hundred made-up words. Nothing here is anyone's speech.
+VOCABULARY = tuple(
+    a + b + c for a in _SYLLABLES for b in _SYLLABLES[:8] for c in _SYLLABLES[:5]
+)
+
+
+def make_talk(seconds: float, seed: int = 1) -> list[tuple[str, float]]:
+    """A stretch of made-up speech: `(word, time)` at about two words a second."""
+    import random
+
+    chance = random.Random(seed)
+    talk, now = [], 0.0
+    while now < seconds:
+        talk.append((chance.choice(VOCABULARY), round(now, 3)))
+        now += chance.uniform(0.3, 0.7)
+    return talk
+
+
+def heard(talk, began_s: float, length_s: float, *, miss: float = 0.1, jitter_s: float = 0.03,
+          seed: int = 2) -> list[tuple[str, float]]:
+    """What a device that rolled from `began_s` for `length_s` wrote down of a talk.
+
+    Times are the device's own, from zero. It misses some words and is a
+    little out on when each began, as two transcripts of one room are.
+    """
+    import random
+
+    chance = random.Random(seed)
+    return [
+        (word, round(max(0.0, when - began_s + chance.uniform(-jitter_s, jitter_s)), 3))
+        for word, when in talk
+        if began_s <= when < began_s + length_s and chance.random() >= miss
+    ]
+
+
+def write_transcript(asset_id, words) -> None:
+    """Store `(word, time)` pairs as an asset's transcript."""
+    words = list(words)
+    if not words:
+        return
+    cur = db.cursor()
+    cur.execute(
+        """INSERT INTO media_video.segments (asset_id, idx, start_s, end_s, text)
+           VALUES (%s, 0, %s, %s, %s) RETURNING id""",
+        (asset_id, words[0][1], words[-1][1] + 0.3, " ".join(word for word, _ in words)),
+    )
+    segment = cur.fetchone()[0]
+    cur.execute(
+        """INSERT INTO media_video.words (segment_id, idx, start_s, end_s, word)
+           SELECT %s, w.idx, w.start_s, w.start_s + 0.25, w.word
+             FROM jsonb_to_recordset(%s) AS w(idx integer, start_s double precision, word text)""",
+        (segment, db.jsonb([{"idx": n, "start_s": when, "word": word} for n, (word, when) in enumerate(words)])),
+    )

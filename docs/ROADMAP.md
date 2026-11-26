@@ -11,10 +11,11 @@ lands tested, with nothing in it that breaks [the licensing rule](./LICENSING.md
 | 4 | Engine and `me` command line, first part: the database driver, the `ffmpeg` bridge, ingest, lineage, shots, frames and colour signatures | Done |
 | 5 | Object detection on an Apache-2.0 detector (D-FINE through ONNX Runtime), with torchvision as a second choice | Done |
 | 6 | Transcription: speech to sentences and timed words with Whisper through whisper.cpp, and a vocabulary to listen for | Done |
-| 7 | Engine, the rest: speakers, editing, rendering and export | Next |
-| 8 | Audio: the [`.conv`](https://github.com/constructive-io/conv-spec) renderer, with `ffmpeg` as the default effects backend | Planned |
-| 9 | Model list: every supported model, its source, its license | Planned |
-| 10 | Plugin repository for adapters that cannot live here | Planned |
+| 7 | Takes and sync: recordings of one moment grouped by clock or matched by content, then placed on one timeline by shared words, by sound and by clock, each placing proved against what is said | Done |
+| 8 | Engine, the rest: speakers, editing, rendering and export | Next |
+| 9 | Audio: the [`.conv`](https://github.com/constructive-io/conv-spec) renderer, with `ffmpeg` as the default effects backend | Planned |
+| 10 | Model list: every supported model, its source, its license | Planned |
+| 11 | Plugin repository for adapters that cannot live here | Planned |
 
 ## Ground rules for every layer
 

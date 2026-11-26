@@ -1,10 +1,12 @@
+import os
 import unittest
 from contextlib import closing
+from unittest import mock
 
 from constructive_media import adapters, db
 from constructive_media.settings import Database
 
-from .support import DatabaseTest
+from .support import TEST_DATABASE_VARIABLE, DatabaseTest
 
 
 class ConnectionChoiceTest(unittest.TestCase):
@@ -95,6 +97,63 @@ class DriverTest(DatabaseTest):
                 "SELECT count(*) FROM media.assets WHERE content_hash = %s", ("made-up-unseen",)
             ).fetchone()
         self.assertEqual(seen, (0,))
+
+
+class UnitInsideATestTest(DatabaseTest):
+    def held(self):
+        return self.query("SELECT name FROM media.takes WHERE name LIKE 'made-up-unit-%%' ORDER BY name")
+
+    def test_a_unit_is_kept_whole_or_not_at_all(self):
+        cur = db.cursor()
+        cur.execute("INSERT INTO media.takes (name) VALUES ('made-up-unit-before')")
+        with db.transaction():
+            cur.execute("INSERT INTO media.takes (name) VALUES ('made-up-unit-kept')")
+        with db.transaction(keep=False) as connection:
+            cur.execute("INSERT INTO media.takes (name) VALUES ('made-up-unit-shown')")
+            self.assertIs(connection, self.connection)
+            self.assertEqual(len(self.held()), 3)
+        with self.assertRaises(db.DatabaseError):
+            with db.transaction():
+                cur.execute("INSERT INTO media.takes (name) VALUES ('made-up-unit-lost')")
+                cur.execute("INSERT INTO media.takes (name) VALUES ('made-up-unit-kept')")
+        # What came before the unit is untouched, and the connection still works.
+        self.assertEqual(self.held(), [("made-up-unit-before",), ("made-up-unit-kept",)])
+
+
+class UnitOfItsOwnTest(unittest.TestCase):
+    """Outside `use`, a unit opens its own connection and really commits."""
+
+    NAME = "made-up-unit-of-its-own"
+
+    def setUp(self):
+        url = os.environ.get(TEST_DATABASE_VARIABLE)
+        if not url:
+            self.skipTest(f"{TEST_DATABASE_VARIABLE} is not set")
+        self.database = Database.from_url(url)
+        environment = mock.patch.dict(os.environ, {"CONSTRUCTIVE_MEDIA_DATABASE_URL": url})
+        environment.start()
+        self.addCleanup(environment.stop)
+        self.addCleanup(self.outside, "DELETE FROM media.takes WHERE name = %s RETURNING 1")
+
+    def outside(self, sql):
+        with closing(db.driver().connect(self.database)) as other:
+            return other.cursor().execute(sql, (self.NAME,)).fetchall()
+
+    def test_it_is_stored_when_kept_and_not_when_shown_or_failed(self):
+        insert, count = "INSERT INTO media.takes (name) VALUES (%s)", "SELECT count(*) FROM media.takes WHERE name = %s"
+        with db.transaction(keep=False):
+            db.cursor().execute(insert, (self.NAME,))
+            self.assertEqual(db.cursor().execute(count, (self.NAME,)).fetchall(), [(1,)])
+            self.assertEqual(self.outside(count), [(0,)])
+        self.assertEqual(self.outside(count), [(0,)])
+        with self.assertRaises(ZeroDivisionError):
+            with db.transaction():
+                db.cursor().execute(insert, (self.NAME,))
+                1 / 0
+        self.assertEqual(self.outside(count), [(0,)])
+        with db.transaction():
+            db.cursor().execute(insert, (self.NAME,))
+        self.assertEqual(self.outside(count), [(1,)])
 
 
 if __name__ == "__main__":

@@ -14,3 +14,4 @@ schemas/media/tables/recorded_at [schemas/media/tables/assets] 2026-08-14T22:00:
 schemas/media/tables/geometry [schemas/media/tables/recorded_at] 2026-08-15T12:00:00Z constructive <constructive@5b0c196eeb62> # shape as a first-class fact
 schemas/media/indexes/foreign_keys [schemas/media/tables/geometry] 2017-08-11T08:11:51Z constructive <constructive@5b0c196eeb62> # foreign keys are indexed
 schemas/media/indexes/embeddings [schemas/media/tables/voices] 2017-08-11T08:11:51Z constructive <constructive@5b0c196eeb62> # nearest-neighbour search over voice embeddings
+schemas/media/tables/offset_method [schemas/media/tables/takes] 2026-11-25T12:00:00Z constructive <constructive@5b0c196eeb62> # how an offset was arrived at

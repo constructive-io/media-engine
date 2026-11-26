@@ -98,6 +98,40 @@ def use(conn: Any) -> Iterator[Any]:
         _current.reset(token)
 
 
+@contextmanager
+def transaction(*, keep: bool = True) -> Iterator[Any]:
+    """Run everything inside the block as one unit: all of it stored, or none.
+
+    With `keep=False` none of it is stored even when it succeeds, which is how
+    a command shows what it would do. Inside `use`, the block is a savepoint
+    in that connection's transaction.
+    """
+    outer = _current.get()
+    if outer is not None:
+        cur = outer.cursor()
+        cur.execute("SAVEPOINT constructive_media_unit")
+        try:
+            yield outer
+        except BaseException:
+            cur.execute("ROLLBACK TO SAVEPOINT constructive_media_unit")
+            raise
+        cur.execute(("RELEASE" if keep else "ROLLBACK TO") + " SAVEPOINT constructive_media_unit")
+        return
+    conn = connect(autocommit=False)
+    try:
+        with use(conn):
+            yield conn
+        if keep:
+            conn.commit()
+        else:
+            conn.rollback()
+    except BaseException:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
 def jsonb(value: Any) -> Any:
     """A parameter sent as one JSON document, whatever its Python type."""
     return driver().jsonb(value)

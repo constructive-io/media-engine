@@ -12,6 +12,7 @@ import shutil
 import subprocess
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
+from datetime import datetime
 from functools import cache
 from pathlib import Path
 
@@ -80,6 +81,24 @@ def probe(path: str | Path) -> Probe | None:
     )
 
 
+def created(path: str | Path) -> datetime | None:
+    """When the file says it was recorded, if it says so with a time zone.
+
+    Cameras write this into the container. It is the device's own clock, set
+    by hand, and some write the moment the file closed.
+    """
+    try:
+        done = run(FFPROBE, "-v", "quiet", "-print_format", "json",
+                   "-show_entries", "format_tags=creation_time", path)
+        written = json.loads(done.stdout)["format"]["tags"]["creation_time"]
+        found = datetime.fromisoformat(written.replace("Z", "+00:00"))
+    except (FfmpegError, KeyError, TypeError, ValueError) as error:
+        if "was not found" in str(error):
+            raise
+        return None
+    return found if found.tzinfo else None
+
+
 @cache
 def encoders() -> frozenset[str]:
     """The encoders this machine's ffmpeg was built with."""
@@ -136,6 +155,28 @@ def frames(
     try:
         while len(chunk := process.stdout.read(length)) == length:
             yield chunk
+    finally:
+        process.stdout.close()
+        process.kill()
+        process.wait()
+
+
+def samples(path: str | Path, *, rate: int, chunk: int = 1 << 20) -> Iterator[bytes]:
+    """The sound of a file as one channel of 16-bit samples, a chunk at a time.
+
+    A file with no sound gives nothing.
+    """
+    if shutil.which(FFMPEG) is None:
+        raise FfmpegError(f"the {FFMPEG!r} program was not found; install ffmpeg")
+    process = subprocess.Popen(
+        [FFMPEG, "-hide_banner", "-loglevel", "error", "-i", str(path), "-vn",
+         "-f", "s16le", "-ac", "1", "-ar", str(rate), "-"],
+        stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+    )
+    assert process.stdout is not None
+    try:
+        while piece := process.stdout.read(chunk):
+            yield piece
     finally:
         process.stdout.close()
         process.kill()
