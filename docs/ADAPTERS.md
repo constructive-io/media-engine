@@ -300,7 +300,7 @@ each time, and one that refuses it can be spared it with
 same way whatever the seed cannot mend a bad take by saying it again.
 
 `me say scene.conv out/scene.flac` does this for every line of a
-[`.conv`](https://github.com/constructive-io/conversation-spec) script and mixes the
+[`.conv`](https://github.com/constructive-io/conversation-format) script and mixes the
 result (`constructive_media.audio.scene`).
 
 A model that clones a voice from a recording on your own machine is a plugin:
@@ -310,7 +310,7 @@ it, and it is chosen per voice, by the voice's `engine`.
 ## Effects
 
 `Effects` carries the request in the vocabulary of the
-[`.conv` format](https://github.com/constructive-io/conversation-spec): `reverb`
+[`.conv` format](https://github.com/constructive-io/conversation-format): `reverb`
 (`room`, `hall`, `cathedral`, `plate`), `reverb-mix`, `delay`,
 `delay-feedback`, `delay-mix`, `compress`, `gain`. A value outside the format's
 range is an error; nothing is silently ignored.

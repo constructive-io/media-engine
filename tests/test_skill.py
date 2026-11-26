@@ -66,6 +66,26 @@ class TheSkill(unittest.TestCase):
             for target in LINK.findall(page.read_text(encoding="utf-8")):
                 self.assertTrue((page.parent / target).exists(), f"{page.name} points at {target}")
 
+    def test_it_points_only_at_repositories_that_are_there(self):
+        # A renamed repository leaves old links behind unless something looks.
+        ours = {"constructive", "constructive-media", "conversation-format", "media-engine-plugins"}
+        pages = [*PAGES, ROOT / "README.md", ROOT / "AGENTS.md", *sorted((ROOT / "docs").glob("*.md"))]
+        for page in pages:
+            named = set(re.findall(r"github(?:usercontent)?\.com/constructive-io/([\w.-]+)", page.read_text(encoding="utf-8")))
+            self.assertEqual(named - ours, set(), f"{page.name} points at a repository this one does not know")
+        self.assertTrue((ROOT / "tests" / "fixtures" / "conversation-format" / "README.md").is_file())
+
+    def test_what_it_says_a_render_reports_is_what_one_reports(self):
+        page = (SKILL / "SKILL.md").read_text(encoding="utf-8")
+        said = (ROOT / "python" / "constructive_media" / "cli" / "speech.py").read_text(encoding="utf-8")
+        made = (ROOT / "python" / "constructive_media" / "audio" / "scene.py").read_text(encoding="utf-8")
+        for words in ("need a listen:", "left out, having no file:", "seconds:"):
+            self.assertTrue(words in page, f"the skill does not show `{words}`")
+            self.assertTrue(words in said, f"`me say` no longer prints `{words}`")
+        for key in ("needs_review", "left_out", "status"):
+            self.assertTrue(f"`{key}`" in page or f".{key}`" in page, f"the skill does not name `{key}`")
+            self.assertTrue(f'"{key}"' in made + said, f"a render no longer reports `{key}`")
+
     def test_the_agent_guide_and_the_readme_lead_to_it(self):
         for name in ("AGENTS.md", "README.md"):
             leads = ".agents/skills/constructive-media" in (ROOT / name).read_text(encoding="utf-8")

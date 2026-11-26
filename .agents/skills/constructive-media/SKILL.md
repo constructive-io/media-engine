@@ -4,7 +4,7 @@ description: Constructive Media — one engine for video, images, audio and voic
 compatibility: Python 3.11+, PostgreSQL 17+ with pgvector, pgpm, ffmpeg, whisper.cpp
 metadata:
   author: constructive-io
-  version: "0.1.0"
+  version: "0.2.0"
 ---
 
 # Constructive Media
@@ -13,7 +13,7 @@ One engine for video, images, audio and voice. Everything it knows is kept in a
 PostgreSQL database, everything it does is a `me` command, and every model it
 uses is reached through an adapter you can swap.
 
-It is the renderer for the [`.conv` format](https://github.com/constructive-io/conversation-spec):
+It is the renderer for the [`.conv` format](https://github.com/constructive-io/conversation-format):
 a plain-text script of who speaks, what they say and what is heard around them
 goes in, and a mixed recording comes out.
 
@@ -26,6 +26,20 @@ goes in, and a mixed recording comes out.
   [references/footage.md](references/footage.md).
 - **Setting up:** the database, the speech server, the settings, an adapter or
   a plugin.
+
+## How the pieces fit
+
+| Piece | Where | What it does |
+| --- | --- | --- |
+| The `.conv` format | [conversation-format](https://github.com/constructive-io/conversation-format) | says what a script may hold; has the `conv` skill for writing one |
+| `conv`, from `@conversation/cli` on npm | the same repository | checks a script and prints it as JSON. It makes no sound |
+| `me`, this engine | here | checks a script with a parser of its own, then says and mixes it |
+| Plugins | [media-engine-plugins](https://github.com/constructive-io/media-engine-plugins) | adapters under copyleft licenses, installed apart |
+
+`conv` and `me` do not call each other. They agree on what a script means
+because the engine's parser is held to the format's own conformance files, kept
+in [`tests/fixtures/conversation-format`](../../../tests/fixtures/conversation-format).
+A script that `conv check` passes is a script `me conv` passes.
 
 ## Set up, once
 
@@ -76,6 +90,9 @@ me conv scene.conv            # ok, or every problem with its line and how to me
 me conv scene.conv --json     # the scene the script describes
 ```
 
+On a machine with Node.js and no engine, `npx @conversation/cli check scene.conv`
+is the same check, from the format's own parser.
+
 **3. Point the engine at a speech server.** Any server that answers the usual
 `audio/speech` request will do, on your machine or hosted:
 
@@ -124,10 +141,32 @@ me say scene.conv out/scene.flac --only grace     # one persona's lines
 me say scene.conv out/scene.flac --only 2,3       # lines by number, as in out/scene.lines/
 ```
 
+## Before you say it is done
+
+`me say` ends by saying what it wrote, and then anything that wants a look:
+
+```
+3 lines, 9.2 seconds: out/scene.flac
+left out, having no file: THUNDER
+1 need a listen: 3
+```
+
+- **No `need a listen`.** A line named there had no take that passed. In
+  `out/scene.manifest.json` that is `needs_review` above 0, and the line's
+  `status` is `needs_review`. Say it again with `--only 3`, or reword it.
+- **No `left out`.** A sound named there was not in the mix, for want of a
+  file: `sound.left_out` in the manifest. Give it a `file:`, or point
+  `--sounds` at the folder it is in.
+- **Say what was checked.** Whisper listened to every line; no person did.
+  Report the render as made and checked by the engine, not as heard.
+- **Leave the sound where it is.** Recordings, models and anything under
+  `out/` are never committed.
+
 ## Writing `.conv`
 
-The grammar is [SPEC.md in conversation-spec](https://github.com/constructive-io/conversation-spec/blob/main/SPEC.md),
-and that repository has a `conv` skill for writing scripts. The shape of it:
+The grammar is [SPEC.md in conversation-format](https://github.com/constructive-io/conversation-format/blob/main/SPEC.md),
+and that repository has a `conv` skill for writing scripts
+(`npx skills add https://github.com/constructive-io/conversation-format --skill conv`). The shape of it:
 
 | Write | To get |
 | --- | --- |
@@ -194,6 +233,6 @@ Never print or commit a key. Say where it is kept, not what it is.
 
 | Skill | Where | For |
 | --- | --- | --- |
-| `conv` | [conversation-spec](https://github.com/constructive-io/conversation-spec) | Writing and checking `.conv` scripts |
+| `conv` | [conversation-format](https://github.com/constructive-io/conversation-format) | Writing and checking `.conv` scripts |
 | `media-engine-plugins` | [media-engine-plugins](https://github.com/constructive-io/media-engine-plugins) | Installing, choosing and writing plugins |
 | `pgpm` | [`.agents/skills/pgpm`](../pgpm/SKILL.md) | The database modules: deploy, revert, verify, test |

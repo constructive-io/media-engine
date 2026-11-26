@@ -30,7 +30,7 @@ Early, and built in the open one layer at a time.
 | Schema modules (`packages/`) | Here, tested, audited |
 | Settings and the adapter interface for the database, models and effects (`python/`) | Here, tested |
 | Engine and `me` command line: ingest, lineage, shots, frames, signatures, detection, transcription, takes and sync, speakers, passages, flags, scores and rankings, decisions, shot selection and timelines, a ranker taught from preferences, interviews assembled from passages with footage laid over them, cuts rendered to a file and exported to an editing program, a text model's opinion of the best passages, search by meaning | Here, tested |
-| [`.conv`](https://github.com/constructive-io/conversation-spec) scripts read and checked, held to the format's own conformance files | Here, tested |
+| [`.conv`](https://github.com/constructive-io/conversation-format) scripts read and checked, held to the format's own conformance files | Here, tested |
 | The mix: clips on named tracks, brought to a level, looped, faded, ducked under speech and put through effects, written with a stem for each track | Here, tested |
 | The check on a spoken line: what was heard against what was meant, a voice's reference recording leaking into the line, a stutter, a line cut off, a click at the start | Here, tested |
 | Speech: voices kept by persona and emotion, a client for any server that speaks, and a line said again with another seed until a take of it passes the check | Here, tested with stand-ins for the models |
@@ -279,14 +279,14 @@ that sound under it and the camera's own switched off. A cut whose footage
 was shot at more than one rate says so, and so does one that points at a
 recording that is not there.
 
-`me conv` reads scripts in the [`.conv` format](https://github.com/constructive-io/conversation-spec):
+`me conv` reads scripts in the [`.conv` format](https://github.com/constructive-io/conversation-format):
 who speaks, what they say, and the sounds and music under them. It reports
 everything wrong in a script at once, each problem with its line, what is
 wrong and the nearest thing that would be right, and `--json` prints the
 scene the script describes. `@include NAME` finds `NAME.sounds` in a `banks`
 folder beside the script, or wherever `--banks` says. The reader passes the
 format's own conformance files, which are kept in
-[`tests/fixtures/conversation-spec`](./tests/fixtures/conversation-spec), and it runs no
+[`tests/fixtures/conversation-format`](./tests/fixtures/conversation-format), and it runs no
 model.
 
 `me say` renders a script. Everybody who speaks needs a voice (`me voice`),
@@ -367,7 +367,7 @@ engine knows by name, with its source and its license, is in
 
 ## Related
 
-- [conversation-spec](https://github.com/constructive-io/conversation-spec): the `.conv`
+- [conversation-format](https://github.com/constructive-io/conversation-format): the `.conv`
   screenplay format for multi-voice audio. This engine is an implementation of
   it: it reads a script and renders it. The grammar, the reference parser and
   a skill for writing scripts are there.
