@@ -366,7 +366,7 @@ engine knows by name, with its source and its license, is in
 
 - [conv-spec](https://github.com/constructive-io/conv-spec): the `.conv`
   screenplay format for multi-voice audio. This engine reads it and renders it.
-- [constructive-media-plugins](https://github.com/constructive-io/constructive-media-plugins):
+- [media-engine-plugins](https://github.com/constructive-io/media-engine-plugins):
   adapters for tools under copyleft licenses, each a package of its own that
   you choose to install.
 - [pgpm](https://www.npmjs.com/package/pgpm): the Postgres package manager the

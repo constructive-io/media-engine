@@ -54,7 +54,7 @@ adapter. Each slot's built-in adapter meets the rule above, and the registry
 refuses to register a built-in under any other license.
 
 An adapter for a tool that does not meet the rule lives in a separate
-repository, [constructive-media-plugins](https://github.com/constructive-io/constructive-media-plugins),
+repository, [media-engine-plugins](https://github.com/constructive-io/media-engine-plugins),
 as a package of its own under that tool's license. The engine never imports a
 plugin by name. It discovers the ones you have installed, never makes one the
 default, and `me adapters` shows each with its license and where it came from.
