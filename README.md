@@ -29,8 +29,8 @@ Early, and built in the open one layer at a time.
 | --- | --- |
 | Schema modules (`packages/`) | Here, tested, audited |
 | Settings and the adapter interface for the database, models and effects (`python/`) | Here, tested |
-| Engine and `me` command line: ingest, lineage, shots, frames, signatures, detection, transcription, takes and sync, speakers, passages, flags, scores and rankings, decisions, shot selection and timelines, a ranker taught from preferences, interviews assembled from passages with footage laid over them | Here, tested |
-| Engine: rendering, generation | Being brought in |
+| Engine and `me` command line: ingest, lineage, shots, frames, signatures, detection, transcription, takes and sync, speakers, passages, flags, scores and rankings, decisions, shot selection and timelines, a ranker taught from preferences, interviews assembled from passages with footage laid over them, cuts rendered to a file | Here, tested |
+| Engine: export to an editor, generation | Being brought in |
 | [`.conv`](https://github.com/constructive-io/conv-spec) renderer | Being brought in |
 
 The roadmap is in [docs/ROADMAP.md](./docs/ROADMAP.md).
@@ -116,12 +116,13 @@ me script --read script.md           # store the marks as decisions
 me compile reel --count 12           # shots that are good and unalike, stored as a cut
 me note reel 3 drop                  # say what you made of a clip
 me compile reel-2 --after reel       # the next cut: what was kept stays, what was dropped is replaced
-me pairs                             # the shots a ranking cannot tell apart, to choose between
+me pairs --render pairs/             # the shots a ranking cannot tell apart, side by side to choose between
 me prefer 3f9a01c2 77b0de41          # which of two you would use
 me fit --save taste                  # a model of what you prefer, tested on footage held out from it
 me recipe reel --like broll --weigh preferred=0.5   # a recipe that ranks by it
 me assemble talk --take interview    # the best passages as a cut, each seen and heard through the right recording
 me cutaways talk-over --over talk    # other footage over some of it, the sound untouched
+me render talk-over                  # the cut as a file to watch
 me lineage out.mp4                   # what a derived file was made from
 me status                            # where things are kept and what is held
 me adapters                          # every slot and what can fill it
@@ -197,6 +198,21 @@ carries on underneath: the middle of a long clip, or the whole of a short
 one, never the first. It leaves out shots with somebody filling the frame
 and anything recorded in the takes the cut is made from. A cutaway that was
 dropped is replaced by another of the same length.
+
+`me render` makes a cut into a file. Every clip is given a whole number of
+frames counted from the start of the cut, so rounding never adds up, and the
+sound is cut to the same count in samples: a long cut ends as much in step as
+it began. Sound that carries on from one clip to the next in the same
+recording is read as one unbroken stretch, with no join to hear under a
+cutaway; where it does jump, it fades out and in over a fiftieth of a second.
+Each stretch is measured and brought to one loudness, with one gain for the
+whole of it and a limiter under a ceiling, or left `--as-recorded`. The
+picture is padded to the canvas or cropped to fill it, and a crop moves to
+where the people in the shot were found. It reads the small copies made at
+ingest unless `--originals` is given, and `--megabytes` holds the file to a
+size. When it is done it looks at frames through the file and says so if
+they are not all the size that was asked for, and the file is recorded with
+the recordings it was made from, so `me lineage` can answer for it.
 
 The same engine from Python:
 

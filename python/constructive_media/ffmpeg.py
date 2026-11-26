@@ -161,6 +161,24 @@ def frames(
         process.wait()
 
 
+def frame_sizes(path: str | Path, times: Sequence[float]) -> list[tuple[int, int]]:
+    """How wide and how tall the picture is at each of some moments in a file.
+
+    The frames themselves are read. What a file says about itself at its
+    start is one size, and a file put together from parts can hold another.
+    """
+    if not times:
+        return []
+    moments = ",".join(f"{max(0.0, time):.3f}%+#1" for time in times)
+    done = run(FFPROBE, "-v", "error", "-select_streams", "v:0", "-read_intervals", moments,
+               "-show_entries", "frame=width,height", "-print_format", "json", path)
+    try:
+        found = json.loads(done.stdout).get("frames") or []
+    except json.JSONDecodeError:
+        return []
+    return [(int(each["width"]), int(each["height"])) for each in found if each.get("width") and each.get("height")]
+
+
 def samples(path: str | Path, *, rate: int, chunk: int = 1 << 20) -> Iterator[bytes]:
     """The sound of a file as one channel of 16-bit samples, a chunk at a time.
 

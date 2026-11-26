@@ -1,4 +1,4 @@
-"""Commands for cutting: compile, timelines, note, keep, cut, prefer, pairs, script."""
+"""Commands for cutting: compile, timelines, note, keep, cut, prefer, pairs, script, render."""
 
 from __future__ import annotations
 
@@ -185,7 +185,37 @@ def register(commands: Any) -> None:
     command.add_argument("--mode", choices=("close", "contrast"), default="close")
     command.add_argument("--count", type=int, default=10, metavar="N", help="how many pairs (default %(default)s)")
     command.add_argument("--project", help="only this project's")
+    command.add_argument("--render", metavar="FOLDER",
+                         help="also write each pair of shots as a video: the first on the left, the second "
+                              "on the right")
+    command.add_argument("--seconds", type=float, default=4.0, metavar="N",
+                         help="with --render: how long each video runs (default %(default)s)")
     command.set_defaults(run=run_pairs)
+
+    command = commands.add_parser(
+        "render", help="make a cut into a file to watch",
+        description="Read a cut's clips out of their recordings into one file, every clip fitted to "
+                    "the cut's canvas, the sound brought to one loudness and unbroken where clips "
+                    "carry on the same recording. The file is then looked at and what was found is "
+                    "stored with what it was made from.",
+    )
+    command.add_argument("name", help="the cut")
+    command.add_argument("--out", metavar="FILE", help="where to write it (default: NAME.mp4 in the work folder)")
+    command.add_argument("--canvas", choices=("landscape", "vertical", "square"),
+                         help="the shape to render to (default: the cut's own)")
+    command.add_argument("--fit", choices=("pad", "crop"),
+                         help="show all of each picture with bars, or fill the canvas and lose the edges "
+                              "(default: the cut's own)")
+    command.add_argument("--height", type=int, metavar="PIXELS", help="how tall (default: 540, or 1080 vertical, 720 square)")
+    command.add_argument("--fps", type=float, metavar="N", help="frames a second (default: what most of the cut was shot at)")
+    command.add_argument("--originals", action="store_true",
+                         help="read the recordings themselves, not the small copies made of them")
+    command.add_argument("--silent", action="store_true", help="picture only")
+    command.add_argument("--loudness", type=float, default=-16.0, metavar="LUFS",
+                         help="how loud to make the sound (default %(default)s)")
+    command.add_argument("--as-recorded", action="store_true", help="leave the sound as loud as it was recorded")
+    command.add_argument("--megabytes", type=float, metavar="N", help="make the file about this big, to send")
+    command.set_defaults(run=run_render)
 
     command = commands.add_parser("decisions", help="count the rulings made, and show the latest")
     command.add_argument("--recent", type=int, default=10, metavar="N", help="how many to show (default %(default)s)")
@@ -431,8 +461,52 @@ def run_pairs(arguments: argparse.Namespace) -> None:
         alike = f", {pair.likeness:.2f} alike" if pair.likeness is not None else ""
         print(f"  {_short(pair.one.id)}  {pair.one.where}")
         print(f"  {_short(pair.other.id)}  {pair.other.where}  ({pair.gap:.3f} apart in score{alike})")
+        if arguments.render and pair.one.kind == pair.other.kind == "shot":
+            from ..edit import render
+
+            written = render.compare(
+                pair.one.id, pair.other.id,
+                Path(arguments.render) / f"{_short(pair.one.id)}-{_short(pair.other.id)}.mp4",
+                seconds=arguments.seconds)
+            print(f"  {written}")
         print()
     print(f"{len(found)} pairs; answer each with `me prefer <chosen> <rejected>`")
+
+
+def run_render(arguments: argparse.Namespace) -> int:
+    from ..edit import clock, render
+    from ..settings import Settings
+
+    settings = Settings.from_env()
+    out = arguments.out or settings.work_dir / "renders" / f"{arguments.name}.mp4"
+    made = render.render(
+        arguments.name, out, canvas=arguments.canvas, fit=arguments.fit, height=arguments.height,
+        fps=arguments.fps, silent=arguments.silent, originals=arguments.originals,
+        lufs=None if arguments.as_recorded else arguments.loudness, megabytes=arguments.megabytes,
+        settings=settings,
+    )
+    print(f"{arguments.name}: {made.clips} clips, {clock(made.duration_s)}, {made.width}x{made.height} at "
+          f"{float(made.rate):.5g} frames a second" + (f", by {made.encoder}" if made.encoder else ""))
+    if arguments.silent:
+        print("  no sound")
+    elif arguments.as_recorded:
+        print(f"  sound in {len(made.gains)} unbroken stretches, as loud as it was recorded")
+    else:
+        changed = [gain for gain in made.gains if gain]
+        print(f"  sound in {len(made.gains)} unbroken stretches"
+              + (f", moved by {min(changed):+.1f} to {max(changed):+.1f} dB" if changed else ", none moved"))
+    sizes = ", ".join(f"{width}x{height}" for width, height in made.sizes)
+    print(f"  {made.looked} frames looked at: {sizes or 'none could be read'}")
+    wrong = []
+    if not made.uniform:
+        wrong.append(f"the picture is not {made.width}x{made.height} throughout")
+    if abs(made.adrift_s) > 2 / float(made.rate):
+        wrong.append(f"the file is {abs(made.adrift_s):.2f} s {'longer' if made.adrift_s > 0 else 'shorter'} "
+                     "than the cut")
+    print(made.path)
+    for each in wrong:
+        print(f"me: {each}", file=sys.stderr)
+    return 1 if wrong else 0
 
 
 def _tested(model: Any) -> str:
