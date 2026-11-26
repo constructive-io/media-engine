@@ -25,9 +25,14 @@ class Pg8000Driver:
                 database=database.name,
             )
         except Exception as error:  # noqa: BLE001 - the driver raises many kinds
+            why = _message(error)
+            if database.password is None and isinstance(error, (AttributeError, TypeError)):
+                # The driver trips over the missing password instead of saying so.
+                why = ("the server asked for a password and none was given; put one in "
+                       "CONSTRUCTIVE_MEDIA_DATABASE_URL or PGPASSWORD")
             raise DatabaseError(
                 f"could not connect to database {database.name!r} "
-                f"on {database.host}:{database.port}: {_message(error)}",
+                f"on {database.host}:{database.port}: {why}",
                 _sqlstate(error),
             ) from None
         raw.autocommit = autocommit

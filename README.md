@@ -291,7 +291,10 @@ model.
 
 `me say` renders a script. Everybody who speaks needs a voice (`me voice`),
 and a server that speaks and a model that listens need to be set up; see
-[docs/ADAPTERS.md](./docs/ADAPTERS.md#speech). Each line is said, listened
+[docs/ADAPTERS.md](./docs/ADAPTERS.md#speech). To hear a script before you
+have a speech model, [`examples/mac-voice-server.py`](./examples/mac-voice-server.py)
+answers with a Mac's own voice, and [`examples/scene.conv`](./examples/scene.conv)
+is a scene to try. Each line is said, listened
 back to and checked against its words, and said again with another seed until
 a take passes. Sounds are files the script names, looked for beside the
 script or in the folders given with `--sounds`. The mix is turned up or down
@@ -365,7 +368,9 @@ engine knows by name, with its source and its license, is in
 ## Related
 
 - [conv-spec](https://github.com/constructive-io/conv-spec): the `.conv`
-  screenplay format for multi-voice audio. This engine reads it and renders it.
+  screenplay format for multi-voice audio. This engine is an implementation of
+  it: it reads a script and renders it. The grammar, the reference parser and
+  a skill for writing scripts are there.
 - [media-engine-plugins](https://github.com/constructive-io/media-engine-plugins):
   adapters for tools under copyleft licenses, each a package of its own that
   you choose to install.
@@ -430,6 +435,14 @@ and run `pnpm run policy`. Don't use `pnpm approve-builds`; it writes outside th
 managed block and `pnpm run policy:check` will fail.
 
 ### Working with an AI agent
+
+Two skills are in `.agents/skills/`. `.agents/skills/constructive-media/` is how the engine is used:
+setting it up, taking a `.conv` script to sound, taking footage to a cut, and what to
+do when something goes wrong. Install it where your agent looks with:
+
+```sh
+npx skills add https://github.com/constructive-io/constructive-media --skill constructive-media
+```
 
 `pgpm init workspace` installed the `pgpm` skill at `.agents/skills/pgpm/` — a guide to
 pgpm's commands, the deploy/revert/verify pattern, plan files, dependencies, testing, and

@@ -32,6 +32,19 @@ class ConnectionChoiceTest(unittest.TestCase):
             self.skipTest("pg8000 is not installed")
         self.assertIn("nowhere", str(raised.exception))
 
+    def test_a_password_that_was_asked_for_and_not_given_is_said_plainly(self):
+        try:
+            from pg8000 import dbapi
+        except ModuleNotFoundError:
+            self.skipTest("pg8000 is not installed")
+        tripped = AttributeError("'NoneType' object has no attribute 'decode'")
+        with mock.patch.object(dbapi, "connect", side_effect=tripped):
+            with self.assertRaises(db.DatabaseError) as raised:
+                db.driver().connect(Database(name="made-up"))
+        self.assertIn("asked for a password", str(raised.exception))
+        self.assertIn("PGPASSWORD", str(raised.exception))
+        self.assertNotIn("NoneType", str(raised.exception))
+
 
 class DriverTest(DatabaseTest):
     def test_rows_are_tuples_and_parameters_are_percent_s(self):
