@@ -92,6 +92,13 @@ class Files(InAFolder):
         self.assertAlmostEqual(len(up) / RATE, 2.0, delta=0.01)
         self.assertAlmostEqual(at(up[4800:-4800], 440, RATE), 20 * math.log10(0.5), delta=0.1)
 
+    def test_sound_is_read_at_its_own_rate_when_none_is_asked_for(self):
+        sound = tone(1.0, rate=22_050)
+        path = pcm.write(self.here / "own.wav", sound, 22_050, bits=32)
+        self.assertEqual(pcm.shape(path), (1, 22_050))
+        self.assertEqual(pcm.rate(path), 22_050)
+        self.assertTrue(np.array_equal(pcm.read(path, stereo=False), sound))
+
     def test_bringing_a_rate_up_leaves_no_image_of_the_top_of_the_band(self):
         # A tone 500 Hz under the top of a 24 kHz recording has a mirror image
         # 500 Hz over it once the rate is doubled, unless the filter is steep.
@@ -108,6 +115,8 @@ class Files(InAFolder):
         (self.here / "words.wav").write_text("not sound")
         with self.assertRaises(ffmpeg.FfmpegError):
             pcm.read(self.here / "words.wav", rate=RATE)
+        with self.assertRaises(ffmpeg.FfmpegError):
+            pcm.rate(self.here / "words.wav")
 
 
 @needs_numpy

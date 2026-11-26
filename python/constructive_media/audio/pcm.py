@@ -7,6 +7,7 @@ separate program; writing is done here and needs nothing but numpy.
 
 from __future__ import annotations
 
+import json
 import struct
 from pathlib import Path
 from typing import Any
@@ -25,18 +26,27 @@ FORMATS = {16: (1, 2), 24: (1, 3), 32: (3, 4)}
 _MOST = 0xFFFFFFFF - 36
 
 
-def channels(path: str | Path) -> int:
-    """How many channels the first sound stream of a file has."""
+def shape(path: str | Path) -> tuple[int, int]:
+    """How many channels the first sound stream of a file has, and its rate."""
     done = ffmpeg.run(ffmpeg.FFPROBE, "-v", "error", "-select_streams", "a:0",
-                      "-show_entries", "stream=channels", "-of", "csv=p=0", path)
+                      "-show_entries", "stream=channels,sample_rate", "-of", "json", path)
     try:
-        return int(done.stdout.split()[0].strip(","))
-    except (IndexError, ValueError):
+        stream = json.loads(done.stdout)["streams"][0]
+        return int(stream["channels"]), int(stream["sample_rate"])
+    except (IndexError, KeyError, TypeError, ValueError):
         raise ffmpeg.FfmpegError(f"{path} holds no sound") from None
 
 
-def read(path: str | Path, *, rate: int, stereo: bool = True) -> Any:
-    """The sound of a file at `rate`, as two channels or as one.
+def channels(path: str | Path) -> int:
+    return shape(path)[0]
+
+
+def rate(path: str | Path) -> int:
+    return shape(path)[1]
+
+
+def read(path: str | Path, *, rate: int | None = None, stereo: bool = True) -> Any:
+    """The sound of a file, as two channels or as one, at `rate` or at its own.
 
     One channel read as two is the same on both sides, as loud as it was. Two
     read as one are averaged. More than two are folded to two by ffmpeg first.
@@ -44,10 +54,10 @@ def read(path: str | Path, *, rate: int, stereo: bool = True) -> Any:
     import numpy as np
 
     wide = channels(path) > 1
+    resample = ["-af", f"aresample={rate}:{RESAMPLER}"] if rate else []
     done = ffmpeg.run(
         ffmpeg.FFMPEG, "-hide_banner", "-loglevel", "error", "-i", path, "-vn", "-map", "0:a:0",
-        "-af", f"aresample={rate}:{RESAMPLER}", "-f", "f32le", "-ac", "2" if wide else "1", "-",
-        binary=True,
+        *resample, "-f", "f32le", "-ac", "2" if wide else "1", "-", binary=True,
     )
     samples = np.frombuffer(done.stdout, dtype="<f4").astype(np.float32)
     if not wide:

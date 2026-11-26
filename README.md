@@ -32,6 +32,7 @@ Early, and built in the open one layer at a time.
 | Engine and `me` command line: ingest, lineage, shots, frames, signatures, detection, transcription, takes and sync, speakers, passages, flags, scores and rankings, decisions, shot selection and timelines, a ranker taught from preferences, interviews assembled from passages with footage laid over them, cuts rendered to a file and exported to an editing program, a text model's opinion of the best passages, search by meaning | Here, tested |
 | [`.conv`](https://github.com/constructive-io/conv-spec) scripts read and checked, held to the format's own conformance files | Here, tested |
 | The mix: clips on named tracks, brought to a level, looped, faded, ducked under speech and put through effects, written with a stem for each track | Here, tested |
+| The check on a spoken line: what was heard against what was meant, a voice's reference recording leaking into the line, a stutter, a line cut off, a click at the start | Here, tested |
 | Engine: generation | Being brought in |
 | `.conv` scripts rendered to sound | Being brought in |
 
