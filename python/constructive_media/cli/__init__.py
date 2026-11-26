@@ -21,9 +21,9 @@ from ..settings import SettingsError
 from ..speakers import SpeakerError
 from ..takes import TakeError
 from ..transcription import TranscriptionError
-from . import analyze, edit, library, listen, system, takes
+from . import analyze, cut, edit, library, listen, system, takes
 
-GROUPS = (library, analyze, listen, takes, edit, system)
+GROUPS = (library, analyze, listen, takes, edit, cut, system)
 
 
 def parser() -> argparse.ArgumentParser:

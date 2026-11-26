@@ -108,7 +108,7 @@ def run_score(arguments: argparse.Namespace) -> None:
 
 
 def run_rank(arguments: argparse.Namespace) -> None:
-    from ..edit import scores
+    from ..edit import clock, scores
 
     if not arguments.recipe:
         for recipe in scores.recipes():
@@ -122,13 +122,8 @@ def run_rank(arguments: argparse.Namespace) -> None:
     for entry in ranking.entries:
         source = entry.source if ranking.recipe.subject == "passage" else Path(entry.source).name
         text = entry.text if len(entry.text) <= 72 else entry.text[:71].rstrip() + "…"
-        print(f"  {entry.score:.2f}  {source}  {_clock(entry.start_s)}-{_clock(entry.end_s)}  "
+        print(f"  {entry.score:.2f}  {source}  {clock(entry.start_s)}-{clock(entry.end_s)}  "
               f"{entry.coverage:.0%} measured" + (f"  {text}" if text else ""))
     print(f"{len(ranking.entries)} {ranking.recipe.subject}s by {ranking.recipe.name}")
     if ranking.withheld:
         print(f"{ranking.withheld} left out: someone in them asks for it not to be used")
-
-
-def _clock(seconds: float) -> str:
-    minutes, seconds = divmod(round(seconds, 1), 60)
-    return f"{int(minutes)}:{seconds:04.1f}"

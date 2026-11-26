@@ -11,6 +11,10 @@ the next step, or a person, can read it:
 - `flags`     places to cut, to look at, or to stay away from
 - `scores`    every measurement of a passage or a shot in one ledger, and the
               recipes that weigh them into a ranking
+- `decisions` what a person ruled: keep this, never that, this one over that
+- `script`    the ranked passages as a document to mark up and hand back
+- `select`    shots picked to be good and unalike, then put in an order
+- `timelines` a cut, kept as rows, with what was said about each clip
 
 Nothing here runs a model. It all works from what transcription, sync and the
 video analysis have already stored, so it is cheap enough to run over
@@ -25,3 +29,9 @@ from __future__ import annotations
 
 class EditError(LookupError):
     """Something an edit was asked to work from is not there."""
+
+
+def clock(seconds: float) -> str:
+    """A time as minutes and seconds: 754.25 is `12:34.2`."""
+    minutes, rest = divmod(round(abs(seconds), 1), 60)
+    return f"{'-' if seconds < 0 else ''}{int(minutes)}:{rest:04.1f}"

@@ -50,6 +50,8 @@ RETURNING name"""
 
 #: A take's placed recordings.
 _PLACED = "(ta.is_primary OR ta.offset_method IS NOT NULL)"
+#: A cut that applies: one made for good, or one made for the episode asked about.
+_CUT = "(x.episode_id IS NULL OR x.episode_id = (SELECT id FROM media.episodes WHERE slug = %s))"
 
 _TEXT = f"""
 SELECT 'passage', p.id, s.name, s.value, s.raw, {READ}, s.modality, s.producer
@@ -282,35 +284,38 @@ def recipe(name: str) -> Recipe:
 
 
 def ranked(
-    name: str, *, limit: int = 25, min_coverage: float = 0.5, project: str | None = None,
-    method: str | None = None,
+    name: str, *, limit: int | None = 25, min_coverage: float = 0.5, project: str | None = None,
+    method: str | None = None, take: str | None = None, episode: str | None = None,
 ) -> Ranking:
-    """The best of what a recipe ranks, best first.
+    """The best of what a recipe ranks, best first, or all of it with no `limit`.
 
     `min_coverage` is how much of the recipe must have had a score: below it a
     figure rests on too little to set beside the others. For passages, each
-    moment appears once, as the best passage that covers it, and `method`
-    keeps to passages found one way.
+    moment appears once, as the best passage that covers it, `method` keeps
+    to passages found one way and `take` to one take's. Anything cut for good
+    is left out, and so is anything cut from `episode` when one is named.
     """
     chosen = recipe(name)
     weight = sum(chosen.weights.values()) or 1.0
     cur = db.cursor()
     if chosen.subject == "passage":
         cur.execute(
-            """SELECT v.subject_id, v.score, v.coverage, v.modalities, v.deepest_tier, v.contributing,
+            f"""SELECT v.subject_id, v.score, v.coverage, v.modalities, v.deepest_tier, v.contributing,
                       t.name, p.start_s, p.end_s, p.text, p.take_id
                  FROM media_video.v_combined v
                  JOIN media_video.passages p ON p.id = v.subject_id
                  JOIN media.takes t ON t.id = p.take_id
                 WHERE v.recipe = %s AND v.subject_type = 'passage' AND v.coverage >= %s
                   AND (%s::text IS NULL OR t.project = %s) AND (%s::text IS NULL OR p.method = %s)
-                  AND NOT EXISTS (SELECT 1 FROM media_video.exclusions x WHERE x.passage_id = p.id)
+                  AND (%s::text IS NULL OR t.name = %s)
+                  AND NOT EXISTS (SELECT 1 FROM media_video.exclusions x
+                                   WHERE x.passage_id = p.id AND {_CUT})
                 ORDER BY v.score DESC, p.start_s, v.subject_id""",
-            (name, min_coverage * weight, project, project, method, method),
+            (name, min_coverage * weight, project, project, method, method, take, take, episode),
         )
     elif chosen.subject == "shot":
         cur.execute(
-            """SELECT v.subject_id, v.score, v.coverage, v.modalities, v.deepest_tier, v.contributing,
+            f"""SELECT v.subject_id, v.score, v.coverage, v.modalities, v.deepest_tier, v.contributing,
                       a.path, sh.start_s, sh.end_s, '', sh.asset_id
                  FROM media_video.v_combined v
                  JOIN media_video.shots sh ON sh.id = v.subject_id
@@ -318,9 +323,9 @@ def ranked(
                 WHERE v.recipe = %s AND v.subject_type = 'shot' AND v.coverage >= %s
                   AND (%s::text IS NULL OR a.project = %s)
                   AND NOT EXISTS (SELECT 1 FROM media_video.exclusions x
-                                   WHERE x.shot_id = sh.id OR x.asset_id = sh.asset_id)
+                                   WHERE (x.shot_id = sh.id OR x.asset_id = sh.asset_id) AND {_CUT})
                 ORDER BY v.score DESC, a.path, sh.start_s""",
-            (name, min_coverage * weight, project, project),
+            (name, min_coverage * weight, project, project, episode),
         )
     else:
         raise EditError(f"recipe {name!r} ranks {chosen.subject}s, which nothing here can list")
@@ -331,12 +336,14 @@ def ranked(
     taken: dict[Any, list[tuple[float, float]]] = {}
     withheld = 0
     for subject_id, score, coverage, modalities, deepest, contributing, source, start, end, text, within in rows:
-        if len(entries) >= limit:
+        if limit is not None and len(entries) >= limit:
             break
         start, end = float(start), float(end)
         spans = taken.setdefault(within, [])
-        if any(min(end, other_end) - max(start, other_start) > 0.3 * min(end - start, other_end - other_start)
-               for other_start, other_end in spans):
+        # Passages found different ways cover the same moments. Shots never do.
+        if chosen.subject == "passage" and any(
+                min(end, other_end) - max(start, other_start) > 0.3 * min(end - start, other_end - other_start)
+                for other_start, other_end in spans):
             continue
         if str(subject_id) in held:
             withheld += 1

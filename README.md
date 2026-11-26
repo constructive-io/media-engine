@@ -29,8 +29,8 @@ Early, and built in the open one layer at a time.
 | --- | --- |
 | Schema modules (`packages/`) | Here, tested, audited |
 | Settings and the adapter interface for the database, models and effects (`python/`) | Here, tested |
-| Engine and `me` command line: ingest, lineage, shots, frames, signatures, detection, transcription, takes and sync, speakers, passages, flags, scores and rankings | Here, tested |
-| Engine: timelines, rendering, generation | Being brought in |
+| Engine and `me` command line: ingest, lineage, shots, frames, signatures, detection, transcription, takes and sync, speakers, passages, flags, scores and rankings, decisions, shot selection and timelines | Here, tested |
+| Engine: rendering, generation | Being brought in |
 | [`.conv`](https://github.com/constructive-io/conv-spec) renderer | Being brought in |
 
 The roadmap is in [docs/ROADMAP.md](./docs/ROADMAP.md).
@@ -111,6 +111,12 @@ me name interview voice1 "Ottoline Varga" --new   # say whose voice it is
 me passages                          # cut each take's speech into passages worth using
 me score                             # flag what to cut, then score every passage and shot
 me rank interview --top 10           # the best of them, and how much each was measured
+me script --out script.md            # the best passages as a document to mark keep, cut or trim
+me script --read script.md           # store the marks as decisions
+me compile reel --count 12           # shots that are good and unalike, stored as a cut
+me note reel 3 drop                  # say what you made of a clip
+me compile reel-2 --after reel       # the next cut: what was kept stays, what was dropped is replaced
+me pairs                             # the shots a ranking cannot tell apart, to choose between
 me lineage out.mp4                   # what a derived file was made from
 me status                            # where things are kept and what is held
 me adapters                          # every slot and what can fill it
@@ -143,6 +149,22 @@ is left out, never counted as a zero, and `me rank` says how much of its
 recipe each result was measured on. A passage in which someone asks for
 something not to be used is never ranked, whatever it scores, until a person
 dismisses that flag. `me flag` runs the flags on their own.
+
+What a person decides is kept, with who decided and when. `me keep` and
+`me cut` rule a passage or a shot in or out, everywhere or for one episode,
+and `me prefer` records which of two was better. `me script` writes the
+best passages out as a plain document in the order they were said; mark
+each one and `me script --read` stores the marks, and saying the same thing
+twice stores it once.
+
+`me compile` chooses shots for a cut. The best shots by score are the same
+shot over and over, so each pick is weighed for its quality less how much
+it looks like what is already picked, and the picks are ordered so that
+neighbours differ. Every run says how alike its neighbours are beside what
+the top of the list would have given. A `--seed` makes a variant, and the
+same seed makes the same one. A cut is revised by reacting to its clips with
+`me note` and compiling the next one `--after` it. `me timelines` lists the
+cuts and `me timeline` shows one.
 
 The same engine from Python:
 
