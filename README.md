@@ -29,7 +29,7 @@ Early, and built in the open one layer at a time.
 | --- | --- |
 | Schema modules (`packages/`) | Here, tested, audited |
 | Settings and the adapter interface for the database, models and effects (`python/`) | Here, tested |
-| Engine and `me` command line: ingest, lineage, shots, frames, signatures, detection, transcription, takes and sync, speakers, passages, flags, scores and rankings, decisions, shot selection and timelines | Here, tested |
+| Engine and `me` command line: ingest, lineage, shots, frames, signatures, detection, transcription, takes and sync, speakers, passages, flags, scores and rankings, decisions, shot selection and timelines, a ranker taught from preferences | Here, tested |
 | Engine: rendering, generation | Being brought in |
 | [`.conv`](https://github.com/constructive-io/conv-spec) renderer | Being brought in |
 
@@ -117,6 +117,9 @@ me compile reel --count 12           # shots that are good and unalike, stored a
 me note reel 3 drop                  # say what you made of a clip
 me compile reel-2 --after reel       # the next cut: what was kept stays, what was dropped is replaced
 me pairs                             # the shots a ranking cannot tell apart, to choose between
+me prefer 3f9a01c2 77b0de41          # which of two you would use
+me fit --save taste                  # a model of what you prefer, tested on footage held out from it
+me recipe reel --like broll --weigh preferred=0.5   # a recipe that ranks by it
 me lineage out.mp4                   # what a derived file was made from
 me status                            # where things are kept and what is held
 me adapters                          # every slot and what can fill it
@@ -165,6 +168,15 @@ the top of the list would have given. A `--seed` makes a variant, and the
 same seed makes the same one. A cut is revised by reacting to its clips with
 `me note` and compiling the next one `--after` it. `me timelines` lists the
 cuts and `me timeline` shows one.
+
+`me fit` teaches a model from the choices made with `me prefer`: which
+measurements of a shot go with being chosen, and by how much. It is tested on
+footage it was not fitted to, a whole shoot held out at a time, since shots
+from one shoot are alike enough to flatter a model that has seen their
+neighbours. The share it gets right is shown beside the half a coin would
+get. A model that has not beaten the coin by more than chance is stored with
+its figures and left unused. One that has gives every shot a `preferred`
+score, and a recipe made with `me recipe` can weigh it beside the rest.
 
 The same engine from Python:
 

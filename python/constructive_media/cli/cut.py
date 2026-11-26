@@ -42,6 +42,31 @@ def register(commands: Any) -> None:
     command.add_argument("--dry-run", action="store_true", help="show the cut and store nothing")
     command.set_defaults(run=run_compile)
 
+    command = commands.add_parser(
+        "fit", help="teach a model what you prefer from the choices you have made between shots",
+        description="Fit a model to the choices made with `me prefer`, and test it on footage it was not "
+                    "fitted to. With --save it is stored, and if it proved better than a coin, every shot "
+                    "it covers gets a `preferred` score that a recipe can weigh (`me recipe`).",
+    )
+    command.add_argument("--save", metavar="NAME", help="store the model under this name, in place of any before")
+    command.add_argument("--match", help="only choices between shots of files whose path matches; "
+                                         "the model then scores only such shots")
+    command.add_argument("--actor", help="only this person's choices")
+    command.add_argument("--source", default="human", help="whose choices: human, or all (default %(default)s)")
+    command.add_argument("--scope", help="what the model is for, in a few words")
+    command.add_argument("--min-pairs", type=int, default=30, metavar="N",
+                         help="refuse to fit to fewer choices than this (default %(default)s)")
+    command.set_defaults(run=run_fit)
+
+    command = commands.add_parser(
+        "models", help="list the fitted models, or show one",
+        description="List the fitted models with how each did on footage held out from it. With a name, "
+                    "show what that model goes by.",
+    )
+    command.add_argument("name", nargs="?", help="the model to show")
+    command.add_argument("--forget", action="store_true", help="delete the model and the scores it wrote")
+    command.set_defaults(run=run_models)
+
     command = commands.add_parser("selectors", help="list the kept sets of selection settings")
     command.set_defaults(run=run_selectors)
 
@@ -264,6 +289,67 @@ def run_pairs(arguments: argparse.Namespace) -> None:
         print(f"  {_short(pair.other.id)}  {pair.other.where}  ({pair.gap:.3f} apart in score{alike})")
         print()
     print(f"{len(found)} pairs; answer each with `me prefer <chosen> <rejected>`")
+
+
+def _tested(model: Any) -> str:
+    if model.accuracy is None:
+        return "could not be tested: no footage could be held out and leave enough to fit to"
+    return (f"right about {model.accuracy:.0%} of {model.tested} choices over footage held out by "
+            f"{model.held_out_by}; a coin gets 50%")
+
+
+def _model(model: Any) -> None:
+    print(f"  {_tested(model)}")
+    print(f"  right about {model.fitted:.0%} of the {model.pairs} it was fitted to, which it had seen")
+    for fold in model.folds:
+        print(f"    {fold.accuracy:>4.0%} of {fold.pairs:>4}  without {fold.held_out}")
+    print("  goes by, strongest first (+ more is preferred, - less is):")
+    for feature, weight in model.weights:
+        print(f"    {weight:+.2f}  {feature.replace('_', ' ')}")
+
+
+def run_fit(arguments: argparse.Namespace) -> None:
+    from .. import db
+    from ..edit import ranker
+
+    model = ranker.train(arguments.save or "unsaved", match=arguments.match, actor=arguments.actor,
+                         source=None if arguments.source == "all" else arguments.source,
+                         scope=arguments.scope, min_pairs=arguments.min_pairs)
+    print(f"{model.pairs} choices")
+    _model(model)
+    if not arguments.save:
+        print("nothing stored; --save NAME keeps it")
+        return
+    with db.transaction():
+        ranker.save(model)
+        scored = ranker.apply(model)
+    if model.proven:
+        print(f"stored as {model.name}; {scored} shots given a `{ranker.SCORE}` score")
+    else:
+        print(f"stored as {model.name}, and not used: it has not shown it does better than a coin "
+              "by more than chance. More choices may change that")
+
+
+def run_models(arguments: argparse.Namespace) -> None:
+    from ..edit import EditError, ranker
+
+    if arguments.name:
+        model = ranker.load(arguments.name)
+        if arguments.forget:
+            ranker.forget(arguments.name)
+            print(f"forgot {arguments.name}")
+            return
+        print(f"{model.name}: {model.scope or 'a model of which shot is preferred'}"
+              + (f", for files matching {model.match}" if model.match else ""))
+        _model(model)
+        print("  in use" if model.proven else "  not in use: not shown to be better than a coin")
+        return
+    if arguments.forget:
+        raise EditError("name the model to forget")
+    found = ranker.listing()
+    for model in found:
+        print(f"  {model.name}  {'in use' if model.proven else 'not in use'}  {_tested(model)}")
+    print(f"{len(found)} models" + ("" if found else "; `me fit --save NAME` makes one"))
 
 
 def run_decisions(arguments: argparse.Namespace) -> None:

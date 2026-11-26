@@ -15,10 +15,11 @@ lands tested, with nothing in it that breaks [the licensing rule](./LICENSING.md
 | 8 | Speakers: the voices in a recording told apart by how they sound (CAM++ through ONNX Runtime), each line given to its voice, and voices given names that carry across recordings | Done |
 | 9 | Editing, first part: a take's speech cut into passages, flags on what to cut or keep away from, scores from what was read, heard and seen, and rankings that say how much they had to go on | Done |
 | 10 | Editing, second part: decisions that are kept with who made them, a script of the best passages that is marked up and read back, shots selected to be good and unalike, and timelines that are revised from what was said about them | Done |
-| 11 | Editing, the rest: a ranker that learns from preferences, interviews assembled from passages, rendering and export, a judge and search behind the `text` and `embedding` slots | Next |
-| 12 | Audio: the [`.conv`](https://github.com/constructive-io/conv-spec) renderer, with `ffmpeg` as the default effects backend; a mix that can also write each track on its own as a stem; and a check on every rendered line, which is listened back to, compared with the words it was meant to say, and made again when it falls short | Planned |
-| 13 | Model list: every supported model, its source, its license | Planned |
-| 14 | Plugin repository for adapters that cannot live here | Planned |
+| 11 | Editing, third part: a ranker that learns from preferences, tested on footage held out from it | Done |
+| 12 | Editing, the rest: interviews assembled from passages, rendering and export, a judge and search behind the `text` and `embedding` slots | Next |
+| 13 | Audio: the [`.conv`](https://github.com/constructive-io/conv-spec) renderer, with `ffmpeg` as the default effects backend; a mix that can also write each track on its own as a stem; and a check on every rendered line, which is listened back to, compared with the words it was meant to say, and made again when it falls short | Planned |
+| 14 | Model list: every supported model, its source, its license | Planned |
+| 15 | Plugin repository for adapters that cannot live here | Planned |
 
 ## Left for later, and why
 

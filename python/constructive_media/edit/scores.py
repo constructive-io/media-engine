@@ -283,6 +283,40 @@ def recipe(name: str) -> Recipe:
     raise EditError(f"no recipe is called {name!r}; `me rank` lists them")
 
 
+def define(
+    name: str, weights: dict[str, float], *, subject: str = "shot", description: str = "", min_modalities: int = 1,
+) -> Recipe:
+    """Make a recipe, or change the one of that name.
+
+    A weight is how much a score counts beside the others. Only their
+    proportions matter, and a thing missing one of the scores is ranked by
+    the rest.
+    """
+    if subject not in ("passage", "shot"):
+        raise EditError(f"a recipe ranks passages or shots, not {subject!r}")
+    if not weights or any(weight <= 0 for weight in weights.values()):
+        raise EditError("a recipe needs at least one score to weigh, each by more than nothing")
+    if not 1 <= min_modalities <= 4:
+        raise EditError("a recipe can ask for between one and four senses")
+    cur = db.cursor()
+    cur.execute(
+        """INSERT INTO media_video.score_recipes (name, description, subject_type, weights, min_modalities)
+           VALUES (%s, %s, %s, %s, %s)
+           ON CONFLICT (name) DO UPDATE SET
+             description = EXCLUDED.description, subject_type = EXCLUDED.subject_type,
+             weights = EXCLUDED.weights, min_modalities = EXCLUDED.min_modalities""",
+        (name, description or None, subject, db.jsonb(weights), min_modalities),
+    )
+    return Recipe(name, description, subject, dict(weights), min_modalities)
+
+
+def known(subject: str) -> set[str]:
+    """The names of the scores that anything of one kind has."""
+    cur = db.cursor()
+    cur.execute("SELECT DISTINCT name FROM media_video.scores WHERE subject_type = %s", (subject,))
+    return {name for (name,) in cur.fetchall()}
+
+
 def ranked(
     name: str, *, limit: int | None = 25, min_coverage: float = 0.5, project: str | None = None,
     method: str | None = None, take: str | None = None, episode: str | None = None,

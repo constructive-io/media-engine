@@ -67,6 +67,22 @@ def register(commands: Any) -> None:
     command.add_argument("--method", help="only passages found this way: gap, sentence, or a --name you gave")
     command.set_defaults(run=run_rank)
 
+    command = commands.add_parser(
+        "recipe", help="show a recipe, make one, or change what one weighs",
+        description="A recipe says what a good passage or shot is: which scores count, and by how much "
+                    "beside each other. With only a name, show it. `--weigh preferred=0.5` on a recipe "
+                    "for shots makes it rank by what a fitted model learned you prefer.",
+    )
+    command.add_argument("name", help="the recipe")
+    command.add_argument("--like", metavar="RECIPE", help="start from this recipe's weights")
+    command.add_argument("--weigh", action="append", default=[], metavar="SCORE=WEIGHT",
+                         help="how much a score counts; 0 takes it out. May be given more than once")
+    command.add_argument("--ranks", choices=("passage", "shot"), help="what it ranks (default shot)")
+    command.add_argument("--needs", type=int, metavar="N",
+                         help="how many senses must have a score before a thing ranks")
+    command.add_argument("--describe", metavar="TEXT", help="what the recipe is for")
+    command.set_defaults(run=run_recipe)
+
 
 def run_passages(arguments: argparse.Namespace) -> None:
     from .. import db, takes
@@ -99,12 +115,48 @@ def run_flag(arguments: argparse.Namespace) -> None:
 
 
 def run_score(arguments: argparse.Namespace) -> None:
-    from ..edit import scores
+    from ..edit import ranker, scores
 
-    written = scores.run(arguments.project, min_pause_s=arguments.min_pause)
+    written = scores.run(arguments.project, min_pause_s=arguments.min_pause) + ranker.refresh()
     for name, count in sorted(written.items()):
         print(f"  {count:>5}  {name.replace('_', ' ')}")
     print(f"{sum(written.values())} scores")
+
+
+def _recipe(recipe: Any) -> None:
+    weights = ", ".join(f"{name.replace('_', ' ')} {weight:g}" for name, weight in
+                        sorted(recipe.weights.items(), key=lambda item: -item[1]))
+    print(f"{recipe.name}: ranks {recipe.subject}s. {recipe.description}".rstrip())
+    print(f"  {weights}")
+
+
+def run_recipe(arguments: argparse.Namespace) -> int | None:
+    from ..edit import EditError, scores
+
+    existing = {recipe.name: recipe for recipe in scores.recipes()}
+    changing = arguments.like or arguments.weigh or arguments.ranks or arguments.needs or arguments.describe
+    if not changing:
+        _recipe(scores.recipe(arguments.name))
+        return None
+    start = scores.recipe(arguments.like) if arguments.like else existing.get(arguments.name)
+    weights = dict(start.weights) if start else {}
+    for given in arguments.weigh:
+        score, _, weight = given.partition("=")
+        try:
+            weights[score.strip().replace(" ", "_")] = float(weight)
+        except ValueError:
+            raise EditError(f"--weigh takes SCORE=WEIGHT, as in preferred=0.5, not {given!r}") from None
+    recipe = scores.define(
+        arguments.name, {score: weight for score, weight in weights.items() if weight},
+        subject=arguments.ranks or (start.subject if start else "shot"),
+        description=arguments.describe if arguments.describe is not None else (
+            existing[arguments.name].description if arguments.name in existing else ""),
+        min_modalities=arguments.needs or (start.min_modalities if start else 1),
+    )
+    _recipe(recipe)
+    if unknown := sorted(set(recipe.weights) - scores.known(recipe.subject)):
+        print(f"no {recipe.subject} has a score called {', '.join(unknown)} yet, so for now it counts for nothing")
+    return None
 
 
 def run_rank(arguments: argparse.Namespace) -> None:
@@ -112,10 +164,7 @@ def run_rank(arguments: argparse.Namespace) -> None:
 
     if not arguments.recipe:
         for recipe in scores.recipes():
-            weights = ", ".join(f"{name.replace('_', ' ')} {weight:g}" for name, weight in
-                                sorted(recipe.weights.items(), key=lambda item: -item[1]))
-            print(f"{recipe.name}: ranks {recipe.subject}s. {recipe.description}".rstrip())
-            print(f"  {weights}")
+            _recipe(recipe)
         return
     ranking = scores.ranked(arguments.recipe, limit=arguments.top, min_coverage=arguments.min_coverage,
                             project=arguments.project, method=arguments.method)
