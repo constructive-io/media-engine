@@ -20,7 +20,7 @@ lands tested, with nothing in it that breaks [the licensing rule](./LICENSING.md
 | 13 | Editing, the rest: cuts rendered to a file and exported to an editing program; a text model's opinion of the best passages and search by meaning, behind the `text` and `embedding` slots, through any server that speaks the usual API | Done |
 | 14 | Audio: the [`.conv`](https://github.com/constructive-io/conv-spec) renderer, with `ffmpeg` as the default effects backend; a mix that can also write each track on its own as a stem; and a check on every rendered line, which is listened back to, compared with the words it was meant to say, and made again when it falls short | Done, and tested with stand-ins for the models that speak and listen. A sound described by a `prompt:` waits for a slot that makes sounds |
 | 15 | [Model list](./MODELS.md): every supported model, its source, its license | Done |
-| 16 | Plugin repository for adapters that cannot live here | Planned |
+| 16 | [Plugin repository](https://github.com/constructive-io/constructive-media-plugins) for adapters that cannot live here | Done: `pedalboard` effects (GPL-3.0) and Ultralytics detection (AGPL-3.0), each a package of its own |
 
 ## Left for later, and why
 

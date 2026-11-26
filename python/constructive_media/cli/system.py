@@ -57,6 +57,9 @@ def run_status(_arguments: argparse.Namespace) -> None:
 def run_adapters(_arguments: argparse.Namespace) -> None:
     registry = adapters.registry()
     settings = Settings.from_env()
+    # A plugin's name, license and origin run longer than a built-in's: keep the columns straight.
+    wide = [max([len(getattr(adapter, column)) for adapter in registry.available()] or [0])
+            for column in ("name", "license", "origin")]
     for slot, fills in adapters.SLOTS.items():
         available = registry.available(slot)
         print(f"{slot}: {fills}")
@@ -69,4 +72,5 @@ def run_adapters(_arguments: argparse.Namespace) -> None:
             chosen = None
         for adapter in available:
             mark = "*" if adapter.name == chosen else " "
-            print(f" {mark} {adapter.name:<14} {adapter.license:<14} {adapter.origin:<10} {adapter.summary}")
+            print(f" {mark} {adapter.name:<{wide[0]}}  {adapter.license:<{wide[1]}}  "
+                  f"{adapter.origin:<{wide[2]}}  {adapter.summary}")

@@ -93,9 +93,20 @@ class EffectBackend(Protocol):
         `source` and `target` may be the same file. With no effects the audio
         is copied through unchanged. A WAV file of floats is answered with one:
         a track on its way into a mix may pass full scale, and whole numbers
-        would clip it.
+        would clip it. What is written may run longer than the source, by as
+        long as an echo or a room goes on ringing.
+
+        A backend may also have a `ring(effects)`, the seconds its effects go
+        on sounding after the sound that set them off. A mix leaves that much
+        room after a track's last clip, and its own allowance when the backend
+        does not say.
         """
         ...
+
+
+def backend(name: str | None = None, *, settings: Settings | None = None) -> EffectBackend:
+    """The chosen effects backend, or the configured default."""
+    return adapters.get("effects", name, settings=settings)
 
 
 def apply(
@@ -107,7 +118,7 @@ def apply(
     settings: Settings | None = None,
 ) -> Path:
     """Apply effects with the chosen backend, or the configured default."""
-    chosen: EffectBackend = adapters.get("effects", backend, settings=settings)
+    chosen = adapters.get("effects", backend, settings=settings)
     return chosen.apply(Path(source), Path(target), effects)
 
 

@@ -306,8 +306,10 @@ out/scene.manifest.json         each line's seed, takes and verdict, and where e
 
 A line no take of which passed is kept in the scene, marked `needs_review` in
 the manifest and put in `media_audio.review_queue` for a person to listen to.
-`me say scene.conv out/scene.flac --only ada,7` says again just one persona's
-lines and line 7, and keeps every other line as it was. A sound described by
+An echo or a room put on a line rings on under whatever follows: the next
+line comes in when the words end. `me say scene.conv out/scene.flac --only ada,7`
+says again just one persona's lines and line 7, and keeps every other line as
+it was. A sound described by
 a `prompt:` cannot be made yet: give it a `file:`, or pass
 `--without-generated` to leave such sounds out.
 
@@ -363,8 +365,10 @@ engine knows by name, with its source and its license, is in
 ## Related
 
 - [conv-spec](https://github.com/constructive-io/conv-spec): the `.conv`
-  screenplay format for multi-voice audio. This engine reads it, and is
-  becoming a renderer for it.
+  screenplay format for multi-voice audio. This engine reads it and renders it.
+- [constructive-media-plugins](https://github.com/constructive-io/constructive-media-plugins):
+  adapters for tools under copyleft licenses, each a package of its own that
+  you choose to install.
 - [pgpm](https://www.npmjs.com/package/pgpm): the Postgres package manager the
   schema modules are built with.
 

@@ -251,8 +251,15 @@ def duck(source: Any, rate: int = RATE, depth: float = -8.0, *, threshold: float
     return np.interp(np.arange(length), np.arange(frames) * step + step / 2, gain).astype(np.float32)
 
 
-def ring(effects: Effects) -> float:
-    """How many seconds a track's effects go on sounding after its last clip."""
+def ring(effects: Effects, backend: Any = None) -> float:
+    """How many seconds a track's effects go on sounding after its last clip.
+
+    A backend that knows how long its own effects ring says so; without one
+    that does, this is an allowance wide enough for an ordinary room.
+    """
+    own = getattr(backend, "ring", None)
+    if effects and callable(own):
+        return max(0.0, float(own(effects)))
     seconds = 2.5 if effects.reverb else 0.0
     if effects.delay:
         feedback = 0.3 if effects.delay_feedback is None else effects.delay_feedback
@@ -387,7 +394,8 @@ class Mixer:
     def _length(self) -> int:
         length = int(round(max(0.0, self.least) * self.rate))
         for name, clips in self._clips.items():
-            after = ring(self.track(name).effects)
+            wanted = self.track(name).effects
+            after = ring(wanted, effect_slot.backend(self.backend, settings=self.settings)) if wanted else 0.0
             for start, clip in clips:
                 length = max(length, int(round((start + after) * self.rate)) + len(clip))
         return length + 1

@@ -496,7 +496,8 @@ class _Walk:
             found = self._say(item, number, persona, character, file)
             found.update(line=number, script_line=item["line"], speaker=speaker, persona=persona, text=text)
         sound = pcm.read(file, rate=self.mixer.rate)
-        seconds = len(sound) / self.mixer.rate
+        # An echo or a room goes on after the words do, and rings under whatever comes next.
+        seconds = max(0.0, len(sound) / self.mixer.rate - float(found.get("rings") or 0.0))
         self.mixer.place(track, sound, self.clock)
         if track != "dialogue":
             self.mixer.speech.add(track)
@@ -538,6 +539,7 @@ class _Walk:
         self._first = False
         wanted = {key: value for key, value in {**character, **asked}.items() if key in _EFFECT_KEYS}
         effects = Effects.from_overrides(wanted)
+        rings = 0.0
         if take.path is None:
             import numpy as np
 
@@ -545,6 +547,7 @@ class _Walk:
             status = lines.NEEDS_REVIEW
         elif effects and status != lines.NEEDS_REVIEW:
             effects_slot.apply(take.path, file, effects, backend=self.backend, settings=self.settings)
+            rings = max(0.0, (pcm.seconds(file) or 0.0) - (pcm.seconds(take.path) or 0.0))
         else:
             shutil.copyfile(take.path, file)
         applied = bool(effects) and take.path is not None and status != lines.NEEDS_REVIEW
@@ -557,7 +560,7 @@ class _Walk:
             "reason": verdict.reason, "heard": verdict.heard,
             "spoken": take.spoken if take.spoken != said.text else None,
             "effects": (wanted or None) if applied else None,
-            "piece_effects": list(said.effects) or None,
+            "piece_effects": list(said.effects) or None, "rings": round(rings, 3),
             "repeat": {"first": round(take.repeat.first_s, 3), "second": round(take.repeat.second_s, 3),
                        "similarity": round(take.repeat.similarity, 3)} if take.repeat else None,
         }

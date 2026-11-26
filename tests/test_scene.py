@@ -254,6 +254,25 @@ class Speaking(Rendered):
         self.assertEqual(quiet["lines"][0]["effects"], {"gain": -12})
         self.assertAlmostEqual(self.loud("dialogue", 0.2, 1.5) - loud, -12.0, places=0)
 
+    def test_an_echo_rings_under_the_line_that_follows(self):
+        body = "ADA: The lantern is lit.\nGRACE: I am on my way over."
+        plain = self.render(body, loudness=None)
+        head = CAST.replace("{ persona: ada }", "{ persona: ada, delay: 0.5, delay-mix: 0.5 }") + SOUNDS
+        echoed = self.render(body, head=head, loudness=None, stems=True)
+        first, second = echoed["lines"]
+        # The file holds the echoes; the line is as long as its words.
+        self.assertGreater(first["rings"], 0.4)
+        self.assertAlmostEqual(first["seconds"], plain["lines"][0]["seconds"], places=2)
+        self.assertAlmostEqual(pcm.seconds(first["file"]), first["seconds"] + first["rings"], places=2)
+        self.assertEqual((second["rings"], plain["lines"][0]["rings"]), (0.0, 0.0))
+        # The next line comes in when the words end, with the echo still sounding.
+        self.assertAlmostEqual(second["at"], plain["lines"][1]["at"], places=2)
+        self.assertGreater(self.loud("dialogue", first["seconds"] + 0.05, second["at"] - 0.05), -60)
+        # Said again for one speaker only, the kept line keeps its place.
+        again = self.render(body, head=head, loudness=None, only=["grace"])
+        self.assertTrue(again["lines"][0]["reused"])
+        self.assertEqual([one["at"] for one in again["lines"]], [first["at"], second["at"]])
+
     def test_a_line_no_take_of_which_passes_is_kept_and_marked(self):
         self.listener.hears = lambda text, seed: MUDDLE if "step" in text else text
         head = CAST.replace("{ persona: ada }", "{ persona: ada, gain: -12 }") + SOUNDS

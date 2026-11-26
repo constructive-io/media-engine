@@ -4,11 +4,13 @@ Every sound here is a tone or noise made on the spot.
 """
 
 import math
+import shutil
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
-from constructive_media import conv, ffmpeg
+from constructive_media import conv, effects, ffmpeg
 from constructive_media.effects import Effects
 
 from .support import HAVE_NUMPY, needs_ffmpeg, needs_numpy
@@ -299,6 +301,13 @@ class Tracks(unittest.TestCase):
         self.assertAlmostEqual(mix.ring(Effects(delay=0.5, delay_feedback=0.9)), 4.5)
         self.assertEqual(mix.ring(Effects(reverb="room", delay=0.1)), 2.5)
 
+    def test_a_backend_that_knows_how_long_it_rings_is_believed(self):
+        knows = mock.Mock(ring=lambda effects: 4.0 if effects.reverb else 0.25)
+        self.assertEqual(mix.ring(Effects(reverb="hall"), knows), 4.0)
+        self.assertEqual(mix.ring(Effects(gain=-3), knows), 0.25)
+        self.assertEqual(mix.ring(Effects(), knows), 0.0)                    # nothing asked, nothing rings
+        self.assertEqual(mix.ring(Effects(reverb="hall"), object()), 2.5)    # one that does not say
+
 
 @needs_numpy
 class Mixing(InAFolder):
@@ -420,6 +429,24 @@ class Mixing(InAFolder):
         done = mixer.mix()
         # 2.7 at its loudest going in. Clipped on the way it would come out at a quarter.
         self.assertAlmostEqual(float(np.abs(done.stems["hot"]).max()), 2.7 * 10 ** (-12 / 20), places=2)
+
+    @needs_ffmpeg
+    def test_a_mix_leaves_the_room_its_effects_backend_asks_for(self):
+        class Long:
+            name = "long"
+
+            def ring(self, effects):
+                return 4.0
+
+            def apply(self, source, target, effects):
+                shutil.copyfile(source, target)
+                return target
+
+        mixer = mix.Mixer(mix.tracks({"hall": {"reverb": "hall"}}), backend="long")
+        mixer.place("hall", tone(0.5), 0.0)
+        with mock.patch.object(effects.adapters, "get", return_value=Long()) as asked:
+            self.assertAlmostEqual(mixer.mix().report["seconds"], 4.5, places=2)
+        self.assertEqual(asked.call_args.args, ("effects", "long"))
 
     @needs_ffmpeg
     def test_a_reverb_rings_on_after_the_last_clip(self):

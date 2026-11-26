@@ -95,7 +95,7 @@ What an adapter must do is set by its slot:
 | `transcription` | `constructive_media.transcription.Transcriber` | `transcribe(audio, language, prompt)` returns what was said as segments, with a start and an end for every word |
 | `detection` | `constructive_media.detection.Detector` | `detect(images, confidence)` returns the detections for each image, boxes as shares of the frame |
 | `speaker` | `constructive_media.speakers.Embedder` | `embed(sounds)` returns one row of numbers for each stretch of sound, at unit length, close together for one voice |
-| `effects` | `constructive_media.effects.EffectBackend` | `apply(source, target, effects)` writes the audio with the effects applied, and answers a WAV file of floats with one, so a track that passes full scale on its way into a mix is not clipped |
+| `effects` | `constructive_media.effects.EffectBackend` | `apply(source, target, effects)` writes the audio with the effects applied, and answers a WAV file of floats with one, so a track that passes full scale on its way into a mix is not clipped. It may also say how long its effects ring, with `ring(effects)`, and a mix leaves that much room |
 
 ## Transcription
 
