@@ -14,7 +14,7 @@ from constructive_media.conv.values import number as read_number
 
 from .test_cli import run
 
-FIXTURES = Path(__file__).parent / "fixtures" / "conv-spec"
+FIXTURES = Path(__file__).parent / "fixtures" / "conversation-spec"
 
 HEAD = ("@characters\nADA: { persona: ada }\n\n@sounds\nBED: { file: music/bed.mp3 }\n"
         "GLASS: { prompt: \"glass\", duration: 2 }\n---\n")

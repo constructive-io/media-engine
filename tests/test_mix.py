@@ -21,7 +21,7 @@ if HAVE_NUMPY:
     from constructive_media.audio import mix, pcm
 
 RATE = 48_000
-FIXTURES = Path(__file__).parent / "fixtures" / "conv-spec" / "scenes"
+FIXTURES = Path(__file__).parent / "fixtures" / "conversation-spec" / "scenes"
 
 
 def tone(seconds=1.0, hz=440.0, loud=0.5, rate=RATE):

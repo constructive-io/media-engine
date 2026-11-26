@@ -13,7 +13,7 @@ One engine for video, images, audio and voice. Everything it knows is kept in a
 PostgreSQL database, everything it does is a `me` command, and every model it
 uses is reached through an adapter you can swap.
 
-It is the renderer for the [`.conv` format](https://github.com/constructive-io/conv-spec):
+It is the renderer for the [`.conv` format](https://github.com/constructive-io/conversation-spec):
 a plain-text script of who speaks, what they say and what is heard around them
 goes in, and a mixed recording comes out.
 
@@ -126,7 +126,7 @@ me say scene.conv out/scene.flac --only 2,3       # lines by number, as in out/s
 
 ## Writing `.conv`
 
-The grammar is [SPEC.md in conv-spec](https://github.com/constructive-io/conv-spec/blob/main/SPEC.md),
+The grammar is [SPEC.md in conversation-spec](https://github.com/constructive-io/conversation-spec/blob/main/SPEC.md),
 and that repository has a `conv` skill for writing scripts. The shape of it:
 
 | Write | To get |
@@ -194,6 +194,6 @@ Never print or commit a key. Say where it is kept, not what it is.
 
 | Skill | Where | For |
 | --- | --- | --- |
-| `conv` | [conv-spec](https://github.com/constructive-io/conv-spec) | Writing and checking `.conv` scripts |
+| `conv` | [conversation-spec](https://github.com/constructive-io/conversation-spec) | Writing and checking `.conv` scripts |
 | `media-engine-plugins` | [media-engine-plugins](https://github.com/constructive-io/media-engine-plugins) | Installing, choosing and writing plugins |
 | `pgpm` | [`.agents/skills/pgpm`](../pgpm/SKILL.md) | The database modules: deploy, revert, verify, test |

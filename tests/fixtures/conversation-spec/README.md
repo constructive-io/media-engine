@@ -1,6 +1,6 @@
-# conv-spec fixtures
+# conversation-spec fixtures
 
-The conformance files of the [`.conv` format](https://github.com/constructive-io/conv-spec),
+The conformance files of the [`.conv` format](https://github.com/constructive-io/conversation-spec),
 copied as they are from its `__fixtures__` folder at commit `615c4ac`. They are
 MIT licensed; the license is beside this file.
 
