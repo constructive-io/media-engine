@@ -30,8 +30,9 @@ Early, and built in the open one layer at a time.
 | Schema modules (`packages/`) | Here, tested, audited |
 | Settings and the adapter interface for the database, models and effects (`python/`) | Here, tested |
 | Engine and `me` command line: ingest, lineage, shots, frames, signatures, detection, transcription, takes and sync, speakers, passages, flags, scores and rankings, decisions, shot selection and timelines, a ranker taught from preferences, interviews assembled from passages with footage laid over them, cuts rendered to a file and exported to an editing program, a text model's opinion of the best passages, search by meaning | Here, tested |
+| [`.conv`](https://github.com/constructive-io/conv-spec) scripts read and checked, held to the format's own conformance files | Here, tested |
 | Engine: generation | Being brought in |
-| [`.conv`](https://github.com/constructive-io/conv-spec) renderer | Being brought in |
+| `.conv` scripts rendered to sound | Being brought in |
 
 The roadmap is in [docs/ROADMAP.md](./docs/ROADMAP.md).
 
@@ -129,6 +130,7 @@ me cutaways talk-over --over talk    # other footage over some of it, the sound 
 me render talk-over                  # the cut as a file to watch
 me export talk-over --to handover/   # the cut for an editing program, pointed at the recordings themselves
 me lineage out.mp4                   # what a derived file was made from
+me conv scene.conv                   # check a .conv script: every problem, its line and how to mend it
 me status                            # where things are kept and what is held
 me adapters                          # every slot and what can fill it
 ```
@@ -272,12 +274,23 @@ that sound under it and the camera's own switched off. A cut whose footage
 was shot at more than one rate says so, and so does one that points at a
 recording that is not there.
 
+`me conv` reads scripts in the [`.conv` format](https://github.com/constructive-io/conv-spec):
+who speaks, what they say, and the sounds and music under them. It reports
+everything wrong in a script at once, each problem with its line, what is
+wrong and the nearest thing that would be right, and `--json` prints the
+scene the script describes. `@include NAME` finds `NAME.sounds` in a `banks`
+folder beside the script, or wherever `--banks` says. The reader passes the
+format's own conformance files, which are kept in
+[`tests/fixtures/conv-spec`](./tests/fixtures/conv-spec), and it runs no
+model. Rendering a script to sound is not here yet.
+
 The same engine from Python:
 
 ```python
-from constructive_media import effects
+from constructive_media import conv, effects
 
 effects.apply("line.wav", "line-wet.wav", effects.Effects(reverb="hall", gain=-3))
+scene = conv.load("scene.conv")    # or conv.parse(text); ConvError lists every problem
 ```
 
 Settings are environment variables that start with `CONSTRUCTIVE_MEDIA_`; they
@@ -316,7 +329,8 @@ The full rule is in [docs/LICENSING.md](./docs/LICENSING.md).
 ## Related
 
 - [conv-spec](https://github.com/constructive-io/conv-spec): the `.conv`
-  screenplay format for multi-voice audio. This engine is a renderer for it.
+  screenplay format for multi-voice audio. This engine reads it, and is
+  becoming a renderer for it.
 - [pgpm](https://www.npmjs.com/package/pgpm): the Postgres package manager the
   schema modules are built with.
 
