@@ -282,6 +282,9 @@ class Mixer:
     `speech` names the tracks that carry voices. A track that ducks under
     `speech` ducks under all of them, so a voice sent to a track of its own
     still pulls the music down.
+
+    `least` is how many seconds the mix lasts when its clips end sooner, so
+    quiet at the end of a scene is kept.
     """
 
     def __init__(self, known: Mapping[str, Track] | None = None, *, rate: int = RATE,
@@ -291,6 +294,7 @@ class Mixer:
         self.backend = backend
         self.settings = settings
         self.speech: set[str] = {"dialogue"}
+        self.least = 0.0
         self._clips: dict[str, list[tuple[float, Any]]] = {}
         self._moves: dict[str, list[tuple[float, float, float]]] = {}
 
@@ -381,7 +385,7 @@ class Mixer:
         return report
 
     def _length(self) -> int:
-        length = 0
+        length = int(round(max(0.0, self.least) * self.rate))
         for name, clips in self._clips.items():
             after = ring(self.track(name).effects)
             for start, clip in clips:

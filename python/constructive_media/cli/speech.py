@@ -1,4 +1,4 @@
-"""Commands for voices: who can speak, and what speaks them."""
+"""Commands for speech: who can speak, what speaks them, and a script said aloud."""
 
 from __future__ import annotations
 
@@ -34,6 +34,38 @@ def register(commands: Any) -> None:
     command.add_argument("--drop", action="store_true",
                          help="take the voice away: the one for --emotion, or all of the persona's")
     command.set_defaults(run=run_voice)
+
+    command = commands.add_parser(
+        "say", help="render a .conv script as sound",
+        description="Say every line of a script in its persona's voice, listen back to each and say it again "
+                    "until a take passes, put every sound in its place, and mix it all into one file. Beside "
+                    "the output are kept every line as it was said, a manifest of how each was judged and "
+                    "where everything landed, and each track on its own with --stems. The render is written "
+                    "down, and so is every line that should be listened to.",
+    )
+    command.add_argument("script", help="a .conv script")
+    command.add_argument("output", help="the file to write; its ending says what kind, such as .flac or .wav")
+    command.add_argument("--banks", action="append", default=[], metavar="FOLDER",
+                         help="where `@include NAME` finds NAME.sounds; give it again for more folders "
+                              "(default: a `banks` folder beside the script, then one here)")
+    command.add_argument("--sounds", action="append", default=[], metavar="FOLDER",
+                         help="where sound files are looked for before the script's own folder; "
+                              "give it again for more folders")
+    command.add_argument("--stems", action="store_true", help="also write each track on its own")
+    command.add_argument("--only", metavar="WHO", help="say again only these, personas or lines by number with "
+                                                       "commas between, and keep every other line as it was")
+    command.add_argument("--attempts", type=int, metavar="N", help="how many times a line is tried before more is done")
+    command.add_argument("--reword", action="store_true",
+                         help="when no take of a line passes, have the text model reword it and say that. "
+                              "This changes what the script says")
+    command.add_argument("--gap", type=float, metavar="SECONDS", help="the quiet after every line (default: 0.45)")
+    command.add_argument("--loudness", type=float, metavar="LUFS", help="how loud the whole is (default: -16)")
+    command.add_argument("--as-mixed", action="store_true", help="leave the loudness as the mix came out")
+    command.add_argument("--without-generated", action="store_true",
+                         help="leave out the sounds that are made from a prompt instead of stopping at them")
+    command.add_argument("--label", metavar="NAME", help="the name the render is written down under "
+                                                         "(default: the output's name)")
+    command.set_defaults(run=run_say)
 
 
 def run_voices(arguments: argparse.Namespace) -> None:
@@ -73,4 +105,38 @@ def run_voice(arguments: argparse.Namespace) -> int | None:
                          arguments.said, arguments.seed)
     replaced = speech.keep(voice, new=arguments.new, status="provisional" if arguments.provisional else "ready")
     print(f"{arguments.who} {'has a new' if replaced else 'now has a'} {emotion} voice: {arguments.profile}")
+    return None
+
+
+def run_say(arguments: argparse.Namespace) -> int | None:
+    import os
+
+    if not os.path.isfile(arguments.script):
+        print(f"me: {arguments.script}: no such file", file=sys.stderr)
+        return 2
+    if arguments.as_mixed and arguments.loudness is not None:
+        print("me: --loudness and --as-mixed cannot both be given", file=sys.stderr)
+        return 2
+    from .. import text
+    from ..audio import line, scene
+
+    how: dict[str, Any] = {}
+    if arguments.attempts is not None:
+        how["attempts"] = arguments.attempts
+    if arguments.reword:
+        how["reword"] = line.rewording(text.writer())
+    report = scene.render(
+        arguments.script, arguments.output, banks=arguments.banks, sounds=arguments.sounds, stems=arguments.stems,
+        only=arguments.only, gap=scene.GAP if arguments.gap is None else arguments.gap,
+        loudness=None if arguments.as_mixed else scene.LOUDNESS if arguments.loudness is None else arguments.loudness,
+        label=arguments.label, without_generated=arguments.without_generated, tell=print, **how,
+    )
+    scene.record(report)
+    said = report["lines"]
+    print(f"{len(said)} lines, {report['seconds']:.1f} seconds: {arguments.output}")
+    if report["sound"]["left_out"]:
+        print(f"left out, having no file: {', '.join(report['sound']['left_out'])}")
+    listen = [str(one["line"]) for one in said if one["status"] == line.NEEDS_REVIEW]
+    if listen:
+        print(f"{len(listen)} need a listen: {', '.join(listen)}")
     return None

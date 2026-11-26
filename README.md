@@ -35,7 +35,7 @@ Early, and built in the open one layer at a time.
 | The check on a spoken line: what was heard against what was meant, a voice's reference recording leaking into the line, a stutter, a line cut off, a click at the start | Here, tested |
 | Speech: voices kept by persona and emotion, a client for any server that speaks, and a line said again with another seed until a take of it passes the check | Here, tested with stand-ins for the models |
 | Engine: generation | Being brought in |
-| `.conv` scripts rendered to sound | Being brought in |
+| `.conv` scripts rendered to sound: every line said and checked, every sound put in its place, the whole mixed to one loudness, with the lines, the stems and a manifest kept beside it | Here, tested with stand-ins for the models |
 
 The roadmap is in [docs/ROADMAP.md](./docs/ROADMAP.md).
 
@@ -134,6 +134,8 @@ me render talk-over                  # the cut as a file to watch
 me export talk-over --to handover/   # the cut for an editing program, pointed at the recordings themselves
 me lineage out.mp4                   # what a derived file was made from
 me conv scene.conv                   # check a .conv script: every problem, its line and how to mend it
+me voice "Ada Field" ada-plain --new # give a persona a voice, by the name the speech server knows it by
+me say scene.conv out/scene.flac --stems   # the script as sound, each line said until a take of it passes
 me status                            # where things are kept and what is held
 me adapters                          # every slot and what can fill it
 ```
@@ -285,7 +287,29 @@ scene the script describes. `@include NAME` finds `NAME.sounds` in a `banks`
 folder beside the script, or wherever `--banks` says. The reader passes the
 format's own conformance files, which are kept in
 [`tests/fixtures/conv-spec`](./tests/fixtures/conv-spec), and it runs no
-model. Rendering a script to sound is not here yet.
+model.
+
+`me say` renders a script. Everybody who speaks needs a voice (`me voice`),
+and a server that speaks and a model that listens need to be set up; see
+[docs/ADAPTERS.md](./docs/ADAPTERS.md#speech). Each line is said, listened
+back to and checked against its words, and said again with another seed until
+a take passes. Sounds are files the script names, looked for beside the
+script or in the folders given with `--sounds`. The mix is turned up or down
+whole to -16 LUFS, and squeezed only if its peaks would otherwise pass -1.5 dB.
+Beside `out/scene.flac` are kept:
+
+```
+out/scene.lines/line_001.wav    every line as it was said
+out/scene.stems/dialogue.wav    each track on its own, with --stems
+out/scene.manifest.json         each line's seed, takes and verdict, and where everything landed
+```
+
+A line no take of which passed is kept in the scene, marked `needs_review` in
+the manifest and put in `media_audio.review_queue` for a person to listen to.
+`me say scene.conv out/scene.flac --only ada,7` says again just one persona's
+lines and line 7, and keeps every other line as it was. A sound described by
+a `prompt:` cannot be made yet: give it a `file:`, or pass
+`--without-generated` to leave such sounds out.
 
 The same engine from Python:
 
@@ -294,6 +318,11 @@ from constructive_media import conv, effects
 
 effects.apply("line.wav", "line-wet.wav", effects.Effects(reverb="hall", gain=-3))
 scene = conv.load("scene.conv")    # or conv.parse(text); ConvError lists every problem
+
+from constructive_media.audio import scene as scenes
+
+report = scenes.render("scene.conv", "out/scene.flac", stems=True)   # the manifest, as a dict
+scenes.record(report)                                                # the render, its lines and what to listen to
 ```
 
 Settings are environment variables that start with `CONSTRUCTIVE_MEDIA_`; they

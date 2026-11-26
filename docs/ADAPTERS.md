@@ -299,6 +299,10 @@ each time, and one that refuses it can be spared it with
 `CONSTRUCTIVE_MEDIA_EXTRA_SPEECH={"seed": null}`. A server that says a line the
 same way whatever the seed cannot mend a bad take by saying it again.
 
+`me say scene.conv out/scene.flac` does this for every line of a
+[`.conv`](https://github.com/constructive-io/conv-spec) script and mixes the
+result (`constructive_media.audio.scene`).
+
 A model that clones a voice from a recording on your own machine is a plugin:
 its adapter is handed the voice's reference recording and the words said in
 it, and it is chosen per voice, by the voice's `engine`.

@@ -386,6 +386,17 @@ class Mixing(InAFolder):
         self.assertEqual(np.flatnonzero(left).tolist(), [*range(100), *range(RATE // 2, RATE // 2 + 100)])
         self.assertAlmostEqual(mixer.seconds, 0.5, places=2)
 
+    def test_a_mix_lasts_at_least_as_long_as_it_is_told_to(self):
+        mixer = mix.Mixer()
+        mixer.place("foreground", np.ones(100, dtype=np.float32), 0.5)
+        mixer.least = 2.0
+        self.assertAlmostEqual(mixer.seconds, 2.0, places=2)
+        done = mixer.mix()
+        self.assertEqual(len(done.samples), 2 * RATE + 1)
+        self.assertFalse(done.samples[RATE:].any())          # quiet to the end
+        mixer.least = 0.1                                    # shorter than what is in it: the clips decide
+        self.assertAlmostEqual(mixer.seconds, 0.5, places=2)
+
     def test_an_empty_mix_is_a_moment_of_quiet(self):
         done = mix.Mixer().mix()
         self.assertEqual(done.samples.shape, (1, 2))
