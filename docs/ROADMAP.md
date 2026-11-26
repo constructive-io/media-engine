@@ -18,8 +18,8 @@ lands tested, with nothing in it that breaks [the licensing rule](./LICENSING.md
 | 11 | Editing, third part: a ranker that learns from preferences, tested on footage held out from it | Done |
 | 12 | Editing, fourth part: interviews assembled from passages, each seen through a camera that was rolling and heard through the microphone that heard it best, with other footage laid over them | Done |
 | 13 | Editing, the rest: cuts rendered to a file and exported to an editing program; a text model's opinion of the best passages and search by meaning, behind the `text` and `embedding` slots, through any server that speaks the usual API | Done |
-| 14 | Audio: the [`.conv`](https://github.com/constructive-io/conv-spec) renderer, with `ffmpeg` as the default effects backend; a mix that can also write each track on its own as a stem; and a check on every rendered line, which is listened back to, compared with the words it was meant to say, and made again when it falls short | Here: scripts are read and checked, held to the format's conformance files, and rendered with `me say`, every line said and checked until a take passes, the mix written with its stems, and the lines that fell short queued for a listen. Tested with stand-ins for the speech and listening models; a sound described by a `prompt:` waits for a slot that makes sounds |
-| 15 | Model list: every supported model, its source, its license | Planned |
+| 14 | Audio: the [`.conv`](https://github.com/constructive-io/conv-spec) renderer, with `ffmpeg` as the default effects backend; a mix that can also write each track on its own as a stem; and a check on every rendered line, which is listened back to, compared with the words it was meant to say, and made again when it falls short | Done, and tested with stand-ins for the models that speak and listen. A sound described by a `prompt:` waits for a slot that makes sounds |
+| 15 | [Model list](./MODELS.md): every supported model, its source, its license | Done |
 | 16 | Plugin repository for adapters that cannot live here | Planned |
 
 ## Left for later, and why

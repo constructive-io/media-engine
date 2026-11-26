@@ -356,7 +356,9 @@ Everything in this repository is MIT licensed, and it stays that way:
 - No model weights, voices, audio or footage are committed. A model's license
   applies to whoever downloads and runs it.
 
-The full rule is in [docs/LICENSING.md](./docs/LICENSING.md).
+The full rule is in [docs/LICENSING.md](./docs/LICENSING.md), and every model the
+engine knows by name, with its source and its license, is in
+[docs/MODELS.md](./docs/MODELS.md).
 
 ## Related
 

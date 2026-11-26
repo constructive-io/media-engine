@@ -23,7 +23,7 @@ anything outside the rule or anything that declares no license at all.
 | Package | License | Used for | Installed by |
 | --- | --- | --- | --- |
 | `pg8000` | BSD-3-Clause | The PostgreSQL driver | the core |
-| `numpy` | BSD-3-Clause | Arithmetic on pixels and on sound | `[video]`, `[speakers]` |
+| `numpy` | BSD-3-Clause | Arithmetic on pixels and on sound | `[video]`, `[detection]`, `[speakers]`, `[audio]` |
 | `pillow` | MIT-CMU | Reading image files | `[detection]` |
 | `onnxruntime` | MIT | Running the default detector and the speaker models | `[detection]`, `[speakers]` |
 | `torch`, `torchvision` | BSD-3-Clause | The second detector | `[torchvision]` |
@@ -37,6 +37,8 @@ Left out on purpose, each replaced by something that meets the rule:
 | Ultralytics YOLO | AGPL-3.0 | D-FINE (Apache-2.0) through ONNX Runtime |
 | OpenCV's Python wheels | They bundle LGPL builds of the FFmpeg libraries | The `ffmpeg` program and numpy |
 | PySceneDetect | Needs OpenCV | The cut detector in `video/cuts.py` |
+| `soundfile`, and `librosa`, which needs it | They load libsndfile, which is LGPL | The `ffmpeg` program to read sound, and the writer in `audio/pcm.py` |
+| `pedalboard` | GPL-3.0 | The `effects` slot, with `ffmpeg` behind it |
 
 Binary wheels are built by their own projects and can bundle more than the
 package's own code. Two things worth knowing before you redistribute an
@@ -60,7 +62,8 @@ name. It discovers the ones you have installed.
 The engine ships no weights. A model is downloaded by whoever runs it, and that
 model's license binds them, not this repository. Models the code knows by name
 are listed with their license where they are defined, and only permissively
-licensed ones are named:
+licensed ones are named. Each of them, with where it is published, is in
+[MODELS.md](./MODELS.md):
 
 | Model | License | Where it is defined |
 | --- | --- | --- |
