@@ -7,13 +7,17 @@ speech server answers the request the `speech` slot sends.
 
 import argparse
 import importlib.util
+import io
 import json
+import math
 import re
 import shutil
+import struct
 import threading
 import unittest
 import urllib.error
 import urllib.request
+import wave
 from pathlib import Path
 
 from constructive_media import cli, conv
@@ -80,13 +84,34 @@ class TheExamples(unittest.TestCase):
         self.assertEqual(there["characters"], conv.parse(shown)["characters"])
 
 
-@unittest.skipUnless(shutil.which("say") and shutil.which("ffmpeg"), "needs the `say` and `ffmpeg` programs")
+def a_tone(text: str, voice: str) -> bytes:
+    """A second of sound, where there is no voice to ask."""
+    held = io.BytesIO()
+    with wave.open(held, "wb") as sound:
+        sound.setnchannels(1)
+        sound.setsampwidth(2)
+        sound.setframerate(24000)
+        sound.writeframes(b"".join(
+            struct.pack("<h", int(8000 * math.sin(2 * math.pi * 220 * n / 24000))) for n in range(24000)
+        ))
+    return held.getvalue()
+
+
 class TheMacVoiceServer(unittest.TestCase):
+    """The example answers as a speech server should.
+
+    On a Mac the words are really said. Anywhere else there is no `say`
+    program, so a tone stands in for the voice and the answering is what is
+    tested.
+    """
+
     @classmethod
     def setUpClass(cls):
         spec = importlib.util.spec_from_file_location("mac_voice_server", ROOT / "examples" / "mac-voice-server.py")
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
+        if not (shutil.which("say") and shutil.which("ffmpeg")):
+            module.speak = a_tone
         cls.server = module.serve(0)
         cls.addClassCleanup(cls.server.server_close)
         cls.addClassCleanup(cls.server.shutdown)
