@@ -78,6 +78,8 @@ class Timeline:
     canvas: str = "landscape"
     fit: str = "pad"
     params: dict[str, Any] = field(default_factory=dict)
+    #: The manner it was cut in, when it was cut in a stored one.
+    style: str | None = None
 
     @property
     def duration_s(self) -> float:
@@ -95,6 +97,7 @@ class Summary:
     dropped: int
     adjusted: int
     episode: str | None = None
+    style: str | None = None
 
 
 @dataclass(frozen=True)
@@ -106,6 +109,8 @@ class Feedback:
     #: Clips to bring along from the cut just before, moved where asked, each
     #: with the place it had there, counted from 0.
     held: tuple[tuple[int, Clip], ...] = ()
+    #: Every stretch dropped the same way, as the recording it was of and when in it.
+    spans: tuple[tuple[str, float, float], ...] = ()
 
 
 def episode_id(slug: str, *, create: bool = False, project: str | None = None) -> Any:
@@ -124,7 +129,7 @@ def save(
     name: str, clips: list[Clip], *, kind: str = "cut", project: str | None = None, title: str | None = None,
     logline: str | None = None, params: dict[str, Any] | None = None, seed: int | None = None,
     after: str | None = None, selector: str | None = None, episode: str | None = None,
-    canvas: str | None = None, fit: str | None = None,
+    canvas: str | None = None, fit: str | None = None, style: str | None = None,
 ) -> Timeline:
     """Store a cut under a name, in place of a draft that had it.
 
@@ -170,9 +175,10 @@ def save(
                  kind = %s, project = %s, title = %s, logline = %s, params = %s, seed = %s,
                  parent_id = %s, revision = %s, status = 'draft', run_at = now(),
                  selector_id = (SELECT id FROM media_video.selectors WHERE name = %s),
+                 style_id = (SELECT id FROM media_video.styles WHERE name = %s),
                  episode_id = %s, canvas = coalesce(%s, 'landscape'), fit = coalesce(%s, 'pad')
                WHERE id = %s""",
-            (kind, project, title, logline, db.jsonb(params or {}), seed, parent_id, revision, selector,
+            (kind, project, title, logline, db.jsonb(params or {}), seed, parent_id, revision, selector, style,
              episode_id(episode, create=True, project=project) if episode else None, canvas, fit, timeline_id),
         )
         rows = []
@@ -200,24 +206,26 @@ def load(name: str) -> Timeline:
     cur = db.cursor()
     cur.execute(
         """SELECT t.id, t.name, t.kind, t.status, t.revision, t.project, t.title, t.seed,
-                  parent.name, s.name, e.slug, t.canvas, t.fit, t.params
+                  parent.name, s.name, e.slug, t.canvas, t.fit, t.params, st.name
              FROM media_video.timelines t
              LEFT JOIN media_video.timelines parent ON parent.id = t.parent_id
              LEFT JOIN media_video.selectors s ON s.id = t.selector_id
+             LEFT JOIN media_video.styles st ON st.id = t.style_id
              LEFT JOIN media.episodes e ON e.id = t.episode_id
             WHERE t.name = %s""",
         (name,),
     )
     if not (found := cur.fetchone()):
         raise EditError(f"no timeline is called {name!r}; `me timelines` lists them")
-    timeline_id, name, kind, status, revision, project, title, seed, after, selector, episode, canvas, fit, params = found
+    (timeline_id, name, kind, status, revision, project, title, seed, after, selector, episode, canvas, fit, params,
+     style) = found
     cur.execute(
         """SELECT v_asset_id, v_start_s, v_end_s, a_asset_id, a_start_s, a_end_s, shot_id, segment_id, label, note
              FROM media_video.timeline_clips WHERE timeline_id = %s ORDER BY idx""",
         (timeline_id,),
     )
     return Timeline(timeline_id, name, kind, status, revision, [Clip(*row) for row in cur.fetchall()], project,
-                    title, seed, after, selector, episode, canvas, fit, params or {})
+                    title, seed, after, selector, episode, canvas, fit, params or {}, style)
 
 
 def listing(project: str | None = None, episode: str | None = None) -> list[Summary]:
@@ -227,19 +235,20 @@ def listing(project: str | None = None, episode: str | None = None) -> list[Summ
         """SELECT t.name, t.kind, t.status, t.revision, count(c.id),
                   coalesce(sum(coalesce(c.a_end_s, c.v_end_s) - coalesce(c.a_start_s, c.v_start_s)), 0),
                   count(*) FILTER (WHERE n.verdict = 'drop'), count(*) FILTER (WHERE n.verdict = 'adjust'),
-                  e.slug
+                  e.slug, st.name
              FROM media_video.timelines t
              LEFT JOIN media.episodes e ON e.id = t.episode_id
+             LEFT JOIN media_video.styles st ON st.id = t.style_id
              LEFT JOIN media_video.timeline_clips c ON c.timeline_id = t.id
              LEFT JOIN LATERAL (SELECT verdict FROM media_video.clip_notes cn WHERE cn.clip_id = c.id
                                  ORDER BY cn.created_at DESC, cn.id DESC LIMIT 1) n ON true
             WHERE (%s::text IS NULL OR t.project = %s) AND (%s::text IS NULL OR e.slug = %s)
-            GROUP BY t.id, e.slug
+            GROUP BY t.id, e.slug, st.name
             ORDER BY t.run_at DESC, t.revision DESC, t.name""",
         (project, project, episode, episode),
     )
-    return [Summary(name, kind, status, revision, clips, float(duration), dropped, adjusted, slug)
-            for name, kind, status, revision, clips, duration, dropped, adjusted, slug in cur.fetchall()]
+    return [Summary(name, kind, status, revision, clips, float(duration), dropped, adjusted, slug, style)
+            for name, kind, status, revision, clips, duration, dropped, adjusted, slug, style in cur.fetchall()]
 
 
 def mark(name: str, status: str) -> None:
@@ -304,10 +313,16 @@ def feedback(name: str) -> Feedback:
         reaction = said.get(index)
         if reaction is None or reaction.verdict == "drop":
             continue
-        start = clip.start_s + reaction.shift_s
-        end = clip.end_s + reaction.shift_s + reaction.extend_s
-        start = max(start, 0.0)
-        held.append((index - 1, replace(clip, start_s=start, end_s=max(end, start + 0.1))))
+        apart = clip.sound is not None and clip.sound_start_s is not None and clip.sound_end_s is not None
+        # No recording is read from before it starts, and the sound moves with its picture.
+        shift = max(reaction.shift_s, -clip.start_s, -clip.sound_start_s if apart else -clip.start_s)
+        start = clip.start_s + shift
+        end = max(clip.end_s + shift + reaction.extend_s, start + 0.1)
+        moved = replace(clip, start_s=start, end_s=end)
+        if apart:
+            moved = replace(moved, sound_start_s=clip.sound_start_s + shift,
+                            sound_end_s=clip.sound_start_s + shift + (end - start))
+        held.append((index - 1, moved))
     cur = db.cursor()
     cur.execute(
         """WITH RECURSIVE line AS (
@@ -315,12 +330,15 @@ def feedback(name: str) -> Feedback:
              UNION
              SELECT t.id, t.parent_id FROM media_video.timelines t JOIN line ON t.id = line.parent_id
            )
-           SELECT DISTINCT c.shot_id
+           SELECT DISTINCT c.shot_id, c.v_asset_id, c.v_start_s, c.v_end_s
              FROM line
              JOIN media_video.timeline_clips c ON c.timeline_id = line.id
             CROSS JOIN LATERAL (SELECT verdict FROM media_video.clip_notes n WHERE n.clip_id = c.id
                                  ORDER BY n.created_at DESC, n.id DESC LIMIT 1) last
-            WHERE last.verdict = 'drop' AND c.shot_id IS NOT NULL""",
+            WHERE last.verdict = 'drop'
+            ORDER BY c.v_asset_id, c.v_start_s""",
         (name,),
     )
-    return Feedback(frozenset(str(row[0]) for row in cur.fetchall()), tuple(held))
+    dropped = cur.fetchall()
+    return Feedback(frozenset(str(shot_id) for shot_id, *_ in dropped if shot_id is not None), tuple(held),
+                    tuple((str(asset_id), float(start), float(end)) for _, asset_id, start, end in dropped))

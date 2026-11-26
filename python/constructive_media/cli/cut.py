@@ -43,6 +43,65 @@ def register(commands: Any) -> None:
     command.set_defaults(run=run_compile)
 
     command = commands.add_parser(
+        "assemble", help="cut an interview from its best passages, with the best sound for each",
+        description="Fill a cut with passages, best first by a recipe, after the ones you kept. Each is "
+                    "seen through a camera that was rolling and heard through the microphone that heard "
+                    "it best. Made --after another cut, it keeps the clips that were kept or adjusted, "
+                    "leaves out what was dropped, and takes that cut's settings.",
+    )
+    command.add_argument("name", help="what to call the cut")
+    command.add_argument("--take", help="only this take's passages")
+    command.add_argument("--project", help="only this project's")
+    command.add_argument("--episode", help="the episode this cut is for: what was cut from it is left out")
+    command.add_argument("--passage", action="append", metavar="ID",
+                         help="use this passage, and only the ones named this way, in the order given")
+    command.add_argument("--after", metavar="TIMELINE", help="revise this cut, honouring what was said about it")
+    command.add_argument("--style", help="the manner to cut in (`me styles` lists them)")
+    command.add_argument("--target", type=float, metavar="SECONDS", help="how long the cut is to be (default 300)")
+    command.add_argument("--min-length", type=float, metavar="SECONDS", help="the shortest passage to use (default 12)")
+    command.add_argument("--max-length", type=float, metavar="SECONDS", help="the longest passage to use (default 95)")
+    command.add_argument("--min-words", type=int, metavar="N", help="the fewest words a passage may have (default 80)")
+    command.add_argument("--quiet", type=float, metavar="SECONDS",
+                         help="the most quiet to leave at either end of a passage (default 1.5)")
+    command.add_argument("--chronological", action=argparse.BooleanOptionalAction,
+                         help="in the order it was said, not best first (default: in order)")
+    command.add_argument("--recipe", help="the recipe that says what a good passage is (default interview)")
+    command.add_argument("--method", help="only passages found this way")
+    command.add_argument("--per-take", type=int, metavar="N",
+                         help="the most passages from any one take, when there are several takes")
+    command.add_argument("--title", help="a title for the cut")
+    command.add_argument("--dry-run", action="store_true", help="show the cut and store nothing")
+    command.set_defaults(run=run_assemble)
+
+    command = commands.add_parser(
+        "cutaways", help="lay other footage over parts of a cut while its sound carries on",
+        description="Cover some of a cut's clips with shots ranked by a recipe, each the best that is "
+                    "least like the one before. The sound is not touched. Shots with somebody filling "
+                    "the frame are left out, and so is footage from the takes the cut is made from.",
+    )
+    command.add_argument("name", help="what to call the cut with the footage over it")
+    command.add_argument("--over", required=True, metavar="TIMELINE", help="the cut to lay footage over")
+    command.add_argument("--fraction", type=float, metavar="0-1",
+                         help="how many of the clips to cover (default: what the cut's style says, or 0.25)")
+    command.add_argument("--recipe", default="broll", help="the recipe that says what a good shot is (default %(default)s)")
+    command.add_argument("--match", help=MATCH_HELP)
+    command.add_argument("--project", help="only this project's footage")
+    command.add_argument("--shortest", type=float, default=2.5, metavar="SECONDS",
+                         help="the shortest cutaway worth making (default %(default)s)")
+    command.add_argument("--longest", type=float, default=6.0, metavar="SECONDS",
+                         help="the longest, and the longest clip to cover whole (default %(default)s)")
+    command.add_argument("--lead", type=float, default=2.0, metavar="SECONDS",
+                         help="how long the speaker is seen at each end of a longer clip (default %(default)s)")
+    command.add_argument("--diversity", type=float, default=0.5, metavar="0-1",
+                         help="how much looking like the cutaway before costs against quality (default %(default)s)")
+    command.add_argument("--title", help="a title for the cut")
+    command.add_argument("--dry-run", action="store_true", help="show the cut and store nothing")
+    command.set_defaults(run=run_cutaways)
+
+    command = commands.add_parser("styles", help="list the manners a cut can be made in")
+    command.set_defaults(run=run_styles)
+
+    command = commands.add_parser(
         "fit", help="teach a model what you prefer from the choices you have made between shots",
         description="Fit a model to the choices made with `me prefer`, and test it on footage it was not "
                     "fitted to. With --save it is stored, and if it proved better than a coin, every shot "
@@ -159,7 +218,7 @@ def _show(clips: list[Any], said: dict[int, Any] | None = None) -> None:
     from ..edit import clock
 
     for index, clip in enumerate(clips, 1):
-        line = (f"  {index:>3}  {clock(clip.start_s)}-{clock(clip.end_s)}  ({clip.end_s - clip.start_s:.1f}s)  "
+        line = (f"  {index:>3}  {clock(clip.start_s)}-{clock(clip.end_s)}  ({clip.duration_s:.1f}s)  "
                 f"{clip.label or clip.picture}")
         if said and (reaction := said.get(index)):
             moved = "".join(f" {name} {amount:+g}s" for name, amount in
@@ -200,6 +259,89 @@ def run_compile(arguments: argparse.Namespace) -> None:
         print("nothing was written")
 
 
+def run_assemble(arguments: argparse.Namespace) -> None:
+    from collections import Counter
+    from dataclasses import replace
+
+    from .. import db
+    from ..edit import assemble, clock
+
+    shape = assemble.style(arguments.style) if arguments.style else None
+    changes = {key: value for key, value in (
+        ("target_s", arguments.target), ("min_passage_s", arguments.min_length),
+        ("max_passage_s", arguments.max_length), ("min_words", arguments.min_words),
+        ("strip_silence_over_s", arguments.quiet), ("chronological", arguments.chronological),
+    ) if value is not None}
+    if changes and shape is None and arguments.after:
+        shape = assemble.shaped(arguments.after)
+    if changes:
+        shape = replace(shape or assemble.Style(), **changes)
+    with db.transaction(keep=not arguments.dry_run):
+        made = assemble.interview(
+            arguments.name, shape, take=arguments.take, project=arguments.project, episode=arguments.episode,
+            recipe=arguments.recipe, method=arguments.method, per_take=arguments.per_take,
+            only=arguments.passage, after=arguments.after, title=arguments.title,
+        )
+    cut = made.timeline
+    parts = {(str(part.clip.picture), round(part.clip.start_s, 3)): part for part in made.parts}
+    for index, clip in enumerate(cut.clips, 1):
+        part = parts.get((str(clip.picture), round(clip.start_s, 3)))
+        seen = (f"{part.picture}{f' with {part.sound}' if part.sound else ''}"
+                + (f"  {part.score:.2f}" if part.score is not None else "") + ("  kept" if part.kept else "")
+                if part else f"from {cut.after}")
+        print(f"  {index:>3}  {clock(clip.start_s)}-{clock(clip.end_s)}  ({clip.duration_s:.1f}s)  {seen}  "
+              f"{clip.label or ''}".rstrip())
+    style = made.timeline.params.get("style", {})
+    print(f"{len(cut.clips)} clips, {clock(cut.duration_s)} of {clock(style.get('target_s', 0))}, from "
+          f"{made.considered} passages" + (f" in the {cut.style} style" if cut.style else "")
+          + (f"; revision {cut.revision}, after {cut.after}" if cut.after else ""))
+    if made.held:
+        print(f"{made.held} carried over from {cut.after}")
+    if made.left:
+        reasons = Counter(passed.why for passed in made.left)
+        print(f"{len(made.left)} passed over: " + ", ".join(f"{count} {why}" for why, count in reasons.most_common()))
+    if made.withheld:
+        print(f"{made.withheld} left out: someone in them asks for it not to be used")
+    if arguments.dry_run:
+        print("nothing was written")
+
+
+def run_cutaways(arguments: argparse.Namespace) -> None:
+    from .. import db
+    from ..edit import assemble, clock
+
+    with db.transaction(keep=not arguments.dry_run):
+        made = assemble.cutaways(
+            arguments.name, arguments.over, fraction=arguments.fraction, recipe=arguments.recipe,
+            match=arguments.match, project=arguments.project, shortest_s=arguments.shortest,
+            longest_s=arguments.longest, lead_s=arguments.lead, diversity=arguments.diversity,
+            title=arguments.title,
+        )
+    cut = made.timeline
+    _show(cut.clips)
+    print(f"{len(cut.clips)} clips, {clock(cut.duration_s)}; {made.covered} of {arguments.over}'s have other "
+          f"footage over them, from {made.available} shots by {arguments.recipe}")
+    if made.covered < made.wanted:
+        print(f"{made.wanted} were to be covered, and there were not that many shots that fit")
+    if made.likeness is not None:
+        print(f"one cutaway is {made.likeness:.2f} like the next")
+    if arguments.dry_run:
+        print("nothing was written")
+
+
+def run_styles(_arguments: argparse.Namespace) -> None:
+    from ..edit import assemble, clock
+
+    found = assemble.styles()
+    for style in found:
+        print(f"{style.name}: {clock(style.target_s)} of passages {style.min_passage_s:g} to "
+              f"{style.max_passage_s:g}s long with {style.min_words} words or more, "
+              f"{'in the order said' if style.chronological else 'best first'}, at most "
+              f"{style.strip_silence_over_s:g}s of quiet at their ends, footage over "
+              f"{style.broll_fraction:.0%} of the clips" + (f". {style.description}" if style.description else ""))
+    print(f"{len(found)} styles")
+
+
 def run_selectors(_arguments: argparse.Namespace) -> None:
     from dataclasses import asdict
 
@@ -221,6 +363,7 @@ def run_timelines(arguments: argparse.Namespace) -> None:
                          if count)
         print(f"  {cut.name}  {cut.kind}  {cut.clips} clips  {clock(cut.duration_s)}  {cut.status}"
               + (f"  revision {cut.revision}" if cut.revision > 1 else "")
+              + (f"  {cut.style} style" if cut.style else "")
               + (f"  for {cut.episode}" if cut.episode else "") + (f"  ({said})" if said else ""))
     print(f"{len(found)} timelines")
 
@@ -233,6 +376,7 @@ def run_timeline(arguments: argparse.Namespace) -> None:
     cut = timelines.load(arguments.name)
     _show(cut.clips, timelines.reactions(cut.name))
     print(f"{cut.name}: {cut.kind}, {len(cut.clips)} clips, {clock(cut.duration_s)}, {cut.status}"
+          + (f", {cut.style} style" if cut.style else "")
           + (f", revision {cut.revision} after {cut.after}" if cut.after else "")
           + (f", for {cut.episode}" if cut.episode else "") + (f", seed {cut.seed}" if cut.seed is not None else ""))
 

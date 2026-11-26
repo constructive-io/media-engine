@@ -12,9 +12,12 @@ the next step, or a person, can read it:
 - `scores`    every measurement of a passage or a shot in one ledger, and the
               recipes that weigh them into a ranking
 - `decisions` what a person ruled: keep this, never that, this one over that
+- `ranker`    what a person prefers, learnt from the choices they made
 - `script`    the ranked passages as a document to mark up and hand back
 - `select`    shots picked to be good and unalike, then put in an order
 - `timelines` a cut, kept as rows, with what was said about each clip
+- `assemble`  an interview cut from its passages, each with a camera that
+              was rolling and the microphone that heard it best
 
 Nothing here runs a model. It all works from what transcription, sync and the
 video analysis have already stored, so it is cheap enough to run over

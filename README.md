@@ -29,7 +29,7 @@ Early, and built in the open one layer at a time.
 | --- | --- |
 | Schema modules (`packages/`) | Here, tested, audited |
 | Settings and the adapter interface for the database, models and effects (`python/`) | Here, tested |
-| Engine and `me` command line: ingest, lineage, shots, frames, signatures, detection, transcription, takes and sync, speakers, passages, flags, scores and rankings, decisions, shot selection and timelines, a ranker taught from preferences | Here, tested |
+| Engine and `me` command line: ingest, lineage, shots, frames, signatures, detection, transcription, takes and sync, speakers, passages, flags, scores and rankings, decisions, shot selection and timelines, a ranker taught from preferences, interviews assembled from passages with footage laid over them | Here, tested |
 | Engine: rendering, generation | Being brought in |
 | [`.conv`](https://github.com/constructive-io/conv-spec) renderer | Being brought in |
 
@@ -120,6 +120,8 @@ me pairs                             # the shots a ranking cannot tell apart, to
 me prefer 3f9a01c2 77b0de41          # which of two you would use
 me fit --save taste                  # a model of what you prefer, tested on footage held out from it
 me recipe reel --like broll --weigh preferred=0.5   # a recipe that ranks by it
+me assemble talk --take interview    # the best passages as a cut, each seen and heard through the right recording
+me cutaways talk-over --over talk    # other footage over some of it, the sound untouched
 me lineage out.mp4                   # what a derived file was made from
 me status                            # where things are kept and what is held
 me adapters                          # every slot and what can fill it
@@ -177,6 +179,24 @@ neighbours. The share it gets right is shown beside the half a coin would
 get. A model that has not beaten the coin by more than chance is stored with
 its figures and left unused. One that has gives every shot a `preferred`
 score, and a recipe made with `me recipe` can weigh it beside the rest.
+
+`me assemble` makes an interview into a cut. The passages a person kept go
+in first, then the best by a recipe until the cut is as long as it was asked
+to be, and every passage passed over is counted with the reason. Each one is
+seen through the take's main camera, or another that was rolling, and heard
+through a microphone before a camera: the one measured cleanest, or failing
+that the one whose words the recogniser was surest of. Quiet at either end
+of a passage is trimmed to what the style allows; only the ends move, so a
+filler in the middle of a passage stays where it was said. `me styles` lists
+the stored manners of cutting, and any one setting can be given on its own.
+A cut made `--after` another keeps the clips that were kept or adjusted,
+with their sound still in step, and leaves out what was dropped.
+
+`me cutaways` lays other footage over some of a cut's clips while the sound
+carries on underneath: the middle of a long clip, or the whole of a short
+one, never the first. It leaves out shots with somebody filling the frame
+and anything recorded in the takes the cut is made from. A cutaway that was
+dropped is replaced by another of the same length.
 
 The same engine from Python:
 

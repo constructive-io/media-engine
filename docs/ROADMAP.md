@@ -16,10 +16,11 @@ lands tested, with nothing in it that breaks [the licensing rule](./LICENSING.md
 | 9 | Editing, first part: a take's speech cut into passages, flags on what to cut or keep away from, scores from what was read, heard and seen, and rankings that say how much they had to go on | Done |
 | 10 | Editing, second part: decisions that are kept with who made them, a script of the best passages that is marked up and read back, shots selected to be good and unalike, and timelines that are revised from what was said about them | Done |
 | 11 | Editing, third part: a ranker that learns from preferences, tested on footage held out from it | Done |
-| 12 | Editing, the rest: interviews assembled from passages, rendering and export, a judge and search behind the `text` and `embedding` slots | Next |
-| 13 | Audio: the [`.conv`](https://github.com/constructive-io/conv-spec) renderer, with `ffmpeg` as the default effects backend; a mix that can also write each track on its own as a stem; and a check on every rendered line, which is listened back to, compared with the words it was meant to say, and made again when it falls short | Planned |
-| 14 | Model list: every supported model, its source, its license | Planned |
-| 15 | Plugin repository for adapters that cannot live here | Planned |
+| 12 | Editing, fourth part: interviews assembled from passages, each seen through a camera that was rolling and heard through the microphone that heard it best, with other footage laid over them | Done |
+| 13 | Editing, the rest: rendering and export, a judge and search behind the `text` and `embedding` slots | Next |
+| 14 | Audio: the [`.conv`](https://github.com/constructive-io/conv-spec) renderer, with `ffmpeg` as the default effects backend; a mix that can also write each track on its own as a stem; and a check on every rendered line, which is listened back to, compared with the words it was meant to say, and made again when it falls short | Planned |
+| 15 | Model list: every supported model, its source, its license | Planned |
+| 16 | Plugin repository for adapters that cannot live here | Planned |
 
 ## Left for later, and why
 
@@ -35,6 +36,10 @@ lands tested, with nothing in it that breaks [the licensing rule](./LICENSING.md
   clean a recording is and where people laugh each wait for the layer that
   measures them. A recipe that weighs one of them says how much of itself it
   could measure, and ranks on the rest.
+- **Cutting fillers out of the middle of a passage.** A stored style can ask
+  for it and assembly does not do it yet: it trims quiet from a passage's
+  ends and nothing inside. A cut inside a sentence has to be heard to be
+  trusted, so it waits for rendering.
 
 ## Ground rules for every layer
 
