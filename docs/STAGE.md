@@ -16,6 +16,12 @@ me print deck out/talk.pdf                   # the page as a PDF
 The film is as long as the sound, to the frame. Filming is in real time: a
 recording of a minute takes a minute to film.
 
+A film at 1920 by 1080 is written at up to 8 Mbit a second, which keeps small
+text sharp: a minute of slides comes to thirty megabytes or so. `--bitrate 1M`
+wrote the same minute in ten, its text still sharp. Dark gradients are the
+first thing to show a low rate, so look at a frame before sending one on.
+`me film` says how big the file came out.
+
 It needs `ffmpeg` and a Chrome or Chromium that is already installed. Nothing
 else is installed, and nothing of the browser is part of this package: see the
 [`browser` slot](./ADAPTERS.md#browser).

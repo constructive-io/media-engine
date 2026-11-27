@@ -23,6 +23,9 @@ def register(commands: Any) -> None:
                          help="film a page served somewhere else, which keeps the contract in docs/STAGE.md")
     command.add_argument("--size", default="1920x1080", metavar="WxH", help="how big the film is (default: 1920x1080)")
     command.add_argument("--fps", type=int, default=30, metavar="N", help="frames a second (default: 30)")
+    command.add_argument("--bitrate", metavar="RATE",
+                         help="bits a second for the video, such as 2M or 800k (default: about 8M at 1920x1080, "
+                              "which keeps small text sharp; a quarter of it is a quarter of the file)")
     command.add_argument("--keep", metavar="FOLDER", help="leave the timeline, the frames and the clips here")
     command.set_defaults(run=run_film)
 
@@ -79,9 +82,9 @@ def run_film(arguments: argparse.Namespace) -> int | None:
         return 2
     report = film.film(arguments.manifest, arguments.output, page=arguments.page, url=arguments.url, size=size,
                        fps=arguments.fps, faces=arguments.faces, more_faces=libraries.faces(), keep=arguments.keep,
-                       tell=print)
+                       bitrate=arguments.bitrate, tell=print)
     print(f"{report['seconds']:.1f} seconds, {report['slides']} slides, {report['clips']} clips, "
-          f"{report['frames']} pictures: {arguments.output}")
+          f"{report['frames']} pictures, {report['bytes'] / 1_000_000:.1f} MB: {arguments.output}")
     if report["notes"]:
         print(f"{len(report['notes'])} to look at, above")
     return None

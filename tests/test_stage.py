@@ -5,6 +5,7 @@ import tempfile
 import unittest
 import urllib.error
 import urllib.request
+from unittest import mock
 from pathlib import Path
 
 from constructive_media import ffmpeg
@@ -145,7 +146,7 @@ class ServeTest(unittest.TestCase):
         for said in ("when: function (slide, step)", "since: function (slide, step)", "body.dataset.stageSpeaker",
                      "setAttribute('pathLength', '1')"):
             self.assertIn(said, player)
-        written = (PAGE.parents[3] / "docs" / "STAGE.md").read_text()
+        written = (Path(__file__).resolve().parents[1] / "docs" / "STAGE.md").read_text()
         for way in ("rise", "fade", "left", "right", "grow", "pop", "wipe", "draw"):
             self.assertIn(f"| `{way}` |", written, way)
         for said in ("--stage-delay", "--stage-time", "stage.since(", "stage.when(", "data-stage-speaker"):
@@ -300,6 +301,33 @@ class FilmTest(unittest.TestCase):
         with self.assertRaisesRegex(StageError, "not both"):
             film.film(manifest, self.folder / "scene.mp4", page=self.folder, url="http://localhost:3000/",
                       browser=StandIn(self.pictures))
+
+    def test_a_bitrate_is_read_as_it_is_written(self):
+        self.assertEqual([timeline.bits(written) for written in ("2M", "800k", " 1.5m ", "250000", 64000)],
+                         [2_000_000, 800_000, 1_500_000, 250_000, 64_000])
+        for written in ("fast", "", "M", "-2M", "10k", "inf", "nan"):
+            with self.subTest(written=written), self.assertRaisesRegex(StageError, "bits a second"):
+                timeline.bits(written)
+
+    def test_a_film_is_written_at_the_bitrate_asked_for(self):
+        manifest = make_render(self.folder / "out")
+        with self.assertRaisesRegex(StageError, "bits a second"):      # said before anything is filmed
+            film.film(manifest, self.folder / "scene.mp4", size=(320, 180), bitrate="fast", browser=StandIn([]))
+        asked = []
+        encode = ffmpeg.encode
+
+        def watched(*arguments, **more):
+            asked.append([str(one) for one in arguments])
+            return encode(*arguments, **more)
+
+        with mock.patch.object(ffmpeg, "encode", watched):
+            report = film.film(manifest, self.folder / "scene.mp4", size=(320, 180), fps=25, bitrate="300k",
+                               browser=StandIn(self.pictures))
+            usual = film.film(manifest, self.folder / "usual.mp4", size=(320, 180), fps=25,
+                              browser=StandIn(self.pictures))
+        self.assertEqual([one[one.index("-b:v") + 1] for one in asked], ["300000", "1000000"])
+        self.assertEqual((report["bitrate"], usual["bitrate"]), (300_000, 1_000_000))
+        self.assertEqual(report["bytes"], (self.folder / "scene.mp4").stat().st_size)
 
     def test_the_first_picture_is_the_one_painted_as_the_clock_began(self):
         made = {"seconds": 2.0, "sound": "sound.wav", "clips": []}

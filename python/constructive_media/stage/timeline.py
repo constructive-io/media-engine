@@ -160,6 +160,25 @@ def bitrate(size: tuple[int, int], fps: int) -> int:
     return max(1_000_000, int(size[0] * size[1] * fps * 0.13))
 
 
+#: The least a film is written at: below it no encoder keeps a picture together.
+LEAST_BITS = 50_000
+
+
+def bits(written: str | int) -> int:
+    """Bits a second as somebody writes them: `2M`, `800k`, or the number itself."""
+    text = str(written).strip().lower()
+    times = {"k": 1_000, "m": 1_000_000}.get(text[-1:], 1)
+    number = text[:-1] if times > 1 else text
+    try:
+        rate = int(float(number) * times)
+    except (ValueError, OverflowError):
+        rate = 0
+    if rate < LEAST_BITS:
+        raise StageError(f"{written}: a bitrate is bits a second, such as 2M or 800k, and at least "
+                         f"{LEAST_BITS // 1000}k")
+    return rate
+
+
 def _faces(faces: str | Path | None, more: Mapping[str, str | Path], personas: set[str],
            folder: Path) -> dict[str, str]:
     pictures: dict[str, Path] = {}

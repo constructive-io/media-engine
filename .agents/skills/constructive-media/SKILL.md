@@ -196,7 +196,7 @@ There is a deck in [`examples/talk`](../../../examples/talk).
 
 ```sh
 me say   examples/talk/talk.conv out/talk.flac
-me film  out/talk.flac out/talk.mp4 --page examples/talk    # 1920x1080 at 30 a second, unless --size and --fps say
+me film  out/talk.flac out/talk.mp4 --page examples/talk    # 1920x1080 at 30 a second, unless --size and --fps say; --bitrate 1M for a file a third the size
 me stage out/talk.flac --page examples/talk                 # the same page in your browser, to scrub through
 me print examples/talk out/talk.pdf                         # the page as a PDF
 ```

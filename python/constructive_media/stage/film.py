@@ -33,6 +33,7 @@ def film(manifest: str | Path, target: str | Path, *, page: str | Path | None = 
          size: tuple[int, int] = SIZE, fps: int = FPS, faces: str | Path | None = None,
          more_faces: Mapping[str, str | Path] | None = None, keep: str | Path | None = None,
          browser: Browser | None = None, settings: Settings | None = None,
+         bitrate: str | int | None = None,
          tell: Callable[[str], None] | None = None) -> dict[str, Any]:
     """Film the page that follows a render, and write it to `target`.
 
@@ -42,8 +43,11 @@ def film(manifest: str | Path, target: str | Path, *, page: str | Path | None = 
     without it a `faces` folder in the page's own is used when there is one,
     and `more_faces` are pictures by persona for whoever has none there.
     `keep` is a folder to leave the timeline, the frames and the clips in;
-    otherwise they are thrown away.
+    otherwise they are thrown away. `bitrate` is the bits a second the video
+    is written at, as `2M` or a number; without it, enough to keep small text
+    sharp at this size.
     """
+    rate = timeline.bitrate(size, fps) if bitrate is None else timeline.bits(bitrate)
     if size[0] % 2 or size[1] % 2 or min(size) < 16:
         raise StageError(f"{size[0]}x{size[1]}: a film's width and height are even numbers")
     if page is not None and url is not None:
@@ -67,19 +71,20 @@ def film(manifest: str | Path, target: str | Path, *, page: str | Path | None = 
                                   seconds=made["seconds"], tell=tell)
         for note in filmed.notes:
             said(f"  the page raised: {note}")
-        encoder, shown = assemble(filmed, made, staged, target, size=size, fps=fps)
+        encoder, shown = assemble(filmed, made, staged, target, size=size, fps=fps, bitrate=rate)
     finally:
         if keep is None:
             shutil.rmtree(scratch, ignore_errors=True)
     return {
         "output": str(target.resolve()), "seconds": made["seconds"], "size": list(size), "fps": fps,
         "frames": shown, "clips": len(made["clips"]), "slides": len(made["slides"]), "lines": len(made["lines"]),
-        "encoder": encoder, "notes": filmed.notes, "page": url or str(page or "built in"),
+        "encoder": encoder, "bitrate": rate, "bytes": target.stat().st_size, "notes": filmed.notes,
+        "page": url or str(page or "built in"),
     }
 
 
 def assemble(filmed: Filmed, made: dict[str, Any], staged: str | Path, target: str | Path, *,
-             size: tuple[int, int] = SIZE, fps: int = FPS) -> tuple[str | None, int]:
+             size: tuple[int, int] = SIZE, fps: int = FPS, bitrate: int | None = None) -> tuple[str | None, int]:
     """Lay filmed frames on a timeline's clock and write the video. The encoder used, and how many frames went in."""
     staged, target = Path(staged), Path(target)
     seconds = float(made["seconds"])
@@ -111,7 +116,7 @@ def assemble(filmed: Filmed, made: dict[str, Any], staged: str | Path, target: s
     try:
         encoder = ffmpeg.encode(
             *inputs, "-filter_complex", ";".join(graph), "-map", f"[v{len(made['clips'])}]", "-map", "1:a",
-            "-c:v", "{vcodec}", "-b:v", str(timeline.bitrate(size, fps)), "-pix_fmt", "yuv420p",
+            "-c:v", "{vcodec}", "-b:v", str(bitrate or timeline.bitrate(size, fps)), "-pix_fmt", "yuv420p",
             "-c:a", "aac", "-b:a", "192k", "-t", f"{seconds:.3f}", "-movflags", "+faststart", target,
         )
     finally:
