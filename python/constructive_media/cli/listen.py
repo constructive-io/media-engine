@@ -13,24 +13,74 @@ from .analyze import MATCH_HELP
 def register(commands: Any) -> None:
     command = commands.add_parser("transcribe", help="write down what is said in each recording, word by word")
     command.add_argument("--match", help=MATCH_HELP)
+    command.add_argument("--project", help="only this project's recordings")
     command.add_argument("--language", default="en",
                          help="the language spoken, as a two-letter code (default %(default)s)")
     command.add_argument("--force", action="store_true",
                          help="transcribe again, replacing the transcript a recording already has")
     command.add_argument("--no-vocabulary", action="store_true",
                          help="tell the recogniser nothing about the project's vocabulary")
+    command.add_argument("--from", dest="source", metavar="FILE",
+                         help="listen to this file in place of the one recording that matches: the same "
+                              "sound cleaned up, with the same times")
+    command.add_argument("--speaker", metavar="NAME",
+                         help="write this beside every line, for a microphone only one person wore")
     command.add_argument("--adapter", help="the transcription adapter to use")
     command.set_defaults(run=run_transcribe)
 
     command = commands.add_parser(
-        "vocabulary", help="list the words to listen for, or add some",
+        "vocabulary", help="list the words to listen for, add some, or say what one is misheard as",
         description="With terms, add them to the vocabulary. With none, list what a recording is "
-                    "transcribed with: the terms of no project, and those of --project if you name one.",
+                    "transcribed with: the terms of no project, and those of --project if you name one. "
+                    "With one term and --heard-as, record what the recogniser writes in its place, "
+                    "for `media mend` to put right.",
     )
     command.add_argument("terms", nargs="*", metavar="term", help="a name or term to listen for")
     command.add_argument("--project", help="listen for it only in this project's recordings")
     command.add_argument("--kind", help="what it is, for your own reference: person, company, technical")
+    command.add_argument("--heard-as", action="append", metavar="WORDS", default=[],
+                         help="what the recogniser writes when this one term is said; give it again for each")
     command.set_defaults(run=run_vocabulary)
+
+    command = commands.add_parser(
+        "mend", help="put right what is known to be misheard, in every transcript",
+        description="Rewrite each mishearing recorded with `media vocabulary TERM --heard-as` as its term, "
+                    "in the lines and in their words, keeping a plural or possessive. What the recogniser "
+                    "wrote is kept beside it and each change is recorded, so --undo puts all of it back. "
+                    "Run twice, the second finds nothing to do.",
+    )
+    command.add_argument("--match", help=MATCH_HELP.replace("assets", "recordings"))
+    command.add_argument("--project", help="only this project's recordings")
+    command.add_argument("--dry-run", action="store_true", help="show what would change and change nothing")
+    command.add_argument("--undo", action="store_true",
+                         help="put every line and word back to what the recogniser wrote")
+    command.set_defaults(run=run_mend)
+
+    command = commands.add_parser(
+        "relisten", help="transcribe the weakest recordings again, and keep what is better",
+        description="Find the recordings the recogniser was least sure of, or wrote little for, and "
+                    "listen to them again with another: --adapter, or a larger model in the settings. "
+                    "A new transcript replaces the old only where it is surer and found no less. "
+                    "Where it does, find the recording's voices and passages again.",
+    )
+    command.add_argument("--match", help=MATCH_HELP.replace("assets", "recordings"))
+    command.add_argument("--project", help="only this project's recordings")
+    command.add_argument("--language", default="en",
+                         help="the language spoken, as a two-letter code (default %(default)s)")
+    command.add_argument("--below", type=float, metavar="SURENESS", default=None,
+                         help="listen again where the recogniser was less sure than this on average, as "
+                              "the log-probability of its words (default -0.55; 0 is certain)")
+    command.add_argument("--sparse", type=float, metavar="A_MINUTE", default=None,
+                         help="or where it wrote fewer segments a minute than this (default 2)")
+    command.add_argument("--min-length", type=float, metavar="SECONDS", default=None,
+                         help="leave alone recordings shorter than this (default 60)")
+    command.add_argument("--limit", type=int, metavar="N", help="listen to no more than this many, weakest first")
+    command.add_argument("--no-vocabulary", action="store_true",
+                         help="tell the recogniser nothing about the project's vocabulary")
+    command.add_argument("--dry-run", action="store_true",
+                         help="list the recordings that would be listened to, and listen to none")
+    command.add_argument("--adapter", help="the transcription adapter to use")
+    command.set_defaults(run=run_relisten)
 
     command = commands.add_parser(
         "diarize", help="find the voices in each transcribed recording, and who speaks each line",
@@ -73,25 +123,101 @@ def run_transcribe(arguments: argparse.Namespace) -> None:
 
     listener = transcriber(arguments.adapter)
     done = transcripts.transcribe(
-        arguments.match, language=arguments.language, force=arguments.force,
-        vocabulary=not arguments.no_vocabulary, transcriber=listener,
+        arguments.match, project=arguments.project, language=arguments.language, force=arguments.force,
+        vocabulary=not arguments.no_vocabulary, source=arguments.source, speaker=arguments.speaker,
+        transcriber=listener,
     )
     for name, count in done:
         print(f"  {count:>5} segments  {name}")
     print(f"{len(done)} recordings transcribed with {listener.name} ({listener.model})")
 
 
-def run_vocabulary(arguments: argparse.Namespace) -> None:
-    from ..audio import transcripts
+def run_vocabulary(arguments: argparse.Namespace) -> int | None:
+    from ..audio import transcripts, upkeep
 
+    if arguments.heard_as:
+        if len(arguments.terms) != 1:
+            print("media: --heard-as is what one term is misheard as: give the one term", file=sys.stderr)
+            return 2
+        (term,) = arguments.terms
+        added = upkeep.mishear(term, arguments.heard_as, arguments.project, arguments.kind)
+        print(f"{term} is heard as {added} more: `media mend` puts them right")
+        return None
     if arguments.terms:
         added = transcripts.learn(arguments.terms, arguments.project, arguments.kind)
         print(f"{added} of {len(arguments.terms)} terms added")
-        return
+        return None
     listed = transcripts.terms(arguments.project)
+    misheard = upkeep.known(arguments.project)
     for term in listed:
-        print(f"  {term}")
+        print(f"  {term}" + (f"  (heard as: {', '.join(misheard[term])})" if term in misheard else ""))
     print(f"{len(listed)} terms")
+    return None
+
+
+def run_mend(arguments: argparse.Namespace) -> int | None:
+    from ..audio import upkeep
+
+    if arguments.undo:
+        if arguments.dry_run:
+            print("media: --undo with --dry-run would do nothing: leave one out", file=sys.stderr)
+            return 2
+        restored, dropped = upkeep.restore(arguments.project, arguments.match)
+        print(f"{restored} lines put back to what the recogniser wrote, {dropped} corrections dropped")
+        return None
+    mended = upkeep.mend(arguments.project, arguments.match, keep=not arguments.dry_run)
+    for line in mended:
+        print(f"  {line.file}  {_clock(line.start_s)}  {', '.join(line.rules)}")
+        print(f"      {line.before}")
+        print(f"   -> {line.after}")
+    files = len({line.file for line in mended})
+    if arguments.dry_run:
+        print(f"{len(mended)} lines in {files} recordings would be mended; nothing was written")
+    elif mended:
+        print(f"{len(mended)} lines mended in {files} recordings; `media passages` draws their passages "
+              "again, and `media mend --undo` puts them back")
+    else:
+        print("0 lines mended: no recorded mishearing is in any transcript")
+    return None
+
+
+def run_relisten(arguments: argparse.Namespace) -> None:
+    from ..audio import upkeep
+    from ..transcription import transcriber
+
+    listener = transcriber(arguments.adapter)
+    how = {key: value for key, value in (
+        ("unsure", arguments.below), ("sparse", arguments.sparse), ("min_length_s", arguments.min_length),
+    ) if value is not None}
+    if arguments.dry_run:
+        weak = upkeep.weakest(arguments.project, arguments.match, model=listener.model,
+                              limit=arguments.limit, **how)
+        for _, path, _, _, model, sure, segments in weak:
+            print(f"  {_sure(sure)}  {segments:>5} segments  {path.rsplit('/', 1)[-1]}  ({model or 'model not known'})")
+        print(f"{len(weak)} recordings would be listened to again with {listener.name} ({listener.model})")
+        return
+    done = upkeep.relisten(
+        arguments.project, arguments.match, language=arguments.language,
+        vocabulary=not arguments.no_vocabulary, limit=arguments.limit, transcriber=listener, **how,
+    )
+    for heard in done:
+        print(f"  {'replaced' if heard.better else 'kept    '}  {heard.file}  "
+              f"{_sure(heard.was_sure)}, {heard.was_segments} segments -> "
+              f"{_sure(heard.sure)}, {heard.segments} segments")
+    replaced = sum(heard.better for heard in done)
+    print(f"{len(done)} recordings listened to again with {listener.name} ({listener.model}): "
+          f"{replaced} replaced, {len(done) - replaced} kept as they were")
+    if replaced:
+        print("a replaced transcript has no voices or passages yet: `media diarize`, `media passages`")
+
+
+def _clock(seconds: float) -> str:
+    minutes, rest = divmod(int(seconds), 60)
+    return f"{minutes}:{rest:02d}"
+
+
+def _sure(sure: float | None) -> str:
+    return "sureness not given" if sure is None else f"sureness {sure:+.2f}"
 
 
 def run_diarize(arguments: argparse.Namespace) -> None:

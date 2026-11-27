@@ -113,6 +113,9 @@ media signatures                     # a colour and motion signature per shot
 media detect                         # find objects and people in the frames
 media vocabulary Zentrova "Ottoline Varga" --project demo  # names to listen for
 media transcribe                     # what is said, sentence by sentence, word by word
+media vocabulary Zentrova --heard-as "zen trova" --project demo  # what a name is misheard as
+media mend                           # put right every mishearing on record, and keep what was heard
+media relisten                       # transcribe the weakest recordings again, and keep what is better
 media group                          # recordings that rolled together become a take
 media match                          # a recorder with no clock finds its camera by what was said
 media sync                           # place every recording on its take's timeline, and prove it
@@ -155,6 +158,19 @@ media adapters                       # every slot and what can fill it
 Every stage picks up where it left off and only works on what is new. A model
 is downloaded the first time a stage needs it: 1.6 GB for the default
 transcriber, 29 MB for the default speaker model.
+
+A transcript is kept right without listening to everything again. A term in
+the vocabulary can carry what the recogniser writes in its place, and
+`media mend` rewrites exactly those, in the lines and in their words, keeping
+a plural or a possessive. What the recogniser wrote stays beside each line
+and word and every change is recorded, so `media mend --dry-run` shows what
+would change and `media mend --undo` puts all of it back. `media relisten`
+finds the recordings the recogniser was least sure of, or wrote little for,
+and listens to them again with another adapter or a larger model; the new
+transcript replaces the old only where it is surer and found no less.
+`media transcribe --from FILE` listens to another file in place of one
+recording, the same sound cleaned up, and `--speaker NAME` writes a name
+beside every line of a microphone only one person wore.
 
 A take is the camera and the microphones that recorded one moment. `media sync`
 works out how far apart they started from the words they share, then from how

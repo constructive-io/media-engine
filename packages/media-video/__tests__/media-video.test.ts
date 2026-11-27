@@ -50,6 +50,29 @@ describe('media_video.shots', () => {
   });
 });
 
+describe('media_video.words', () => {
+  it('keeps what was heard beside a word that is mended, and nothing beside one that is not', async () => {
+    const id = await asset();
+    const { rows: segments } = await pg.query(
+      `INSERT INTO media_video.segments (asset_id, idx, start_s, end_s, text)
+       VALUES ($1, 0, 0, 1, 'the tied') RETURNING id`,
+      [id]
+    );
+    const { rows } = await pg.query(
+      `INSERT INTO media_video.words (segment_id, idx, word)
+       VALUES ($1, 0, 'the'), ($1, 1, 'tied') RETURNING word_asr`,
+      [segments[0].id]
+    );
+    expect(rows.map((row) => row.word_asr)).toEqual([null, null]);
+    const mended = await pg.query(
+      `UPDATE media_video.words SET word_asr = coalesce(word_asr, word), word = 'tide'
+        WHERE segment_id = $1 AND idx = 1 RETURNING word, word_asr`,
+      [segments[0].id]
+    );
+    expect(mended.rows[0]).toEqual({ word: 'tide', word_asr: 'tied' });
+  });
+});
+
 describe('media_video.decisions', () => {
   it('records who decided without being told', async () => {
     const { rows } = await pg.query(

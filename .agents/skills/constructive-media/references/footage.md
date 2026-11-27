@@ -19,6 +19,9 @@ media detect                         # find objects and people in the frames
 ```sh
 media vocabulary Zentrova "Ottoline Varga" --project demo  # names to listen for
 media transcribe                     # what is said, sentence by sentence, word by word
+media vocabulary Zentrova --heard-as "zen trova" --project demo  # what a name is misheard as
+media mend                           # put right every mishearing on record, and keep what was heard
+media relisten                       # transcribe the weakest recordings again, and keep what is better
 media group                          # recordings that rolled together become a take
 media match                          # a recorder with no clock finds its camera by what was said
 media sync                           # place every recording on its take's timeline, and prove it
@@ -27,6 +30,19 @@ media diarize                        # tell the voices in each recording apart
 media speakers                       # each recording's voices, and a clip of each to listen to
 media name interview voice1 "Ottoline Varga" --new  # say whose voice it is
 ```
+
+A wrong name in a transcript is mended, not transcribed again: record what
+the term is misheard as with `media vocabulary TERM --heard-as WORDS`, look
+with `media mend --dry-run`, then `media mend`. It rewrites the lines and
+their words and keeps what was heard, so `media mend --undo` puts all of it
+back; run `media passages` again afterwards so the passages carry the mended
+words. `media relisten` is for recordings the first recogniser did badly
+with: `media relisten --dry-run` lists them, and with `--adapter` or a larger
+model set it listens again and replaces a transcript only where the new one
+is surer and found no less. A replaced transcript needs `media diarize` and
+`media passages` again. `media transcribe --match NAME --from cleaned.wav`
+listens to another file in place of one recording, and `--speaker NAME`
+writes a name beside every line.
 
 ## Find what is worth using
 

@@ -15,6 +15,7 @@ from .. import __version__
 from ..adapters import AdapterError
 from ..audio.clean import CleanError
 from ..audio.laughter import LaughterError
+from ..audio.upkeep import UpkeepError
 from ..browser import BrowserError
 from ..conv import ConvError
 from ..db import DatabaseError
@@ -59,8 +60,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         return arguments.run(arguments) or 0
     except (AdapterError, BrowserError, CleanError, ConvError, DatabaseError, DenoiseError, EditError, FfmpegError,
-            LaughterError, LibraryError, ModelError, ScaffoldError, SettingsError, SpeakerError, SpeechError, StageError, TakeError, TextError,
-            TranscriptionError) as error:
+            LaughterError, LibraryError, ModelError, ScaffoldError, SettingsError, SpeakerError, SpeechError,
+            StageError, TakeError, TextError, TranscriptionError, UpkeepError) as error:
         print(f"media: {error}", file=sys.stderr)
         return 1
     except ModuleNotFoundError as error:

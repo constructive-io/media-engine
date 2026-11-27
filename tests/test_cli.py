@@ -36,7 +36,8 @@ class CommandLineTest(unittest.TestCase):
         status, out, _ = run("--help")
         self.assertEqual(status, 0)
         for command in ("ingest", "lineage", "shots", "frames", "signatures", "detect",
-                        "transcribe", "vocabulary", "diarize", "speakers", "name", "group", "match", "sync",
+                        "transcribe", "vocabulary", "mend", "relisten",
+                        "diarize", "speakers", "name", "group", "match", "sync",
                         "takes", "passages", "flag", "score", "rank", "recipe", "judge", "index", "search", "fit", "models", "assemble", "cutaways", "styles",
                         "compile", "selectors", "timelines",
                         "loudness", "audible", "laughter", "coordination",
@@ -155,15 +156,15 @@ class Listener:
     """A recogniser that hears one sentence in everything."""
 
     name = "fake"
-    model = "fake-1"
 
-    def __init__(self):
+    def __init__(self, line="We sailed at dawn.", sure=None, model="fake-1"):
+        self.line, self.sure, self.model = line, sure, model
         self.asked = []
 
     def transcribe(self, audio, *, language="en", prompt=None):
         self.asked.append((audio.name, language, prompt))
-        words = tuple(Word(n * 0.5, n * 0.5 + 0.4, word) for n, word in enumerate("We sailed at dawn.".split()))
-        return [Segment(0.0, 2.0, "We sailed at dawn.", words)]
+        words = tuple(Word(n * 0.5, n * 0.5 + 0.4, word) for n, word in enumerate(self.line.split()))
+        return [Segment(0.0, 2.0, self.line, words, avg_logprob=self.sure)]
 
 
 class ListeningCommandsTest(DatabaseTest):
@@ -205,6 +206,71 @@ class ListeningCommandsTest(DatabaseTest):
         status, out, _ = run("status")
         self.assertRegex(out, r"segments +\d+")
         self.assertRegex(out, r"words +\d+")
+
+    def recording(self, name, seconds=120.0):
+        self.query(
+            """INSERT INTO media.assets (medium, path, content_hash, has_audio, project, duration_s)
+               VALUES ('audio', %s, %s, true, 'made-up-harbour', %s) RETURNING id""",
+            (f"/made-up/{name}", f"made-up-{name}", seconds))
+
+    def test_a_mishearing_is_recorded_mended_and_put_back(self):
+        self.recording("harbour.wav")
+        with mock.patch("constructive_media.transcription.transcriber",
+                        return_value=Listener("We met sentrova at dawn.")):
+            run("transcribe", "--match", "^/made-up/", "--project", "made-up-harbour", "--speaker", "Ottoline")
+        self.assertEqual(self.query("SELECT speaker FROM media_video.segments s JOIN media.assets a "
+                                    "ON a.id = s.asset_id WHERE a.path = '/made-up/harbour.wav'"), [("Ottoline",)])
+
+        self.assertEqual(run("vocabulary", "Zentrova", "--heard-as", "sentrova", "--heard-as", "zen trova",
+                             "--project", "made-up-harbour")[:2],
+                         (0, "Zentrova is heard as 2 more: `media mend` puts them right\n"))
+        self.assertIn("  Zentrova  (heard as: sentrova, zen trova)\n", run("vocabulary", "--project", "made-up-harbour")[1])
+        status, _, err = run("vocabulary", "Zentrova", "Varga", "--heard-as", "sentrova")
+        self.assertEqual((status, err), (2, "media: --heard-as is what one term is misheard as: give the one term\n"))
+        status, _, err = run("vocabulary", "Ottoline Varga", "--heard-as", "varga")
+        self.assertEqual(status, 1)
+        self.assertIn("is part of", err)
+
+        status, out, _ = run("mend", "--match", "^/made-up/", "--dry-run")
+        self.assertEqual(status, 0)
+        self.assertEqual(out, "  harbour.wav  0:00  sentrova -> Zentrova\n"
+                              "      We met sentrova at dawn.\n"
+                              "   -> We met Zentrova at dawn.\n"
+                              "1 lines in 1 recordings would be mended; nothing was written\n")
+        self.assertIn("1 lines mended in 1 recordings", run("mend", "--match", "^/made-up/")[1])
+        self.assertEqual(run("mend", "--match", "^/made-up/")[1],
+                         "0 lines mended: no recorded mishearing is in any transcript\n")
+        self.assertEqual(run("mend", "--match", "^/made-up/", "--undo")[1],
+                         "1 lines put back to what the recogniser wrote, 1 corrections dropped\n")
+        self.assertEqual(run("mend", "--undo", "--dry-run")[0], 2)
+
+    def test_the_weakest_recordings_are_listened_to_again(self):
+        self.recording("harbour.wav")
+        self.recording("market.wav")
+        with mock.patch("constructive_media.transcription.transcriber",
+                        return_value=Listener("The tied is in.", sure=-0.9, model="quick-1")):
+            run("transcribe", "--match", "^/made-up/harbour")
+        with mock.patch("constructive_media.transcription.transcriber",
+                        return_value=Listener("Fresh fish today.", sure=-0.1, model="quick-1")):
+            run("transcribe", "--match", "^/made-up/market")
+
+        careful = Listener("The tide is in.", sure=-0.3, model="careful-1")
+        with mock.patch("constructive_media.transcription.transcriber", return_value=careful) as chosen:
+            status, listed, _ = run("relisten", "--match", "^/made-up/", "--dry-run", "--sparse", "0",
+                                    "--adapter", "fake")
+            self.assertEqual(careful.asked, [])
+            narrow = run("relisten", "--match", "^/made-up/", "--dry-run", "--below", "-2", "--sparse", "0")[1]
+            status, out, _ = run("relisten", "--match", "^/made-up/", "--language", "fr")
+        self.assertEqual(status, 0)
+        self.assertEqual(listed, "  sureness -0.90      1 segments  harbour.wav  (quick-1)\n"
+                                 "1 recordings would be listened to again with fake (careful-1)\n")
+        self.assertEqual(narrow, "0 recordings would be listened to again with fake (careful-1)\n")
+        self.assertEqual(out, "  replaced  harbour.wav  sureness -0.90, 1 segments -> sureness -0.30, 1 segments\n"
+                              "  kept      market.wav  sureness -0.10, 1 segments -> sureness -0.30, 1 segments\n"
+                              "2 recordings listened to again with fake (careful-1): 1 replaced, 1 kept as they were\n"
+                              "a replaced transcript has no voices or passages yet: `media diarize`, `media passages`\n")
+        self.assertEqual([language for _, language, _ in careful.asked], ["fr", "fr"])
+        chosen.assert_any_call("fake")
 
 
 @unittest.skipUnless(HAVE_FFMPEG and HAVE_NUMPY, "ffmpeg and numpy are needed")
