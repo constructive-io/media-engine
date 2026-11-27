@@ -568,6 +568,60 @@ def mimic(
     return told
 
 
+def revoice(
+    recording: str | Path, target: str | Path, *, who: str | None = None, like: str | Path | None = None,
+    emotion: str | None = None, voices: Voices | None = None, converter: Any = None, embedder: Any = None,
+    settings: Settings | None = None,
+) -> dict[str, Any]:
+    """Write what is said in `recording` again, in another voice, as `target`.
+
+    The voice is a persona's, `who`, when it was cloned from a clip, or the
+    one heard in a recording, `like`. Whatever fills the `voice_conversion`
+    slot does it. `before` and `alike` in the answer are how like that voice
+    the recording was and how like it what was written is, as the speaker
+    model hears them: a conversion that worked moves the second well over
+    the first.
+    """
+    import time
+
+    from .. import conversion
+    from ..speakers import embedder as speaker_adapter
+    from ..speakers.names import slug
+
+    source = Path(recording).expanduser()
+    if not source.is_file():
+        raise SpeechError(f"{source}: no such recording")
+    if (who is None) == (like is None):
+        raise SpeechError("a recording is said again in a persona's voice or like a clip: give one of them")
+    if like is not None:
+        clip = Path(like).expanduser()
+        if not clip.is_file():
+            raise SpeechError(f"{clip}: no such clip")
+        name = clip.name
+    else:
+        voice = (voices if voices is not None else StoredVoices()).find(slug(str(who)), emotion)
+        clip, name = conversion.clip(voice), voice.persona
+    target = Path(target)
+    changes = converter if converter is not None else conversion.converter(settings=settings)
+    hears = embedder if embedder is not None else speaker_adapter(settings=settings)
+    # Heard first, so that a speaker model that is not there is found out before the work and not after it.
+    before = alike(source, clip, embedder=hears)
+    with tempfile.TemporaryDirectory(prefix="revoice-") as folder:
+        began = time.perf_counter()
+        made = Path(changes.convert(source, Path(folder) / "made.wav", like=clip))
+        took = time.perf_counter() - began
+        if not made.is_file() or not pcm.seconds(made):
+            raise conversion.ConversionError(f"the {changes.name} adapter wrote nothing for {source.name}")
+        seconds = pcm.seconds(made)
+        after = alike(made, clip, embedder=hears)
+        _write(made, target)
+    return {
+        "output": str(target), "recording": source.name, "like": name, "adapter": changes.name,
+        "model": changes.model, "seconds": round(float(seconds or 0), 2), "took": round(took, 2),
+        "before": round(before, 3), "alike": round(after, 3),
+    }
+
+
 def _likeness(made: Path, clips: Sequence[Path], embedder: Any, settings: Settings | None) -> list[float] | None:
     """How like each clip a recording is, or None when there is nothing here to hear that with."""
     from ..adapters import AdapterError

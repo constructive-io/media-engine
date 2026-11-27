@@ -303,3 +303,65 @@ the place of the cloned one. The same `--seed` finds the same mix.
 
 **A voice made to lean towards somebody is made from their recording.** It
 takes the same permission as cloning them would.
+
+## A recording said again in another voice
+
+A model that clones is given words and says them its own way. A model that
+converts is given a recording: it keeps the words, their timing and their
+tune, and changes whose voice it is. That is the one to use when how a line
+was said matters more than who said it, as a reading you did yourself for a
+character who is not you.
+
+```sh
+media revoice take.wav out/take-as-ada.wav --voice ada      # a persona whose voice was cloned from a clip
+media revoice take.wav out/take-as-ada.wav --like ada.flac  # or any recording of the voice
+```
+
+Nothing in the engine does this by itself. It needs a
+[plugin](./ADAPTERS.md#voice-conversion), and the one there is carries the
+GPL:
+
+```sh
+pip install ./media-engine-plugins/plugins/seedvc-conversion
+export CONSTRUCTIVE_MEDIA_ADAPTER_VOICE_CONVERSION=seedvc
+```
+
+It prints how like the voice the recording was to begin with and how like it
+what was written is, as the speaker model hears them:
+
+```
+out/take-as-ada.wav: 0.79 alike ada, where take.wav was 0.27
+  15.5 s said again in 5.4 s by seedvc Plachta/Seed-VC
+```
+
+A clone comes out about 0.8 alike its clip, so that one is as near as a
+clone. They are not all. With the same recording and another voice's clip the
+second number was between 0.38 and 0.53: plainly moved towards the voice, and
+not it. The number is there so you know which you have. Where it is no higher
+than the first, the command says the conversion did nothing you could use.
+
+Most of those 5.4 seconds were the model being loaded. `media revoice` does
+that for every recording, and a program that keeps the adapter
+(`constructive_media.conversion.converter()`) does it once: after that the
+same quarter of a minute took a second and a half.
+
+### In a conversation
+
+A cloned voice takes seconds over a sentence and a [quick voice](#a-quick-voice)
+is nobody's in particular. The two can be put end to end: the quick voice says
+the sentence and the converter says it again in the persona's.
+
+```sh
+media talk --voice ada --quick af_heart
+```
+
+`--quick` names the voice the words are first said in, one that the
+configured `speech` adapter has of its own. `--voice` has to be a persona
+whose voice was made from a clip. On one desktop the first sentence of an
+answer took 0.7 to 1.0 seconds that way, where the quick voice alone took 0.16
+([the wait](./TALK.md#the-wait)). The tune of the sentence is the quick
+voice's, since that is what the converter was handed.
+
+**The voice a recording is said again in is somebody's, and so is the
+recording.** It takes the same permission as cloning the voice would, and the
+say-so of whoever's reading it is.

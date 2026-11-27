@@ -1,10 +1,10 @@
 ---
 name: constructive-media
-description: Constructive Media — one engine for video, images, audio and voice, driven by the `media` command line with its state in PostgreSQL. Use when asked to "render a .conv", "turn a script into audio", "make a voiced scene", "say this script", "say this in a voice", "give a persona a voice", "clone a voice", "audition a voice", "blend two voices", "mix voices", "make a new voice from two", "make a quick voice", "a fast voice for talking", "mimic a voice", "use Kokoro", "make a narrated deck", "film a deck", "turn a script into a video", "make a walkthrough video", "narrate a document", "add a voice library", "set up the media engine", "ingest footage", "transcribe recordings", "find the best takes", "make a cut", "render a cut", "generate an image", "generate a video", "make a picture from a prompt", "talk to a model", "have a voice conversation", "measure the voice latency", or to choose a model, an adapter or a plugin for the engine.
+description: Constructive Media — one engine for video, images, audio and voice, driven by the `media` command line with its state in PostgreSQL. Use when asked to "render a .conv", "turn a script into audio", "make a voiced scene", "say this script", "say this in a voice", "give a persona a voice", "clone a voice", "audition a voice", "blend two voices", "mix voices", "make a new voice from two", "make a quick voice", "a fast voice for talking", "mimic a voice", "use Kokoro", "say this recording in another voice", "revoice a recording", "convert a voice", "talk in a cloned voice", "make a narrated deck", "film a deck", "turn a script into a video", "make a walkthrough video", "narrate a document", "add a voice library", "set up the media engine", "ingest footage", "transcribe recordings", "find the best takes", "make a cut", "render a cut", "generate an image", "generate a video", "make a picture from a prompt", "talk to a model", "have a voice conversation", "measure the voice latency", or to choose a model, an adapter or a plugin for the engine.
 compatibility: Python 3.11+, PostgreSQL 17+ with pgvector, pgpm, ffmpeg, whisper.cpp; Chrome or Chromium for video of a page
 metadata:
   author: constructive-io
-  version: "0.12.0"
+  version: "0.13.0"
 ---
 
 # Constructive Media
@@ -25,7 +25,8 @@ goes in, and a mixed recording comes out.
   follows the recording. See [A script to video](#a-script-to-video).
 - **Voices:** saying a few words in a voice, cutting a clip to clone from,
   auditioning a voice, blending voices into a new one, a quick voice for
-  talking that leans towards a recording, sharing voices, sounds
+  talking that leans towards a recording, a recording said again in
+  another voice, sharing voices, sounds
   and faces as a library. See
   [Voices and libraries](#voices-and-libraries).
 - **Footage to a cut:** ingesting recordings, transcribing them, telling voices
@@ -312,6 +313,27 @@ it as `ada` takes the place of the cloned one. A kept one is spoken by the
 `kokoro` adapter whatever speaks everybody else. It is made from somebody's
 recording: only with their yes.
 
+**Say a recording again in another voice.** A model that converts keeps a
+recording's words, timing and tune and changes whose voice it is. Nothing in
+the engine does it: it needs a plugin from
+[media-engine-plugins](https://github.com/constructive-io/media-engine-plugins)
+(`seedvc`, GPL-3.0, Python 3.11 or 3.12), chosen with
+`CONSTRUCTIVE_MEDIA_ADAPTER_VOICE_CONVERSION=seedvc`. Say what the license is
+before installing it. `media adapters` shows whether one is there.
+
+```sh
+media revoice take.wav out/take-as-ada.wav --voice ada      # a persona whose voice was cloned from a clip
+media revoice take.wav out/take-as-ada.wav --like ada.flac  # or a recording of the voice
+media talk --voice ada --quick af_heart                     # a conversation: said quickly, then again in ada's voice
+```
+
+`media revoice` prints two numbers: how like the voice the recording was, and
+how like it the result is. A clone scores about 0.8; a conversion scored 0.79
+for one voice and 0.38 to 0.53 for another. Report both numbers, and when the
+second is under about 0.6 say that it leans towards the voice and is not it.
+`--quick` costs 0.6 to 0.9 seconds of wait over the quick voice alone. The
+voice is somebody's and so is the reading: only with a yes from both.
+
 **Share voices, sounds and faces as a library.** A library is a folder or a git
 repository with a `media-library.json` that names what is in it and, for every
 voice, who consented:
@@ -375,6 +397,7 @@ media synthetic talk-over        # the clips of a cut that nobody filmed; status
 media talk --measure         # serve nothing: time hearing, answering and saying, and the wait they add up to
 media talk --voice ada       # serve the page on this machine; prints its address and runs until stopped
 media talk --typed           # no microphone and no transcription: turns are typed, and answered aloud
+media talk --voice ada --quick af_heart   # with a voice conversion plugin: a quick voice, said again in ada's
 ```
 
 - **It runs until it is stopped.** Start it in the background, read the

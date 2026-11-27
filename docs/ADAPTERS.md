@@ -97,6 +97,7 @@ What an adapter must do is set by its slot:
 | `transcription` | `constructive_media.transcription.Transcriber` | `transcribe(audio, language, prompt)` returns what was said as segments, with a start and an end for every word |
 | `detection` | `constructive_media.detection.Detector` | `detect(images, confidence)` returns the detections for each image, boxes as shares of the frame |
 | `speaker` | `constructive_media.speakers.Embedder` | `embed(sounds)` returns one row of numbers for each stretch of sound, at unit length, close together for one voice |
+| `voice_conversion` | `constructive_media.conversion.Converter` | `convert(source, target, like=clip)` writes what `source` says as a WAV file at `target`, in the voice heard in `clip`, and returns where it wrote it. The words, their timing and their tune are the recording's; the voice is the clip's. Its `name` and `model` are printed beside what it made |
 | `effects` | `constructive_media.effects.EffectBackend` | `apply(source, target, effects)` writes the audio with the effects applied, and answers a WAV file of floats with one, so a track that passes full scale on its way into a mix is not clipped. It may also say how long its effects ring, with `ring(effects)`, and a mix leaves that much room |
 | `image`, `video` | `constructive_media.generate.Maker` | `make(request, target)` writes the picture or the piece of video a request describes to `target`. Its `name` and `model` go on record beside what it made. It may say what a request costs, with `price(request)`. One that asks a service and is answered later has `submit(request)`, `poll(job)` and `fetch(job, target)` in place of `make` (`constructive_media.generate.Later`), and `media collect` brings in what it made |
 
@@ -431,6 +432,43 @@ The engine does the arithmetic between them and never looks inside a row: it
 asks only that every row from one adapter is the same size. The `mlx` adapter
 has both, for a model with a speaker encoder of its own, which the default
 has.
+
+## Voice conversion
+
+A model that converts a voice takes a recording of somebody speaking and a
+clip of somebody else, and gives back the first one's words, with their timing
+and their tune, in the second one's voice. Nothing is written down on the way
+and nothing is trained. Two things in the engine use whatever fills the slot:
+
+```sh
+media revoice take.wav out/take-as-ada.wav --voice ada     # a recording, said again
+media talk --voice ada --quick af_heart                    # a conversation: a quick voice, said again in a cloned one
+```
+
+Nothing built in fills it. An adapter is a plugin, installed beside the engine
+and chosen by name:
+
+```sh
+export CONSTRUCTIVE_MEDIA_ADAPTER_VOICE_CONVERSION=seedvc
+```
+
+`seedvc` is [Seed-VC](https://github.com/Plachtaa/seed-vc), whose code and
+weights are GPL-3.0. Its adapter is in
+[media-engine-plugins](https://github.com/constructive-io/media-engine-plugins)
+under that license, which is why it is there and not here.
+
+An adapter is asked for one recording at a time and may be asked by more than
+one thread. It writes a WAV file, at whatever rate its model works at. What it
+cannot do it says by raising
+`constructive_media.conversion.ConversionError`, which a command prints as one
+line. `media revoice` hears the recording and the result beside the clip with
+the [`speaker`](#speakers) slot and prints both numbers, so a conversion that
+did nothing is seen to have done nothing.
+
+`conversion.Respoken(first, quick, converter)` is the two put end to end as a
+`speech` adapter: `first` says the words in the voice `quick`, and `converter`
+says them again in the voice it is asked for, which has to be one made from a
+clip. That is what `media talk --quick` speaks with.
 
 ## Pictures and video
 

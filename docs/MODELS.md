@@ -147,6 +147,8 @@ is reached through a plugin, never from this repository; see
 
 ## Slots with no model yet
 
-`voice_conversion` and `lip_sync` have no built-in adapter. Nothing here makes
-a sound from a description either: a `.conv` sound given as
+`voice_conversion` and `lip_sync` have no built-in adapter, and so no model
+is named for them here. `voice_conversion` is filled by a plugin
+([voice conversion](./ADAPTERS.md#voice-conversion)); nothing fills `lip_sync`
+yet. Nothing here makes a sound from a description either: a `.conv` sound given as
 a `prompt:` needs a `file:` until there is a slot for it.

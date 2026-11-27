@@ -23,6 +23,9 @@ def register(commands: Any) -> None:
     command.add_argument("--emotion", metavar="NAME", help="with --voice: the emotion to answer in (default: neutral)")
     command.add_argument("--profile", metavar="NAME",
                          help="answer in a voice the speech adapter knows by this name, with no database asked")
+    command.add_argument("--quick", metavar="NAME",
+                         help="with --voice: say each sentence in this voice of the speech adapter's own, which "
+                              "is quick, and have the voice_conversion adapter say it again in the persona's")
     command.add_argument("--system", metavar="TEXT", help="what the text model is told it is doing, in place of "
                                                           "being told it is talking aloud")
     command.add_argument("--language", default="en", metavar="CODE", help="the language spoken to it (default: en)")
@@ -44,6 +47,9 @@ def run_talk(arguments: argparse.Namespace) -> int | None:
     if arguments.emotion and not arguments.voice:
         print("media: --emotion goes with --voice", file=sys.stderr)
         return 2
+    if arguments.quick and not arguments.voice:
+        print("media: --quick goes with --voice: the voice it is said again in", file=sys.stderr)
+        return 2
     if arguments.json and arguments.measure is None:
         print("media: --json goes with --measure", file=sys.stderr)
         return 2
@@ -57,9 +63,19 @@ def run_talk(arguments: argparse.Namespace) -> int | None:
         voice = speech.StoredVoices().find(slug(arguments.voice), arguments.emotion)
     else:
         voice = speech.Voice("voice", profile=arguments.profile)
+    if arguments.quick:
+        from .. import conversion
+
+        # Found out now, and not at the first sentence: a voice with no clip cannot be said again in.
+        conversion.clip(voice)
+        speaks: Any = conversion.Respoken(speech.synthesizer(settings=settings),
+                                          speech.Voice("quick", profile=arguments.quick),
+                                          conversion.converter(settings=settings))
+    else:
+        speaks = speech.synthesizer(voice.engine, settings=settings)
     parts = talk.Parts(
         writer=text.writer(settings=settings),
-        synthesizer=speech.synthesizer(voice.engine, settings=settings),
+        synthesizer=speaks,
         voice=voice,
         transcriber=None if arguments.typed else transcription.transcriber(settings=settings),
         system=arguments.system or talk.SYSTEM,
@@ -122,9 +138,12 @@ def _measure(parts: Any, arguments: argparse.Namespace) -> int | None:
 
         print(json.dumps(told, indent=2))
         return 1 if failed else None
-    print(f"  {'':<10} {'adapter':<12} {'model':<34} {'first time':>10} {'warm':>9}")
+    # Two models end to end have a long name: the columns are as wide as the longest of them.
+    adapter = max(12, *(len(part["adapter"]) for part in told["parts"]))
+    model = max(34, *(len(part["model"]) for part in told["parts"]))
+    print(f"  {'':<10} {'adapter':<{adapter}} {'model':<{model}} {'first time':>10} {'warm':>9}")
     for part in told["parts"]:
-        head = f"  {part['part']:<10} {part['adapter']:<12} {part['model']:<34}"
+        head = f"  {part['part']:<10} {part['adapter']:<{adapter}} {part['model']:<{model}}"
         if "trouble" in part:
             print(f"{head} failed: {part['trouble']}")
             continue

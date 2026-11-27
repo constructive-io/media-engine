@@ -207,6 +207,23 @@ def register(commands: Any) -> None:
     command.add_argument("--json", action="store_true", help="print the whole report as JSON")
     command.set_defaults(run=run_mimic)
 
+    command = commands.add_parser(
+        "revoice", help="say a recording again in another voice",
+        description="Write what is said in a recording again in somebody else's voice: the same words at the "
+                    "same pace, in a persona's voice (--voice) or the one heard in a clip (--like), as in "
+                    "`media revoice take.wav out/as-ada.wav --voice ada`. It prints how like that voice the "
+                    "recording was and how like it what was written is, as the speaker model hears them. "
+                    "Whatever fills the voice_conversion slot does it, and nothing built in does: an adapter "
+                    "for one is a plugin.",
+    )
+    command.add_argument("recording", help="a recording of somebody speaking")
+    command.add_argument("output", help="where to write it; the name says what kind of file")
+    command.add_argument("--voice", metavar="WHO", help="a persona whose voice was cloned from a clip")
+    command.add_argument("--emotion", metavar="NAME", help="with --voice: which of the persona's voices")
+    command.add_argument("--like", metavar="CLIP", help="a recording of the voice to say it in, in place of --voice")
+    command.add_argument("--json", action="store_true", help="print the whole report as JSON")
+    command.set_defaults(run=run_revoice)
+
 
 def _voices(one: Any) -> str:
     return (f"{one.found} found voice{'' if one.found == 1 else 's'}, "
@@ -500,6 +517,30 @@ def run_audition(arguments: argparse.Namespace) -> int | None:
             print(f"{len(told['bled'])} began with the end of the voice's recording: cut the clip so that it "
                   "ends on a calm phrase with quiet after it, and write its words down exactly")
     return None if told["passed"] else 1
+
+
+def run_revoice(arguments: argparse.Namespace) -> int | None:
+    import json
+
+    from ..audio import voice
+
+    if bool(arguments.voice) == bool(arguments.like):
+        print("media: say whose voice: --voice for a persona, or --like for a clip", file=sys.stderr)
+        return 2
+    if arguments.emotion and not arguments.voice:
+        print("media: --emotion goes with --voice", file=sys.stderr)
+        return 2
+    told = voice.revoice(arguments.recording, arguments.output, who=arguments.voice, like=arguments.like,
+                         emotion=arguments.emotion)
+    if arguments.json:
+        print(json.dumps(told, indent=2, ensure_ascii=False))
+        return None
+    print(f"{told['output']}: {told['alike']:.2f} alike {told['like']}, where {told['recording']} was "
+          f"{told['before']:.2f}")
+    print(f"  {told['seconds']:.1f} s said again in {told['took']:.1f} s by {told['adapter']} {told['model']}".rstrip())
+    if told["alike"] <= told["before"]:
+        print("  it is no more like that voice than it was: listen before it is used")
+    return None
 
 
 def run_mimic(arguments: argparse.Namespace) -> int | None:

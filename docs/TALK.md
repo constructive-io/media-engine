@@ -10,6 +10,7 @@ rest is still being written.
 media talk                      # prints an address; open it, press Microphone, and speak
 media talk --voice ada          # answer in a persona's voice, as `media voice` stored it
 media talk --profile NAME       # answer in a voice the speech adapter knows by name, with no database
+media talk --voice ada --quick af_heart   # said in a quick voice, and again in a cloned one: needs a plugin
 media talk --typed              # listen to nothing: turns are typed, and still answered aloud
 media talk --system "You are a harbour pilot. Answer in a sentence."
 media talk --measure            # serve nothing: time each model, and the wait they add up to
@@ -90,6 +91,20 @@ thousandths of a second over that first sentence. The
 [`kokoro` adapter](./ADAPTERS.md#a-small-quick-model) runs a small model that
 took 159 on the same desktop, in a voice of its own and not a cloned one
 ([a quick voice](./VOICES.md#a-quick-voice)).
+
+With a [voice conversion plugin](./ADAPTERS.md#voice-conversion) installed,
+`--quick` puts the two together: the answer is said in a quick voice and said
+again in a cloned one.
+
+```
+$ media talk --measure --voice ada --quick af_heart
+  saying     kokoro+seedvc mlx-community/Kokoro-82M-bf16 + Plachta/Seed-VC    5161 ms    699 ms
+from the end of your sentence to the first sound: 1796 ms, once warm
+```
+
+That was 0.7 to 1.0 seconds over a first sentence on the same desktop,
+depending on the sentence, and 0.6 to 0.9 seconds more to wait than the quick
+voice alone ([in a conversation](./VOICES.md#in-a-conversation)).
 
 When it is served, `media talk` says a word and listens to it before it prints
 the address. A voice that cannot speak or a model that cannot listen is found
