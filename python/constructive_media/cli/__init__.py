@@ -22,6 +22,7 @@ from ..edit import EditError
 from ..ffmpeg import FfmpegError
 from ..libraries import LibraryError
 from ..models import ModelError
+from ..scaffold import ScaffoldError
 from ..settings import SettingsError
 from ..speakers import SpeakerError
 from ..speech import SpeechError
@@ -29,9 +30,9 @@ from ..stage import StageError
 from ..takes import TakeError
 from ..text import TextError
 from ..transcription import TranscriptionError
-from . import analyze, cut, edit, libraries, library, listen, scripts, speech, stage, system, takes
+from . import analyze, cut, edit, init, libraries, library, listen, scripts, speech, stage, system, takes
 
-GROUPS = (library, analyze, listen, takes, edit, cut, scripts, speech, stage, libraries, system)
+GROUPS = (library, analyze, listen, takes, edit, cut, scripts, speech, stage, libraries, init, system)
 
 
 def parser() -> argparse.ArgumentParser:
@@ -46,11 +47,19 @@ def parser() -> argparse.ArgumentParser:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    argv = list(sys.argv[1:] if argv is None else argv)
+    answers = None
+    if argv[:1] == ["init"]:
+        # A template asks what it likes, so what answers it is not known to the parser: --title "On tides".
+        argv, answers = init.split(argv)
     arguments = parser().parse_args(argv)
+    if answers is not None:
+        arguments.answers = answers
     try:
         return arguments.run(arguments) or 0
     except (AdapterError, BrowserError, CleanError, ConvError, DatabaseError, DenoiseError, EditError, FfmpegError,
-            LibraryError, ModelError, SettingsError, SpeakerError, SpeechError, StageError, TakeError, TextError, TranscriptionError) as error:
+            LibraryError, ModelError, ScaffoldError, SettingsError, SpeakerError, SpeechError, StageError, TakeError, TextError,
+            TranscriptionError) as error:
         print(f"me: {error}", file=sys.stderr)
         return 1
     except ModuleNotFoundError as error:

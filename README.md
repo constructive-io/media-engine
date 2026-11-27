@@ -38,6 +38,7 @@ Early, and built in the open one layer at a time.
 | [The stage](./docs/STAGE.md): a rendered script filmed as a video. A page follows the recording, as a deck, a document or a walkthrough, with the speakers, captions and clips drawn over it; a browser with no window is watched, and the pictures are laid under the sound | Here, tested, and filmed with a real browser |
 | [Voices](./docs/VOICES.md): a noisy recording measured and cleaned, a recording cut into a clip a voice can be cloned from, the clip sent to a server that clones or to a model run on a Mac with no server, and a voice auditioned before it is used | Here, tested with stand-ins for the models |
 | [Libraries](./docs/LIBRARIES.md): voices, sound banks and faces in repositories of their own, each voice with its consent, added by address and kept at a commit | Here, tested |
+| [Starting a project](./docs/PROJECTS.md): `me init` makes a workspace and its decks from a repository of boilerplates, in the format `pgpm init` reads | Here, tested |
 | Engine: generation of images, video and sounds | Being brought in |
 
 The roadmap is in [docs/ROADMAP.md](./docs/ROADMAP.md).
@@ -373,6 +374,18 @@ me library voices lighthouse
 
 That is [docs/LIBRARIES.md](./docs/LIBRARIES.md).
 
+A project of your own starts from a template:
+
+```sh
+me init workspace harbour-talks        # a pnpm workspace with a first deck in it
+me init deck quarterly-review          # another deck, in its packages/
+```
+
+The templates are in
+[media-boilerplates](https://github.com/constructive-io/media-boilerplates), in
+the format `pgpm init` reads, and you can point it at your own. That is
+[docs/PROJECTS.md](./docs/PROJECTS.md).
+
 Settings are environment variables that start with `CONSTRUCTIVE_MEDIA_`; they
 are listed in [`settings.py`](./python/constructive_media/settings.py).
 
@@ -417,6 +430,9 @@ engine knows by name, with its source and its license, is in
 - [media-engine-plugins](https://github.com/constructive-io/media-engine-plugins):
   adapters for tools under copyleft licenses, each a package of its own that
   you choose to install.
+- [media-boilerplates](https://github.com/constructive-io/media-boilerplates):
+  what `me init` starts a project from: a pnpm workspace, and a narrated deck
+  that goes in one.
 - [voice-boilerplates](https://github.com/constructive-io/voice-boilerplates):
   a template for a library of voices, sounds and faces in a repository of your
   own.

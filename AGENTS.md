@@ -60,7 +60,10 @@ Voices, banks of sounds and faces are never kept here. They live in libraries, w
 repositories of their own ([docs/LIBRARIES.md](./docs/LIBRARIES.md)), started from
 [voice-boilerplates](https://github.com/constructive-io/voice-boilerplates). Pages to film
 are started from [video-boilerplates](https://github.com/constructive-io/video-boilerplates)
-and [document-boilerplates](https://github.com/constructive-io/document-boilerplates).
+and [document-boilerplates](https://github.com/constructive-io/document-boilerplates). A whole
+project is started with `me init` ([docs/PROJECTS.md](./docs/PROJECTS.md)) from
+[media-boilerplates](https://github.com/constructive-io/media-boilerplates): no template is
+kept here, and `scaffold.py` runs nothing a template holds.
 
 ## The pgpm skill
 

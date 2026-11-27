@@ -43,11 +43,13 @@ must be inside it.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import shutil
 import subprocess
 import tempfile
+import time
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
@@ -617,6 +619,42 @@ def _commit(folder: Path) -> str | None:
         return _git("rev-parse", "HEAD", cwd=folder) or None
     except LibraryError:
         return None
+
+
+def kept_clone(address: str, remote: str, kept: Path, *, refresh: bool = False, branch: str | None = None,
+               fresh: float = 24 * 60 * 60) -> Path:
+    """A clone of `remote` kept under `kept`, looked at again once it is `fresh` seconds old, or when asked.
+
+    It is for reading: a shallow clone at the head of its main branch, or of `branch`. When it cannot be fetched
+    again, what was fetched before is used. LibraryError when it cannot be cloned and nothing was kept of it.
+    """
+    folder = kept / (re.sub(r"[^a-z0-9]+", "-", address.lower()).strip("-")[:48] + "-"
+                     + hashlib.sha256(address.encode()).hexdigest()[:8])
+    stamp = folder / ".git" / "constructive-media-fetched"
+    if folder.is_dir():
+        try:
+            is_fresh = time.time() - stamp.stat().st_mtime < fresh
+        except OSError:
+            is_fresh = False
+        if is_fresh and not refresh:
+            return folder
+        try:
+            _git("fetch", "--quiet", "origin", cwd=folder)
+            _git("checkout", "--quiet", "--detach", f"origin/{branch}" if branch else "origin/HEAD", cwd=folder)
+            stamp.touch()
+        except LibraryError:
+            pass                                    # offline: what was fetched before still stands
+        return folder
+    kept.mkdir(parents=True, exist_ok=True)
+    scratch = Path(tempfile.mkdtemp(prefix=".fetching-", dir=kept))
+    try:
+        _git("clone", "--quiet", "--depth", "1", *(("--branch", branch) if branch else ()),
+             "--no-recurse-submodules", "--", remote, str(scratch / "clone"))
+        (scratch / "clone").rename(folder)
+    finally:
+        shutil.rmtree(scratch, ignore_errors=True)
+    stamp.touch()
+    return folder
 
 
 def _git(*arguments: str, cwd: Path | None = None) -> str:

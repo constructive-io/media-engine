@@ -4,7 +4,7 @@ description: Constructive Media — one engine for video, images, audio and voic
 compatibility: Python 3.11+, PostgreSQL 17+ with pgvector, pgpm, ffmpeg, whisper.cpp; Chrome or Chromium for video of a page
 metadata:
   author: constructive-io
-  version: "0.4.0"
+  version: "0.5.0"
 ---
 
 # Constructive Media
@@ -41,6 +41,7 @@ goes in, and a mixed recording comes out.
 | `me`, this engine | here | checks a script with a parser of its own, then says and mixes it |
 | Plugins | [media-engine-plugins](https://github.com/constructive-io/media-engine-plugins) | adapters under copyleft licenses, installed apart |
 | Libraries | repositories of your own, started from [voice-boilerplates](https://github.com/constructive-io/voice-boilerplates) | voices to clone, banks of sounds and faces, added with `me library add` |
+| Projects | a workspace of your own, started with `me init` from [media-boilerplates](https://github.com/constructive-io/media-boilerplates) | a pnpm workspace whose packages are decks; `me init workspace NAME`, then `me init deck NAME` inside it |
 | Pages | folders of your own, started from [video-boilerplates](https://github.com/constructive-io/video-boilerplates) or [document-boilerplates](https://github.com/constructive-io/document-boilerplates) | the deck, walkthrough or document `me film` records |
 
 `me` is the engine's command, short for "media engine". The same command is
@@ -262,6 +263,22 @@ bank's sounds are found in it, and its faces are drawn by `me film`. A script
 still names only personas and banks, so it renders anywhere the libraries are.
 Start a library from
 [voice-boilerplates](https://github.com/constructive-io/voice-boilerplates).
+
+## Start a project
+
+```sh
+me init workspace harbour-talks             # a pnpm workspace, with a first deck in packages/
+me init deck quarterly-review --title "…"   # at the top of a workspace: another deck
+me init --list                              # the templates, and what each asks
+```
+
+Every question a template asks is a flag of the same name, and `--no-tty`
+takes the defaults. It never writes into a folder that has something in it and
+runs nothing a template holds. The templates are in
+[media-boilerplates](https://github.com/constructive-io/media-boilerplates),
+which has a `media-workspace` skill for working in what is made; `--repo`
+reads others. The same templates work with `pgpm init --repo`. More in
+[docs/PROJECTS.md](../../../docs/PROJECTS.md).
 
 ## Before you say it is done
 

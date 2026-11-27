@@ -31,12 +31,8 @@ called what the index calls it is refused.
 
 from __future__ import annotations
 
-import hashlib
 import json
 import re
-import shutil
-import tempfile
-import time
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from pathlib import Path
@@ -221,7 +217,7 @@ class IndexUnreached(Exception):
 
 def _here(address: str, settings: Settings, refresh: bool) -> Path:
     """The folder an index is in on this machine, cloning or fetching it when it is at an address."""
-    from .libraries import LibraryError, _git
+    from .libraries import LibraryError, kept_clone
 
     local = Path(address).expanduser()
     if local.is_dir():
@@ -230,33 +226,8 @@ def _here(address: str, settings: Settings, refresh: bool) -> Path:
         raise IndexUnreached(f"the index `{address}` is neither a folder nor an address: owner/name on GitHub, "
                              "or one that starts https://, ssh:// or git@")
     remote = f"https://github.com/{address}.git" if _SHORT.fullmatch(address) else address
-    kept = settings.home / "indexes"
-    folder = kept / (re.sub(r"[^a-z0-9]+", "-", address.lower()).strip("-")[:48] + "-"
-                     + hashlib.sha256(address.encode()).hexdigest()[:8])
-    stamp = folder / ".git" / "constructive-media-fetched"
-    if folder.is_dir():
-        try:
-            fresh = time.time() - stamp.stat().st_mtime < FRESH
-        except OSError:
-            fresh = False
-        if fresh and not refresh:
-            return folder
-        try:
-            _git("fetch", "--quiet", "origin", cwd=folder)
-            _git("checkout", "--quiet", "--detach", "origin/HEAD", cwd=folder)
-            stamp.touch()
-        except LibraryError:
-            pass                                    # offline: what was fetched before is still an index
-        return folder
-    kept.mkdir(parents=True, exist_ok=True)
-    scratch = Path(tempfile.mkdtemp(prefix=".fetching-", dir=kept))
     try:
-        _git("clone", "--quiet", "--depth", "1", "--no-recurse-submodules", "--", remote, str(scratch / "clone"))
-        (scratch / "clone").rename(folder)
+        return kept_clone(address, remote, settings.home / "indexes", refresh=refresh, fresh=FRESH)
     except LibraryError as error:
         raise IndexUnreached(f"the index at {address} could not be reached ({error}). A library can still be "
                              "added by its own address") from None
-    finally:
-        shutil.rmtree(scratch, ignore_errors=True)
-    stamp.touch()
-    return folder
