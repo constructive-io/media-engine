@@ -15,6 +15,10 @@
   Constructive Media: one engine for video, images, audio and voice, with Postgres as its memory.
 </p>
 
+```bash
+npx skills add constructive-io/media-engine
+```
+
 Constructive Media treats everything it ingests or generates as data. Footage,
 stills, recordings and renders are rows; so are the people in them, the shots
 and words found inside them, the cuts made from them and every judgement a
@@ -555,6 +559,32 @@ npx skills add https://github.com/constructive-io/constructive --skill pgpm
 - pgpm (`npm install -g pgpm`)
 
 See [Prerequisites](https://constructive.io/learn/quickstart/prerequisites) for detailed setup instructions.
+
+## 📚 Agent skills
+
+* [Media Engine skills](https://github.com/constructive-io/media-engine/tree/main/.agents/skills): teach Claude Code or another coding agent to render scripts, stage video, and work with media libraries.
+
+```bash
+npx skills add constructive-io/media-engine
+```
+
+## Constructive Media ecosystem
+
+Render scripts to audio and video, mix sound, and assemble footage into cuts.
+
+### 🚀 Starters and related projects
+
+* [Conversation Format](https://github.com/constructive-io/conversation-format): write `.conv` scripts using the spec, reference parser, and authoring skill.
+* [Media Engine boilerplates](https://github.com/constructive-io/media-engine-boilerplates): scaffold a narrated deck, walkthrough, animation, or document.
+* [Media Engine plugins](https://github.com/constructive-io/media-engine-plugins): optional adapters for tools under copyleft licenses.
+* [Media Engine libraries](https://github.com/constructive-io/media-engine-libraries): find voices, sounds, and faces, including the [CC0 foley library](https://github.com/constructive-io/media-engine-library-foley).
+
+### 📦 Key packages
+
+* [constructive-media](https://github.com/constructive-io/media-engine/tree/main/python/constructive_media): the Python engine and the `media` CLI.
+* [media-core](https://github.com/constructive-io/media-engine/tree/main/packages/media-core): personas, voices, assets, takes, and provenance.
+* [media-video](https://github.com/constructive-io/media-engine/tree/main/packages/media-video): shots, transcripts, timelines, and editing decisions.
+* [media-audio](https://github.com/constructive-io/media-engine/tree/main/packages/media-audio): speech synthesis, renders, and review.
 
 ## Credits
 
