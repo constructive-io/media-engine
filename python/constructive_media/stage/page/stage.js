@@ -432,11 +432,24 @@
 
     function filmed() {
       // No sound, and the wall clock. The frame painted before the clock starts is the film's first.
+      // A browser hands over a picture only when something on the page changes, and a slow machine can
+      // hand over none between the page loading and its clock starting. So once the first moment is up
+      // one dot in the corner is painted again, which nobody can see and which makes a picture certain,
+      // and `shownEpoch` says when: a picture from before it may be of a page still getting ready.
       apply(0);
-      settled().then(function () { return frames(3); }).then(function () {
+      var shown = null;
+      settled().then(function () { return frames(2); }).then(function () {
+        var dot = document.createElement('div');
+        dot.style.cssText = 'position:fixed;left:0;top:0;width:1px;height:1px;opacity:0.02;background:#000;' +
+                            'pointer-events:none;z-index:2147483647';
+        body.appendChild(dot);
+        shown = Date.now();
+        return frames(1).then(function () { dot.style.background = '#fff'; return frames(2); });
+      }).then(function () {
         root.classList.remove('stage-starting');
         var began = performance.now();
-        window.__stage = { startEpoch: Date.now(), seconds: timeline.seconds, done: false, notes: [] };
+        window.__stage = { startEpoch: Date.now(), shownEpoch: shown, seconds: timeline.seconds, done: false,
+                           notes: [] };
         stage.playing = true;
         (function tick() {
           var t = (performance.now() - began) / 1000;

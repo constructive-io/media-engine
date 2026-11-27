@@ -42,11 +42,14 @@ class Filmed:
 
     `start` is the moment the page said its clock began, on the same clock as
     every frame's `at`. `notes` are the errors the page raised while it ran.
+    `shown` is the moment the page had its first moment up, when it says: a
+    frame from before it is of a page still getting ready.
     """
 
     start: float
     frames: list[Frame]
     notes: list[str] = field(default_factory=list)
+    shown: float | None = None
 
 
 @runtime_checkable

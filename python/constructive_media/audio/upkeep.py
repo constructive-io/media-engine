@@ -217,8 +217,9 @@ def _keep(segment_id: Any, text: str, fired: list[tuple[Rule, str, str]]) -> Non
     with db.transaction():
         cur = db.cursor()
         cur.executemany(
-            """INSERT INTO media_video.corrections (segment_id, before_text, after_text, rule, actor)
-               VALUES (%s, %s, %s, %s, %s)""",
+            # The clock and not the transaction's start, so the corrections of one line stay in the order made.
+            """INSERT INTO media_video.corrections (segment_id, before_text, after_text, rule, actor, applied_at)
+               VALUES (%s, %s, %s, %s, %s, clock_timestamp())""",
             [(segment_id, before, after, rule.name, _ACTOR) for rule, before, after in fired],
         )
         cur.execute(

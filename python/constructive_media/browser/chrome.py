@@ -90,6 +90,7 @@ class Chrome:
         frames: list[Frame] = []
         notes: list[str] = []
         start: float | None = None
+        shown: float | None = None
         with self._tab(size) as tab:
             tab.call("Runtime.enable")
             tab.call("Page.startScreencast", {"format": "jpeg", "quality": QUALITY, "maxWidth": width,
@@ -117,6 +118,7 @@ class Chrome:
                         raise BrowserError(f"the page could not start: {state['error']}")
                     if state and start is None:
                         start = float(state["startEpoch"]) / 1000.0
+                        shown = float(state["shownEpoch"]) / 1000.0 if state.get("shownEpoch") else None
                         deadline = time.monotonic() + float(state.get("seconds") or seconds) + SLACK_S
                         if tell:
                             tell("  the page has started")
@@ -132,7 +134,7 @@ class Chrome:
                     notes.append(_thrown(message["params"]))
             tab.send("Page.stopScreencast")
         assert start is not None
-        return Filmed(start, frames, notes)
+        return Filmed(start, frames, notes, shown)
 
     def stills(self, url: str, moments: Sequence[tuple[float, Path]], *, size: tuple[int, int],
                tell: Callable[[str], None] | None = None) -> list[str]:

@@ -62,7 +62,7 @@ class UpkeepTest(DatabaseTest):
         return self.query(
             """SELECT c.before_text, c.after_text, c.rule, c.actor FROM media_video.corrections c
                  JOIN media_video.segments s ON s.id = c.segment_id
-                WHERE s.asset_id = %s ORDER BY c.id""",
+                WHERE s.asset_id = %s ORDER BY c.applied_at""",
             (asset_id,),
         )
 

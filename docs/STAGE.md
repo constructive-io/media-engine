@@ -257,7 +257,9 @@ tool. It keeps this contract and nothing more:
    and `size=WxH`.
 2. It reads the timeline, gets ready, and then sets
    `window.__stage = { startEpoch: Date.now(), seconds, done: false, notes: [] }`.
-   `startEpoch` is the moment its clock begins.
+   `startEpoch` is the moment its clock begins. It may add `shownEpoch`, the
+   moment it had its first moment up: a picture taken before that is of a
+   page still getting ready, and the film does not open on it.
 3. From then on it shows, at every moment, what the timeline says is on at
    `(Date.now() - startEpoch) / 1000` seconds. It plays no sound.
 4. When that passes `seconds` it sets `window.__stage.done = true`.

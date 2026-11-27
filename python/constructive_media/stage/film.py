@@ -215,14 +215,24 @@ def _named(beat: str) -> str:
     return re.sub(r"[^A-Za-z0-9._-]+", "-", beat).strip("-") or "beat"
 
 
+#: How soon after the clock begins a picture must come to be what the film opens on, in seconds.
+OPENS_WITHIN_S = 0.25
+
+
 def assemble(filmed: Filmed, made: dict[str, Any], staged: str | Path, target: str | Path, *,
              size: tuple[int, int] = SIZE, fps: int = FPS, bitrate: int | None = None) -> tuple[str | None, int]:
     """Lay filmed frames on a timeline's clock and write the video. The encoder used, and how many frames went in."""
     staged, target = Path(staged), Path(target)
     seconds = float(made["seconds"])
     placed = sorted(((frame.at - filmed.start, frame.file) for frame in filmed.frames), key=lambda one: one[0])
-    # The last picture painted before the clock began is what the film opens on.
+    # The last picture painted before the clock began is what the film opens on. Where the page says
+    # when it had its first moment up, a picture from before that may be of a page still getting ready:
+    # one from after it is wanted, and one that comes just after the clock began will do.
     before = [one for one in placed if one[0] <= 0]
+    if filmed.shown is not None:
+        sure = [one for one in before if one[0] >= filmed.shown - filmed.start]
+        soon = [one for one in placed if 0 < one[0] <= OPENS_WITHIN_S]
+        before = sure or ([] if soon else before)
     shown = ([(0.0, before[-1][1])] if before else []) + [one for one in placed if 0 < one[0] < seconds]
     if not shown:
         raise StageError("the browser painted nothing while the page ran")

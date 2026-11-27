@@ -405,6 +405,35 @@ class FilmTest(unittest.TestCase):
         self.assertEqual(shown, 2)   # the one at 9.9, held from 0, and the one at 10.5; 12.0 is at the end
         self.assertEqual(list(self.folder.glob(".*.frames.txt")), [])
 
+    def test_a_picture_from_before_the_page_was_up_is_not_what_a_film_opens_on(self):
+        made = {"seconds": 2.0, "sound": "sound.wav", "clips": []}
+        make_tone(self.folder / "sound.wav", 2.0)
+        # A slow machine: nothing was painted between the page being up, at 9.95, and its clock starting.
+        frames = [Frame(9.0, self.pictures[0]), Frame(9.9, self.pictures[1]), Frame(10.02, self.pictures[2]),
+                  Frame(10.5, self.pictures[3])]
+        written = []
+
+        def encode(*args, **_):
+            written.append(Path(args[args.index("-i") + 1]).read_text())
+            return "none"
+
+        with mock.patch.object(film.ffmpeg, "encode", side_effect=encode):
+            _, shown = film.assemble(Filmed(10.0, frames, [], shown=9.95), made, self.folder,
+                                     self.folder / "out.mp4", size=(320, 180), fps=25)
+        self.assertEqual(shown, 2)   # the one at 10.02, held from 0, and the one at 10.5
+        self.assertNotIn(self.pictures[1].name, written[0])
+        self.assertTrue(written[0].startswith(f"file '{self.pictures[2].resolve()}'\nduration 0.5"))
+        # A page that does not say when it was up is taken at its word, as before.
+        with mock.patch.object(film.ffmpeg, "encode", side_effect=encode):
+            film.assemble(Filmed(10.0, frames, []), made, self.folder, self.folder / "out.mp4",
+                          size=(320, 180), fps=25)
+        self.assertTrue(written[1].startswith(f"file '{self.pictures[1].resolve()}'\nduration 0.02"))
+        # And with no picture soon after the clock began, the last one before it is still the best there is.
+        with mock.patch.object(film.ffmpeg, "encode", side_effect=encode):
+            film.assemble(Filmed(10.0, [frames[0], frames[1], frames[3]], [], shown=9.95), made, self.folder,
+                          self.folder / "out.mp4", size=(320, 180), fps=25)
+        self.assertTrue(written[2].startswith(f"file '{self.pictures[1].resolve()}'\nduration 0.5"))
+
 
 if __name__ == "__main__":
     unittest.main()
