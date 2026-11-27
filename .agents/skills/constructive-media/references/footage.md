@@ -100,9 +100,19 @@ media assemble talk --take interview  # the best passages as a cut, each seen an
 media cutaways talk-over --over talk  # other footage over some of it, the sound untouched
 media compile reel --count 12        # or: shots that are good and unalike
 media timeline talk-over             # the cut, clip by clip
+media flags talk-over                # every flag inside the cut, and what cutting them would save
 media render talk-over               # the cut as a file to watch
-media export talk-over --to handover/  # the cut for an editing program, pointed at the recordings themselves
+media export talk-over --to handover/ --preview --renders  # for an editing program, with something to watch beside it
+media outputs                        # every derived file on record, and what is lying about that is not
 ```
+
+`media export` writes FCPXML, an edit decision list and a page about both,
+and copies no recording. `--preview` adds the cut rendered small (at most
+`--megabytes`, 18 unless said) and `--renders` copies in every render already
+made of it: together, one folder to send. `media flags NAME` fails when the
+cut holds something marked off the record, so run it before handing a cut
+over. `media outputs` deletes nothing; `--kind render` narrows it and
+`--in FOLDER` looks somewhere other than the work folder.
 
 `media <command> --help` describes each command and its options. The README has
 what each step measures and how far to trust it.

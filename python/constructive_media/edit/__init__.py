@@ -22,6 +22,8 @@ the next step, or a person, can read it:
               and its sound unbroken wherever the recording carried on
 - `export`    a cut handed to an editing program, pointed at the recordings
               themselves, on each one's own timecode
+- `handover`  that export with a small preview of the cut beside it, and
+              copies of the renders already made of it: one folder to send
 - `judge`     a text model's opinion of the best passages: whether anything
               is said in them
 - `search`    passages found by what they mean, and a cut made of them

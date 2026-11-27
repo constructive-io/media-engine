@@ -221,13 +221,23 @@ def register(commands: Any) -> None:
         "export", help="hand a cut to an editing program, pointed at the recordings themselves",
         description="Write a cut as FCPXML and as a CMX3600 edit decision list, with a page that says "
                     "what they point at. Both name the original recordings where they are kept, on each "
-                    "recording's own timecode, and nothing is copied.",
+                    "recording's own timecode, and no recording is copied. With --preview the folder also "
+                    "gets the cut rendered small, to watch before anything is opened; with --renders, a copy "
+                    "of every file `media render` has made of the cut. Together they make one folder to send.",
     )
     command.add_argument("name", help="the cut to export")
     command.add_argument("--to", type=Path, metavar="FOLDER",
                          help="where to write (default: exports/NAME in the work folder)")
     command.add_argument("--fps", type=float, metavar="N",
                          help="frames a second (default: what most of the cut was shot at)")
+    command.add_argument("--title", metavar="TEXT",
+                         help="what the editing program calls the cut (default: the cut's own title, or its name)")
+    command.add_argument("--preview", action="store_true",
+                         help="render the cut small into the folder, as NAME-preview.mp4")
+    command.add_argument("--megabytes", type=float, metavar="N",
+                         help="with --preview: the most the preview may weigh (default 18)")
+    command.add_argument("--renders", action="store_true",
+                         help="copy the renders already made of the cut into the folder")
     command.set_defaults(run=run_export)
 
     command = commands.add_parser("decisions", help="count the rulings made, and show the latest")
@@ -523,11 +533,20 @@ def run_render(arguments: argparse.Namespace) -> int:
 
 
 def run_export(arguments: argparse.Namespace) -> int:
-    from ..edit import clock, export
+    from ..edit import clock, handover
     from ..settings import Settings
 
-    folder = arguments.to or Settings.from_env().work_dir / "exports" / arguments.name
-    made = export.export(arguments.name, folder, fps=arguments.fps)
+    if arguments.megabytes is not None and not arguments.preview:
+        print("media: --megabytes says how big the preview may be; give --preview with it", file=sys.stderr)
+        return 2
+    settings = Settings.from_env()
+    folder = arguments.to or settings.work_dir / "exports" / arguments.name
+    handed = handover.hand_over(
+        arguments.name, folder, fps=arguments.fps, title=arguments.title, with_preview=arguments.preview,
+        megabytes=handover.PREVIEW_MEGABYTES if arguments.megabytes is None else arguments.megabytes,
+        with_renders=arguments.renders, settings=settings,
+    )
+    made = handed.exported
     print(f"{arguments.name}: {made.clips} clips, {clock(made.duration_s)}, at {float(made.rate):.5g} "
           f"frames a second, from {made.sources} recordings")
     if made.left_out:
@@ -535,12 +554,34 @@ def run_export(arguments: argparse.Namespace) -> int:
     if made.mixed:
         print(f"  shot at {', '.join(f'{float(each):.5g}' for each in made.rates)} frames a second: "
               "check the last clip against its sound")
-    for written in (made.fcpxml, made.edl, made.readme):
+    if handed.preview:
+        seen = handed.preview
+        print(f"  a preview to watch, {seen.width}x{seen.height}, {seen.path.stat().st_size / 1_000_000:.1f} MB")
+    if handed.copied:
+        stale = sum(copy.stale for copy in handed.copied)
+        print(f"  {_count(len(handed.copied), 'render')} of it beside them"
+              + (f", {stale} made before the cut was last saved" if stale else ""))
+    for written in (made.fcpxml, made.edl, made.readme, *([handed.preview.path] if handed.preview else []),
+                    *[copy.file for copy in handed.copied]):
         print(written)
+    wrong = []
     if made.missing:
-        print(f"media: {len(made.missing)} of the recordings it points at are not there: "
-              + ", ".join(file.name for file in made.missing), file=sys.stderr)
-    return 1 if made.missing else 0
+        wrong.append(f"{len(made.missing)} of the recordings it points at are not there: "
+                     + ", ".join(file.name for file in made.missing))
+    if handed.gone:
+        wrong.append(f"{_count(len(handed.gone), 'render')} of it on record "
+                     f"{'is' if len(handed.gone) == 1 else 'are'} no longer there: "
+                     + ", ".join(file.name for file in handed.gone))
+    if arguments.renders and not handed.copied and not handed.gone:
+        wrong.append(f"no render of it is on record; `media render {arguments.name}` makes one")
+    for each in wrong:
+        print(f"media: {each}", file=sys.stderr)
+    return 1 if wrong else 0
+
+
+def _count(number: int, thing: str) -> str:
+    """A number of things: `1 render`, `2 renders`."""
+    return f"{number} {thing}{'' if number == 1 else 's'}"
 
 
 def _tested(model: Any) -> str:

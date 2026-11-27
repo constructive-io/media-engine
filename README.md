@@ -147,9 +147,13 @@ media fit --save taste               # a model of what you prefer, tested on foo
 media recipe reel --like broll --weigh preferred=0.5  # a recipe that ranks by it
 media assemble talk --take interview  # the best passages as a cut, each seen and heard through the right recording
 media cutaways talk-over --over talk  # other footage over some of it, the sound untouched
+media flags talk-over                # every flag inside the cut, and what cutting them would save
 media render talk-over               # the cut as a file to watch
-media export talk-over --to handover/  # the cut for an editing program, pointed at the recordings themselves
+media export talk-over --to handover/ --preview --renders  # the cut for an editing program, with something to watch beside it
 media lineage out.mp4                # what a derived file was made from
+media outputs                        # every derived file on record, and what is lying about that is not
+media persona "Ada Field" --new --kind character --bio "Keeps the light."  # who somebody is
+media personas                       # everybody, and the voices each has
 media conv scene.conv                # check a .conv script: every problem, its line and how to mend it
 media voice "Ada Field" ada-plain --new # give a persona a voice, by the name the speech server knows it by
 media say scene.conv out/scene.flac --stems  # the script as sound, each line said until a take of it passes
@@ -338,6 +342,25 @@ midnight a sound recorder stored. A clip heard through another recording has
 that sound under it and the camera's own switched off. A cut whose footage
 was shot at more than one rate says so, and so does one that points at a
 recording that is not there.
+
+A folder to send somebody is the same command: `--preview` adds the cut
+rendered small, held under `--megabytes`, and `--renders` copies in every
+render already made of it, and the page lists them. `--title` names the cut
+for the editing program. Before it goes, `media flags` lists every flag that
+falls inside the cut's clips, on whichever recording of the take it was
+heard, and says how many seconds cutting the ones marked to cut would take
+out; it fails if the cut holds something someone asked not to be used.
+
+`media outputs` is the other way round from `media lineage`: every derived
+file on record with what it was made from, the ones whose file is gone
+included, and then the pictures and sound in the work folder that nothing on
+record accounts for. Those are what to look at before clearing a folder out.
+It deletes nothing.
+
+`media persona` records who somebody is: a real person or an invented
+character, and a few words about them. `media personas` lists everybody with
+the voices found in recordings that were named as theirs and the voices that
+can speak as them.
 
 `media conv` reads scripts in the [`.conv` format](https://github.com/constructive-io/conversation-format):
 who speaks, what they say, and the sounds and music under them. It reports

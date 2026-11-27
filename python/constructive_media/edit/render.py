@@ -471,12 +471,15 @@ def render(
     originals: bool = False, lufs: float | None = -16.0, ceiling_db: float = -1.5,
     highpass_hz: float = 80.0, fade_s: float = 0.02, megabytes: float | None = None,
     settings: Settings | None = None, progress: Callable[[int, int], None] | None = None,
+    note: Mapping[str, Any] | None = None,
 ) -> Rendered:
     """Render a cut to `out` and record what it was made from.
 
     The canvas and the fit are the cut's own unless others are given. With
     `lufs` set to nothing the sound is left as loud as it was recorded.
     `megabytes` asks for a file of about that size, however long the cut is.
+    `note` is more to write down about the file, beside how it was made:
+    that it is a preview, say, and not the cut as it is meant to be seen.
     """
     cut = timelines.load(name)
     if not cut.clips:
@@ -520,7 +523,8 @@ def render(
         derive.record(
             target, "render", "media render", _sources(cut.clips, silent), project=cut.project,
             params={"timeline": cut.name, "revision": cut.revision, "canvas": canvas, "fit": fit, "width": width,
-                    "height": tall, "fps": str(per_s), "silent": silent, "originals": originals, "lufs": lufs},
+                    "height": tall, "fps": str(per_s), "silent": silent, "originals": originals, "lufs": lufs,
+                    **(note or {})},
         )
         common = sizes[0] if sizes else (0, 0)
         db.cursor().execute(

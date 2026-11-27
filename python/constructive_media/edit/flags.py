@@ -17,6 +17,13 @@ One flag is not like the others. Somebody saying "that's off the record" does
 not make a passage worse, it makes it unusable, and nothing else can see it:
 the passage is clear, well recorded and ranks high. `withheld` is the list of
 those, and a ranking leaves them out.
+
+A cut can be asked the same thing a take can. `in_cut` is the flags that fall
+inside a cut's clips, each where it would be found on watching it, and
+`saving` is how much shorter the cut would be without the ones marked `cut`.
+The flag is looked for on the recording a clip is heard from, and on every
+other recording of the same take, carried over by how far apart the two began:
+a filler is in the cut whichever microphone it was written down from.
 """
 
 from __future__ import annotations
@@ -30,6 +37,7 @@ from typing import Any, NamedTuple
 
 from .. import db
 from ..takes.words import normalise
+from . import timelines
 from .said import FILLERS, HEDGES, Heard, Spans, tokens
 
 NAMESPACE = uuid.UUID("2b7f6a1c-9d4e-5f38-b6a2-71c0e4d95a83")
@@ -91,6 +99,34 @@ class Mark(NamedTuple):
     end: float
     kind: str
     action: str
+
+
+@dataclass(frozen=True)
+class Placed:
+    """A flag where it falls in a cut."""
+
+    #: The number of the clip it is in, from 1.
+    clip: int
+    #: Seconds from the start of the cut, and from the start of the clip.
+    at_s: float
+    offset_s: float
+    #: How much of it is inside the clip.
+    seconds: float
+    kind: str
+    action: str
+    severity: float
+    detail: str | None = None
+    #: What a person said of it, when one has: only ever that it stands.
+    accepted: bool | None = None
+
+
+@dataclass(frozen=True)
+class Saving:
+    """What cutting every flag of one kind would take out of a cut."""
+
+    kind: str
+    places: int
+    seconds: float
 
 
 def flag_id(asset_id: Any, kind: str, start_s: float, end_s: float) -> str:
@@ -360,3 +396,77 @@ def held_back(passages: Iterable[tuple[Any, str | None]]) -> set[str]:
         dismissed = {str(passage_id) for (passage_id,) in cur.fetchall()}
         held |= {passage_id for passage_id in asking if passage_id not in dismissed}
     return held
+
+
+def in_cut(name: str) -> list[Placed]:
+    """The flags that fall inside a cut's clips, in the order they would be met.
+
+    A clip is heard from its sound when that is apart from its picture, so
+    that is where its flags are looked for. One a person has dismissed no
+    longer stands, and is left out.
+    """
+    cut = timelines.load(name)
+    heard = []
+    for clip in cut.clips:
+        apart = clip.sound is not None and clip.sound_start_s is not None and clip.sound_end_s is not None
+        heard.append((str(clip.sound), clip.sound_start_s, clip.sound_end_s) if apart
+                     else (str(clip.picture), clip.start_s, clip.end_s))
+    cur = db.cursor()
+    cur.execute(
+        """SELECT DISTINCT h.id, f.id, f.kind, f.action, f.severity, f.detail,
+                  f.start_s + placed.shift_s, f.end_s + placed.shift_s, f.accepted
+             FROM unnest(%s::uuid[]) AS h(id)
+             JOIN LATERAL (
+                    SELECT h.id AS asset_id, 0.0::float8 AS shift_s
+                    UNION
+                    SELECT other.asset_id, other.offset_s - mine.offset_s
+                      FROM media.take_assets mine
+                      JOIN media.take_assets other
+                        ON other.take_id = mine.take_id AND other.asset_id <> mine.asset_id
+                     WHERE mine.asset_id = h.id
+                       AND (mine.is_primary OR mine.offset_method IS NOT NULL)
+                       AND (other.is_primary OR other.offset_method IS NOT NULL)
+                  ) placed ON true
+             JOIN media_video.flags f ON f.asset_id = placed.asset_id
+            WHERE f.accepted IS DISTINCT FROM false""",
+        (sorted({asset for asset, _, _ in heard}),),
+    )
+    flagged: dict[str, dict[Any, tuple[Any, ...]]] = {}
+    for asset, flag, *rest in cur.fetchall():
+        flagged.setdefault(str(asset), {}).setdefault(flag, tuple(rest))
+    found, begins = [], 0.0
+    for number, (clip, (asset, start, end)) in enumerate(zip(cut.clips, heard), 1):
+        for kind, action, severity, detail, flag_start, flag_end, accepted in flagged.get(asset, {}).values():
+            first, last = max(float(flag_start), start), min(float(flag_end), end)
+            if last > first:
+                found.append(Placed(number, begins + first - start, first - start, last - first, kind, action,
+                                    float(severity), detail, accepted))
+        begins += max(clip.duration_s, 0.0)
+    return sorted(found, key=lambda one: (one.clip, one.offset_s, one.kind, one.seconds))
+
+
+def saving(placed: Iterable[Placed]) -> tuple[list[Saving], float]:
+    """What cutting the flags marked `cut` would take out: kind by kind, most first, and in all.
+
+    Two flags over the same moment, as two microphones give, are one place
+    and are counted once. So the whole can be less than its parts add up to,
+    where a filler sits inside a stretch said twice.
+    """
+    cuts = [one for one in placed if one.action == "cut"]
+    kinds = []
+    for kind in sorted({one.kind for one in cuts}):
+        runs = _runs((one.at_s, one.at_s + one.seconds) for one in cuts if one.kind == kind)
+        kinds.append(Saving(kind, len(runs), sum(end - start for start, end in runs)))
+    whole = _runs((one.at_s, one.at_s + one.seconds) for one in cuts)
+    return sorted(kinds, key=lambda one: (-one.seconds, one.kind)), sum(end - start for start, end in whole)
+
+
+def _runs(spans: Iterable[tuple[float, float]]) -> list[tuple[float, float]]:
+    """Spans with the ones that overlap made one."""
+    runs: list[tuple[float, float]] = []
+    for start, end in sorted(spans):
+        if runs and start <= runs[-1][1]:
+            runs[-1] = (runs[-1][0], max(runs[-1][1], end))
+        else:
+            runs.append((start, end))
+    return runs

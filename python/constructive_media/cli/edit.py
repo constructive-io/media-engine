@@ -1,8 +1,9 @@
-"""Commands for finding what is worth using: passages, flag, score, rank, judge, index and search."""
+"""Commands for finding what is worth using: passages, flag, flags, score, rank, judge, index and search."""
 
 from __future__ import annotations
 
 import argparse
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -42,6 +43,16 @@ def register(commands: Any) -> None:
     command.add_argument("--min-pause", type=float, default=1.5, metavar="SECONDS",
                          help="the shortest quiet to call dead air (default %(default)g)")
     command.set_defaults(run=run_flag)
+
+    command = commands.add_parser(
+        "flags", help="list the flags that fall inside a cut, and what cutting them would save",
+        description="List every flag inside a cut's clips: when in the cut it comes, which clip it is in "
+                    "and how far into it, what it is and what to do about it. Then say how much shorter the "
+                    "cut would be without the ones marked to cut. Flags are found by `media flag`; one you "
+                    "have dismissed is not listed. Nothing is changed.",
+    )
+    command.add_argument("name", help="the cut")
+    command.set_defaults(run=run_flags)
 
     command = commands.add_parser(
         "score", help="score every passage and shot from what has been measured so far",
@@ -158,6 +169,31 @@ def run_flag(arguments: argparse.Namespace) -> None:
         if found[kind]:
             print(f"  {found[kind]:>5}  {kind.replace('_', ' ')}")
     print(f"{sum(found.values())} flags")
+
+
+def run_flags(arguments: argparse.Namespace) -> int:
+    from ..edit import clock, flags, timelines
+
+    cut = timelines.load(arguments.name)
+    found = flags.in_cut(arguments.name)
+    clips = len({one.clip for one in found})
+    print(f"{cut.name}: " + (f"{len(found)} flag{'' if len(found) == 1 else 's'} in {clips} of its "
+                             if found else "no flags in its ")
+          + f"{len(cut.clips)} clip{'' if len(cut.clips) == 1 else 's'}")
+    for one in found:
+        print(f"  {clock(one.at_s):>7}  clip {one.clip:<3} +{one.offset_s:<6.1f} {one.kind.replace('_', ' '):<18} "
+              f"{one.action:<6} {one.seconds:>5.1f}s  {one.detail or ''}".rstrip())
+    kinds, whole = flags.saving(found)
+    if kinds:
+        print(f"cutting what is marked to cut would take {whole:.1f}s out of {clock(cut.duration_s)}:")
+        for kind in kinds:
+            print(f"  {kind.seconds:>5.1f}s  {kind.kind.replace('_', ' ')}, in {kind.places} "
+                  f"place{'' if kind.places == 1 else 's'}")
+    asked = sorted({one.clip for one in found if one.kind == "off_record"})
+    if asked:
+        print(f"media: clip {', '.join(map(str, asked))} of {cut.name} holds something someone asked "
+              "not to be used", file=sys.stderr)
+    return 1 if asked else 0
 
 
 def run_score(arguments: argparse.Namespace) -> None:

@@ -1,4 +1,4 @@
-"""Commands for speech: who can speak, what speaks them, and a script said aloud."""
+"""Commands for speech: who there is, who can speak, what speaks them, and a script said aloud."""
 
 from __future__ import annotations
 
@@ -9,6 +9,26 @@ from typing import Any
 
 
 def register(commands: Any) -> None:
+    command = commands.add_parser(
+        "persona", help="write down who somebody is, or show what is known of them",
+        description="Say what kind of persona somebody is, a real person or an invented character, and a "
+                    "few words about them. What is not given is left as it was. With neither, show what "
+                    "is known of them. Voices are given with `media voice` and `media name`.",
+    )
+    command.add_argument("who", help="the persona's name, or their slug")
+    command.add_argument("--kind", choices=("person", "character"),
+                         help="a real person, or an invented character (default for somebody new: person)")
+    command.add_argument("--bio", metavar="TEXT", help="a few words about them; \"\" takes them away")
+    command.add_argument("--new", action="store_true", help="add this persona if they are not known yet")
+    command.set_defaults(run=run_persona)
+
+    command = commands.add_parser(
+        "personas", help="list everybody, with how many voices each has",
+        description="List every persona: their name, what kind they are, how many voices found in recordings "
+                    "were named as theirs, how many voices can speak as them, and their slug.",
+    )
+    command.set_defaults(run=run_personas)
+
     command = commands.add_parser(
         "voices", help="list the voices that can speak",
         description="List every voice: whose it is, the emotion it speaks in, the adapter that speaks it "
@@ -138,6 +158,32 @@ def register(commands: Any) -> None:
     command.add_argument("--seed", type=int, metavar="N", help="the seed the takes start from")
     command.add_argument("--json", action="store_true", help="print the whole report as JSON")
     command.set_defaults(run=run_audition)
+
+
+def _voices(one: Any) -> str:
+    return (f"{one.found} found voice{'' if one.found == 1 else 's'}, "
+            f"{one.speaking} speaking voice{'' if one.speaking == 1 else 's'}")
+
+
+def run_persona(arguments: argparse.Namespace) -> None:
+    from .. import personas
+
+    one, done = personas.keep(arguments.who, kind=arguments.kind, bio=arguments.bio, new=arguments.new)
+    print(("" if done == "unchanged" else f"{done} ")
+          + f"{one.name} ({one.slug}), a {one.kind}: {_voices(one)}")
+    if one.bio:
+        print(f"  {one.bio}")
+
+
+def run_personas(arguments: argparse.Namespace) -> None:
+    from .. import personas
+
+    everybody = personas.listing()
+    for one in everybody:
+        print(f"  {one.name:<24} {one.kind:<10} {one.found:>3} found {one.speaking:>3} speaking  {one.slug}")
+    silent = sum(not (one.found or one.speaking) for one in everybody)
+    print(f"{len(everybody)} persona{'' if len(everybody) == 1 else 's'}"
+          + (f", {silent} with no voice yet" if silent else ""))
 
 
 def run_voices(arguments: argparse.Namespace) -> None:

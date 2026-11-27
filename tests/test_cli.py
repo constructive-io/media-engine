@@ -35,15 +35,15 @@ class CommandLineTest(unittest.TestCase):
     def test_every_command_is_registered_with_help(self):
         status, out, _ = run("--help")
         self.assertEqual(status, 0)
-        for command in ("ingest", "lineage", "shots", "frames", "signatures", "detect",
+        for command in ("ingest", "lineage", "outputs", "shots", "frames", "signatures", "detect",
                         "transcribe", "vocabulary", "mend", "relisten",
                         "diarize", "speakers", "name", "group", "match", "sync",
-                        "takes", "passages", "flag", "score", "rank", "recipe", "judge", "index", "search", "fit", "models", "assemble", "cutaways", "styles",
+                        "takes", "passages", "flag", "flags", "score", "rank", "recipe", "judge", "index", "search", "fit", "models", "assemble", "cutaways", "styles",
                         "compile", "selectors", "timelines",
                         "loudness", "audible", "laughter", "coordination",
                         "wear", "microphones",
                         "timeline", "note", "keep", "cut", "prefer", "pairs", "decisions", "script", "render", "export",
-                        "conv", "voices", "voice", "say", "reference", "clean", "audition", "library",
+                        "conv", "persona", "personas", "voices", "voice", "say", "reference", "clean", "audition", "library",
                         "film", "still", "stage", "print", "init",
                         "status", "adapters"):
             self.assertIn(command, out)

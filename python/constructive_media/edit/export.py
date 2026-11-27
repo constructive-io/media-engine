@@ -167,6 +167,8 @@ class Exported:
     missing: tuple[Path, ...] = ()
     #: Clips too short to be given a frame, by their number in the cut.
     left_out: tuple[int, ...] = ()
+    #: Whatever else was put in the folder to go with them: each file, and what it is.
+    beside: tuple[tuple[Path, str], ...] = ()
 
     @property
     def mixed(self) -> bool:
@@ -389,6 +391,11 @@ def manifest(title: str, name: str, events: Sequence[Event], made: Exported) -> 
     if made.left_out:
         lines += ["Too short for a single frame, and left out: clip "
                   + ", ".join(str(number) for number in made.left_out) + ".", ""]
+    if made.beside:
+        lines += ["## Also in this folder", "",
+                  *[f"- `{file.name}` is {what}." for file, what in made.beside],
+                  "",
+                  "These are for watching. The two files above do not use them.", ""]
     lines += ["## The clips", "", "| | at | picture | from | sound | from | |", "|---|---|---|---|---|---|---|"]
     for placed in events:
         heard, heard_s = placed.sound or placed.picture, placed.sound_s if placed.sound else placed.picture_s
@@ -424,11 +431,17 @@ def sources(clips: Sequence[Clip]) -> dict[str, Source]:
     return found
 
 
-def export(name: str, folder: str | Path, *, fps: float | None = None) -> Exported:
+def export(
+    name: str, folder: str | Path, *, fps: float | None = None, title: str | None = None,
+    beside: Sequence[tuple[Path, str]] = (),
+) -> Exported:
     """Write a cut into `folder` as FCPXML, as an edit decision list, and a page about both.
 
     The recordings are named where they are and not copied. The cut is written
-    at the rate most of it was shot at unless `fps` gives another.
+    at the rate most of it was shot at unless `fps` gives another, and called
+    what it is called unless `title` gives another name. `beside` is whatever
+    else has been put in the folder, each file with what it is, for the page
+    to mention.
     """
     cut = timelines.load(name)
     if not cut.clips:
@@ -448,7 +461,7 @@ def export(name: str, folder: str | Path, *, fps: float | None = None) -> Export
             if source is not None:
                 used.setdefault(source.asset_id, source)
     placed_numbers = {placed.number for placed in events}
-    title = cut.title or name
+    title = " ".join((title or "").split()) or cut.title or name
     target = Path(folder).expanduser().resolve()
     made = Exported(
         target, target / f"{name}.fcpxml", target / f"{name}.edl", target / "README.md",
@@ -456,6 +469,7 @@ def export(name: str, folder: str | Path, *, fps: float | None = None) -> Export
         tuple(sorted({source.rate for source in used.values() if source.rate})),
         tuple(sorted(source.file for source in used.values() if not source.there)),
         tuple(number for number in range(1, len(cut.clips) + 1) if number not in placed_numbers),
+        tuple((Path(file), what) for file, what in beside),
     )
     target.mkdir(parents=True, exist_ok=True)
     made.fcpxml.write_text(fcpxml(title, events, per_s), encoding="utf-8")
