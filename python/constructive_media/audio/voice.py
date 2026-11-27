@@ -9,6 +9,7 @@ clip far more than on anything done later, so this module is about the clip:
     reference   cut a recording into a clip a model can clone from
     audition    have a voice say lines it has never seen, and count what passed
     say         one line in one voice, checked like any line of a script
+    blend       a voice between other voices, heard, and kept as a clip of its own
 
 What makes a good clip is short to say. One person, one way of speaking, no
 music and no room. Between fifteen and twenty-eight seconds: under twelve
@@ -25,6 +26,7 @@ stays the business of whoever owns the voice.
 
 from __future__ import annotations
 
+import json
 import re
 import shutil
 import tempfile
@@ -78,6 +80,12 @@ LINES = (
     "If the weather holds until Thursday we will take the long way round, past the mill and over the bridge.",
     "I have told you twice already, and I am not going to say it again.",
     "Thank you. That is everything, I think.",
+)
+#: What a blended voice says to be heard, and to be kept: long enough to clone from, and it ends calmly.
+PASSAGE = (
+    "The ferry leaves at seven, and it is never late. From the upper deck you can see the whole of the bay, "
+    "the lighthouse on its rock, and the hills behind the town. Bring a coat, because the wind is cold even in "
+    "summer. We will be back before dark."
 )
 
 
@@ -388,6 +396,98 @@ def audition(
     return {"persona": voice.persona, "emotion": voice.emotion, "engine": voice.engine, "profile": voice.profile,
             "folder": str(folder), "lines": said, "good": good, "of": len(said), "bled": bled,
             "passed": not bled and good >= PASSING * len(said)}
+
+
+def blend(
+    sources: Sequence[tuple[str, float]], target: str | Path, *, words: str | None = None,
+    emotion: str | None = None, seed: int | None = None, keep: str | None = None, engine: str | None = None,
+    voices: Voices | None = None, synthesizer: Callable[[str | None], Synthesizer] | None = None,
+    transcriber: Transcriber | None = None, embedder: Any = None, score: bool = True,
+    store: Callable[..., Any] | None = None, settings: Settings | None = None, **how: Any,
+) -> dict[str, Any]:
+    """Say `words` in a voice that is so much of each of `sources`, and write it as `target`.
+
+    A source is `(who, share)`: a persona whose voice was cloned from a
+    clip, or a recording, and how much of it is wanted. The blend is said
+    and checked as any line is, with `how` passed on to `line.speak`.
+    `alike` in the answer is how like each source it came out, as the
+    speaker model hears it, or None where there is no speaker model to ask.
+
+    With `keep`, what was said is cut as a clip to clone from, its words
+    written beside it and what it is made of beside that, and the persona of
+    that name is given it as a voice: a clone like any other, which every
+    adapter that clones can speak. Nothing is kept of a blend no take of
+    which passed.
+    """
+    from ..speakers.names import slug
+    from ..speech import NEUTRAL
+    from ..speech import blend as blending
+    from ..speech import keep as write_down
+    from . import line
+
+    words = (PASSAGE if words is None else words).strip()
+    if not words:
+        raise SpeechError("there are no words to say")
+    if sum(1 for _, share in sources if share) < 2:
+        raise SpeechError("a blend is of two voices or more, each with a share")
+    known = voices if voices is not None else StoredVoices()
+    found = []
+    for who, share in sources:
+        if Path(who).expanduser().is_file():
+            found.append((who, Path(who).expanduser(), share))
+            continue
+        voice = known.find(slug(who), emotion)
+        clip = Path(voice.reference_audio).expanduser() if voice.reference_audio else None
+        if clip is None:
+            raise SpeechError(f"the {voice.emotion} voice of {voice.persona!r} is one a server has of its own. "
+                              "A blend is made of voices cloned from clips, or of recordings")
+        if not clip.is_file():
+            raise SpeechError(f"the clip the {voice.emotion} voice of {voice.persona!r} was made from is not "
+                              f"there: {clip}")
+        found.append((voice.persona, clip, share))
+    speaks = blending.able(synthesizer(engine) if synthesizer else speech_adapter(engine, settings=settings))
+    listens = transcriber if transcriber is not None else transcription_adapter(settings=settings)
+    mixed = blending.mix([(clip, share) for _, clip, share in found], speaks)
+    parts = blending.shares([share for _, _, share in found])
+    target = Path(target)
+    name = slug(keep) if keep else "blend"
+    said_by = Voice(name, emotion or NEUTRAL, speaks.name, name)
+    cut = None
+    with tempfile.TemporaryDirectory(prefix="blend-") as scratch:
+        take = line.speak(words, said_by, scratch, synthesizer=blending.Blended(speaks, mixed), transcriber=listens,
+                          seed=SEED if seed is None else seed, **how)
+        if take.path is None:
+            raise SpeechError(f"nothing could be said: {take.verdict.heard}")
+        if not keep:
+            _write(take.path, target)
+        elif take.ok:
+            cut = reference(take.path, target, said=take.spoken)
+        like = _likeness(take.path, [clip for _, clip, _ in found], embedder, settings) if score else None
+    told = {
+        "output": str(target) if cut or not keep else None, **_told(take, said_by), "model": speaks.model,
+        "of": [{"who": who, "clip": str(clip), "share": round(part, 4), "alike": round(like[n], 3) if like else None}
+               for n, ((who, clip, _), part) in enumerate(zip(found, parts))],
+        "words": take.spoken, "kept": None, "notes": cut["notes"] if cut else [],
+    }
+    if cut:
+        recipe = target.with_suffix(".blend.json")
+        recipe.write_text(json.dumps({key: told[key] for key in ("of", "seed", "model", "words")}, indent=2) + "\n",
+                          encoding="utf-8")
+        kept = Voice(name, said_by.emotion, engine, name, str(target.resolve()), take.spoken)
+        (store or write_down)(kept, new=True)
+        told["kept"] = {"persona": name, "emotion": kept.emotion, "said_file": cut["said_file"], "recipe": str(recipe)}
+    return told
+
+
+def _likeness(made: Path, clips: Sequence[Path], embedder: Any, settings: Settings | None) -> list[float] | None:
+    """How like each clip a recording is, or None when there is nothing here to hear that with."""
+    from ..adapters import AdapterError
+    from ..models import ModelError
+
+    try:
+        return [alike(made, clip, embedder=embedder, settings=settings) for clip in clips]
+    except (ImportError, AdapterError, ModelError, ValueError):
+        return None
 
 
 def _told(take: Any, voice: Voice) -> dict[str, Any]:

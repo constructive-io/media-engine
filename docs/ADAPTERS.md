@@ -351,6 +351,26 @@ in when everything it needs is within [the rule](./LICENSING.md) and a plugin
 when it is not. It is handed the voice's clip and the words said in it, and
 can be chosen per voice, by the voice's `engine`.
 
+### An adapter that can blend
+
+[`media blend`](./VOICES.md#a-voice-between-two-voices) makes a voice between
+other voices, and it needs two things more of a synthesizer than `say`. Both
+are optional, and an adapter without them is told so when a blend is asked of
+it:
+
+```python
+def embed(self, recording) -> list[float]:
+    """A voice as the numbers this model hears it by, from a recording of it."""
+
+def say_as(self, text, target, *, embedding, seed=None) -> Path:
+    """Say `text` in the voice that `embedding` is."""
+```
+
+The engine does the arithmetic between them and never looks inside a row: it
+asks only that every row from one adapter is the same size. The `mlx` adapter
+has both, for a model with a speaker encoder of its own, which the default
+has.
+
 ## Pictures and video
 
 `media generate image` and `media generate video` hand a description to

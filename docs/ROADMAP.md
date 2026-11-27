@@ -37,14 +37,16 @@ lands tested, with nothing in it that breaks [the licensing rule](./LICENSING.md
 | 30 | What a cut is heard through: `media relink` stores a cut again with its sound moved to the same moment in another recording of its take, and `media render --mix` puts a take's worn microphones under each stretch, mixed to follow whoever is speaking, with the others turned down and never off | Done. No model |
 | 31 | Pictures and video from a description: `media generate` asks whatever fills the `image` or the `video` slot, every request is a row with its words, model, settings and seed, the same request is made once, and what is made is on record as `generated` so `media synthetic` can list the clips of a cut that nobody filmed. `media generations` lists the requests and what they came to, and `media collect` brings in what a service made later | Done, and tested with stand-ins for the models. `mflux` (FLUX.2 klein 4B) fills `image` and `diffusers` (Wan 2.1 T2V 1.3B) fills `video`; both are installed by you: see [LICENSING.md](./LICENSING.md) |
 | 32 | [Talking with a model](./TALK.md): `media talk` serves a page on your own machine. What is said is found in the microphone's sound (Silero VAD through ONNX Runtime, or loudness with nothing installed), written down by the `transcription` slot, answered by the `text` slot as it is written and said back by the `speech` slot a sentence at a time; speaking over an answer stops it. `media talk --measure` times each model and the wait they add up to | Done, and tried in a real browser with a recording for a microphone. The server and the WebSocket are the standard library's: nothing is added to install |
+| 33 | [A voice between other voices](./VOICES.md#a-voice-between-two-voices): `media blend` takes two voices or more as a model that clones hears them, finds the voice that is so much of each on the sphere they lie on, says a passage in it, checks what was said, and says how like each voice it came out. `--keep` cuts the passage as a clip and gives it to a persona, so a blend is a cloned voice like any other from then on | Done, and tried with the `mlx` adapter. The arithmetic is the standard library's |
 
 ## Left for later, and why
 
-- **Blending two voices, and taking a voice out of a recording with music.**
-  Each is a model of its own behind a slot of its own. The `mlx` speech adapter
-  can already hand over what a blend is made of (`embed` and `say_as`); the
-  command that blends, scores and keeps one is not written. A clip is made
-  from a recording of one voice until then.
+- **Taking a voice out of a recording with music.** It is a model of its own
+  behind a slot of its own, and the ones that do it well have weights under
+  terms outside the rule, so it is an adapter in
+  [media-engine-plugins](https://github.com/constructive-io/media-engine-plugins)
+  when it is written. A clip is made from a recording of a voice alone until
+  then.
 - **Sounds from a description, video that starts from a picture, and models
   on a service.** `media generate` makes pictures and video from words with
   what runs on one machine under terms within the rule. A sound made from a

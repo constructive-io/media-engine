@@ -1,10 +1,10 @@
 ---
 name: constructive-media
-description: Constructive Media — one engine for video, images, audio and voice, driven by the `media` command line with its state in PostgreSQL. Use when asked to "render a .conv", "turn a script into audio", "make a voiced scene", "say this script", "say this in a voice", "give a persona a voice", "clone a voice", "audition a voice", "make a narrated deck", "film a deck", "turn a script into a video", "make a walkthrough video", "narrate a document", "add a voice library", "set up the media engine", "ingest footage", "transcribe recordings", "find the best takes", "make a cut", "render a cut", "generate an image", "generate a video", "make a picture from a prompt", "talk to a model", "have a voice conversation", "measure the voice latency", or to choose a model, an adapter or a plugin for the engine.
+description: Constructive Media — one engine for video, images, audio and voice, driven by the `media` command line with its state in PostgreSQL. Use when asked to "render a .conv", "turn a script into audio", "make a voiced scene", "say this script", "say this in a voice", "give a persona a voice", "clone a voice", "audition a voice", "blend two voices", "mix voices", "make a new voice from two", "make a narrated deck", "film a deck", "turn a script into a video", "make a walkthrough video", "narrate a document", "add a voice library", "set up the media engine", "ingest footage", "transcribe recordings", "find the best takes", "make a cut", "render a cut", "generate an image", "generate a video", "make a picture from a prompt", "talk to a model", "have a voice conversation", "measure the voice latency", or to choose a model, an adapter or a plugin for the engine.
 compatibility: Python 3.11+, PostgreSQL 17+ with pgvector, pgpm, ffmpeg, whisper.cpp; Chrome or Chromium for video of a page
 metadata:
   author: constructive-io
-  version: "0.10.0"
+  version: "0.11.0"
 ---
 
 # Constructive Media
@@ -24,7 +24,8 @@ goes in, and a mixed recording comes out.
 - **A script to video:** filming a deck, a document or a walkthrough that
   follows the recording. See [A script to video](#a-script-to-video).
 - **Voices:** saying a few words in a voice, cutting a clip to clone from,
-  auditioning a voice, sharing voices, sounds and faces as a library. See
+  auditioning a voice, blending voices into a new one, sharing voices, sounds
+  and faces as a library. See
   [Voices and libraries](#voices-and-libraries).
 - **Footage to a cut:** ingesting recordings, transcribing them, telling voices
   apart, ranking what is worth using, assembling and rendering a cut. See
@@ -260,6 +261,27 @@ and `CONSTRUCTIVE_MEDIA_ADAPTER_SPEECH=mlx` run the model in the engine itself.
 beside it and says what is wrong with it. `media audition` says a set of lines
 and reports any that came back with the clip's own words in them. Only clone a
 voice whose owner said yes: your own, or one you hold permission for.
+
+**Make a voice between other voices.** It needs the `mlx` speech adapter
+(`CONSTRUCTIVE_MEDIA_ADAPTER_SPEECH=mlx`, or `--engine mlx`), and voices that
+were cloned from clips, or recordings:
+
+```sh
+media blend ada:0.35 grace:0.65 out/between.wav       # hear it say a passage; shares are in proportion
+media blend ada:0.35 grace:0.65 out/between-2.wav --seed 31   # another reading of the same voice
+media blend ada:0.35 grace:0.65 voices/wren/neutral.wav --keep wren   # keep it: a clip, its words, a voice for wren
+media audition wren
+```
+
+It prints how like each voice the blend came out, as the speaker model hears
+it (the same person is near 0.7 or over, two people under 0.4). Those numbers
+are not the shares, and a blend near the middle is like neither very much:
+it is a third voice. One near 0.7 against a source is that source. Make a few with different shares and seeds, give the
+person the files, and let them choose: you cannot hear it, and nothing here
+says whether it is a voice anyone wants. Keep only the one they chose. A kept
+blend is a cloned voice like any other, spoken by anything that clones, and
+what it was made of is in the `.blend.json` beside its clip. It carries the
+voices it was made from: blend only voices whose owners said yes to that.
 
 **Share voices, sounds and faces as a library.** A library is a folder or a git
 repository with a `media-library.json` that names what is in it and, for every

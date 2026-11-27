@@ -159,6 +159,29 @@ def register(commands: Any) -> None:
     command.add_argument("--json", action="store_true", help="print the whole report as JSON")
     command.set_defaults(run=run_audition)
 
+    command = commands.add_parser(
+        "blend", help="say something in a voice between other voices, and keep it as a voice",
+        description="Make a voice that is so much of each of two voices or more, as in `media blend ada:0.35 "
+                    "grace:0.65 out.wav`, say a passage in it, check what was said as any line is, and say how "
+                    "like each of them it came out. A voice is a persona whose voice was cloned from a clip, or "
+                    "a recording; a share is in proportion to the others, and left out it is a whole one. With "
+                    "--keep the passage is cut as a clip to clone from and given to a persona as a voice of "
+                    "their own, which any adapter that clones can then speak. It takes a speech adapter that "
+                    "hears a voice as numbers, which the mlx adapter does.",
+    )
+    command.add_argument("voices", nargs="+", metavar="VOICE[:SHARE]",
+                         help="a persona or a recording, and how much of it: ada:0.35")
+    command.add_argument("output", help="the file to write; with --keep, the clip the new voice is cloned from")
+    command.add_argument("--words", metavar="TEXT", help="what to say (default: a passage of about twenty seconds)")
+    command.add_argument("--keep", metavar="NAME", help="give the blend to this persona as a voice, added if new")
+    command.add_argument("--emotion", metavar="NAME",
+                         help="which voice of each persona to blend, and the emotion a kept one speaks in")
+    command.add_argument("--engine", metavar="NAME", help="the speech adapter that blends (default: the configured one)")
+    command.add_argument("--seed", type=int, metavar="N", help="the seed the first take is said with")
+    command.add_argument("--attempts", type=int, metavar="N", help="how many takes before giving up")
+    command.add_argument("--json", action="store_true", help="print the whole report as JSON")
+    command.set_defaults(run=run_blend)
+
 
 def _voices(one: Any) -> str:
     return (f"{one.found} found voice{'' if one.found == 1 else 's'}, "
@@ -452,3 +475,37 @@ def run_audition(arguments: argparse.Namespace) -> int | None:
             print(f"{len(told['bled'])} began with the end of the voice's recording: cut the clip so that it "
                   "ends on a calm phrase with quiet after it, and write its words down exactly")
     return None if told["passed"] else 1
+
+
+def run_blend(arguments: argparse.Namespace) -> int | None:
+    import json
+
+    from ..audio import line, voice
+    from ..speech import blend
+
+    how = {"attempts": arguments.attempts} if arguments.attempts is not None else {}
+    told = voice.blend([blend.part(one) for one in arguments.voices], arguments.output, words=arguments.words,
+                       emotion=arguments.emotion, seed=arguments.seed, keep=arguments.keep, engine=arguments.engine,
+                       **how)
+    passed = told["status"] != line.NEEDS_REVIEW
+    if arguments.json:
+        print(json.dumps(told, indent=2, ensure_ascii=False))
+        return None if passed else 1
+    takes = "1 take" if told["attempts"] == 1 else f"{told['attempts']} takes"
+    print(f"seed {told['seed']}, {takes}, {told['status']}" + (f": {told['output']}" if told["output"] else ""))
+    widest = max(len(one["who"]) for one in told["of"])
+    for one in told["of"]:
+        like = f"   {one['alike']:.2f} alike" if one["alike"] is not None else ""
+        print(f"  {one['who']:<{widest}}  {one['share']:>4.0%}{like}")
+    for note in told["notes"]:
+        print(f"  {note}")
+    if not passed:
+        print(f"no take passed; it was heard as: {told['heard']}")
+        if arguments.keep:
+            print("nothing was kept. Another --seed may say it, or shares nearer one voice")
+        return 1
+    if told["kept"]:
+        kept = told["kept"]
+        print(f"{kept['persona']} now has a {kept['emotion']} voice, cloned from {told['output']}")
+        print(f"hear it say lines it was not made from: media audition {kept['persona']}")
+    return None

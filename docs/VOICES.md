@@ -8,7 +8,9 @@ two kinds:
   name for it, and that is all.
 - **A voice cloned from a clip.** The row also holds where a short recording
   of the voice is, and the words said in it. The clip is sent to a server that
-  clones, or handed to an adapter that does.
+  clones, or handed to an adapter that does. A voice
+  [blended from others](#a-voice-between-two-voices) is one of these: what is
+  kept of it is a clip.
 
 No voice and no recording is kept in this repository. Voices that are meant to
 be shared are kept in a [library](./LIBRARIES.md), a repository of their own.
@@ -171,3 +173,63 @@ cut from its end.
 
 Whisper listened; no person did. Listen to the folder yourself before you
 call a voice good.
+
+## A voice between two voices
+
+A model that clones hears a clip as a row of numbers before it says anything.
+A row part of the way from one voice's to another's is a voice that neither of
+them has, and `media blend` says something in it:
+
+```sh
+media blend ada:0.35 grace:0.65 out/between.wav                         # a passage of about twenty seconds
+media blend ada:0.35 grace:0.65 out/line.wav --words "The lantern is lit."
+media blend ada grace lin:0.5 out/three.wav --seed 31                   # more than two, and another reading
+```
+
+Each voice is a persona whose voice was cloned from a clip, or a recording,
+and after the colon how much of it is wanted. Shares are in proportion:
+`ada:1 grace:2` is a third and two thirds, and a voice with no number has a
+whole share. What was said is listened back to and said again until a take
+passes, as every line is, and then it is heard by the speaker model, which
+says how like each of its voices it came out:
+
+```
+seed 4100, 1 take, clean: out/between.wav
+  ada    35%   0.16 alike
+  grace  65%   0.42 alike
+```
+
+Those numbers follow the shares and do not equal them. Two clips of one person
+come out near 0.7 or over and two people under 0.4, and a blend is a third
+person: the nearer the middle it is, the less it is like either. One that
+scores near 0.7 against a voice is that voice, with too little of the other
+to hear, and should be given less of it. Another `--seed` is another reading
+of the same voice. Then listen. Nothing here can tell you whether it is a
+voice you want.
+
+It takes a speech adapter that hears a voice as numbers and can say a line
+from numbers. The [`mlx` adapter](./ADAPTERS.md#speech) does, with the model
+it runs by default: `CONSTRUCTIVE_MEDIA_ADAPTER_SPEECH=mlx`, or `--engine mlx`
+for this command alone. The voices are blended as that one model hears them.
+
+### Keep it
+
+```sh
+media blend ada:0.35 grace:0.65 voices/wren/neutral.wav --keep wren
+media audition wren
+```
+
+With `--keep`, the passage is cut as a clip to clone from, at the rate and
+loudness every clip is kept at, with its words in the `.txt` beside it, and
+the persona is given it as a voice, and added if they are new. From then on it
+is a cloned voice like any other: `media say --voice wren`, a script, a
+library, and any adapter or server that clones can speak it, with nothing
+blended again. What it was made of is written beside the clip, in a file
+ending `.blend.json`: the voices, their shares, the model and the seed.
+
+Nothing is kept of a blend no take of which passed. A kept voice has still
+only said one passage: audition it before it is used.
+
+**A blend of two people's voices is made of two people's voices.** It takes
+the same permission from each of them as cloning either would, and saying so
+is yours to do when it goes into a library.
