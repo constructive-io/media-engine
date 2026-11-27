@@ -215,7 +215,33 @@ def register(commands: Any) -> None:
                          help="how loud to make the sound (default %(default)s)")
     command.add_argument("--as-recorded", action="store_true", help="leave the sound as loud as it was recorded")
     command.add_argument("--megabytes", type=float, metavar="N", help="make the file about this big, to send")
+    command.add_argument("--mix", action="store_true",
+                         help="hear each stretch through its take's worn microphones, mixed to follow whoever "
+                              "is speaking, in place of the one recording the cut names")
+    command.add_argument("--duck", type=float, default=12.0, metavar="DB",
+                         help="with --mix: how far the microphones of those not speaking are turned down "
+                              "(default %(default)g)")
+    command.add_argument("--highpass", type=float, default=80.0, metavar="HZ",
+                         help="take out rumble below this (default %(default)g; 0 leaves it in)")
+    command.add_argument("--fade", type=float, default=0.02, metavar="SECONDS",
+                         help="how long the sound takes to come in and go out where it is cut "
+                              "(default %(default)g)")
     command.set_defaults(run=run_render)
+
+    command = commands.add_parser(
+        "relink", help="store a cut again, heard through another recording of its take",
+        description="Copy a cut with each clip's sound moved to the same moment in another recording of "
+                    "the take it was recorded in: a recorder on the table in place of the camera's own "
+                    "microphone, say. The picture, the clips and their order stay as they are. A clip the "
+                    "recording does not cover is left as it was, and listed.",
+    )
+    command.add_argument("cut", help="the cut to copy")
+    command.add_argument("name", help="what to call the copy; the cut's own name changes it where it is")
+    command.add_argument("recording", help="the recording to hear it through: its label in the take, its "
+                                           "file's name, or a pattern that fits one")
+    command.add_argument("--take", help="the take it is in, when the name should be checked against one")
+    command.add_argument("--dry-run", action="store_true", help="show what would be stored and store nothing")
+    command.set_defaults(run=run_relink)
 
     command = commands.add_parser(
         "export", help="hand a cut to an editing program, pointed at the recordings themselves",
@@ -506,7 +532,8 @@ def run_render(arguments: argparse.Namespace) -> int:
         arguments.name, out, canvas=arguments.canvas, fit=arguments.fit, height=arguments.height,
         fps=arguments.fps, silent=arguments.silent, originals=arguments.originals,
         lufs=None if arguments.as_recorded else arguments.loudness, megabytes=arguments.megabytes,
-        settings=settings,
+        highpass_hz=max(arguments.highpass, 0.0), fade_s=max(arguments.fade, 0.0),
+        mix=arguments.mix, duck_db=-abs(arguments.duck), settings=settings,
     )
     print(f"{arguments.name}: {made.clips} clips, {clock(made.duration_s)}, {made.width}x{made.height} at "
           f"{float(made.rate):.5g} frames a second" + (f", by {made.encoder}" if made.encoder else ""))
@@ -518,6 +545,12 @@ def run_render(arguments: argparse.Namespace) -> int:
         changed = [gain for gain in made.gains if gain]
         print(f"  sound in {len(made.gains)} unbroken stretches"
               + (f", moved by {min(changed):+.1f} to {max(changed):+.1f} dB" if changed else ", none moved"))
+    if made.mixed:
+        print(f"  {made.mixed} of them mixed from worn microphones, {clock(made.mixed_s)} in all: "
+              + ", ".join(f"{who} led {clock(seconds)}" for who, seconds in made.led))
+        if made.mixed < len(made.gains):
+            print(f"  {len(made.gains) - made.mixed} left as cut: fewer than two worn microphones "
+                  "were recording through them")
     sizes = ", ".join(f"{width}x{height}" for width, height in made.sizes)
     print(f"  {made.looked} frames looked at: {sizes or 'none could be read'}")
     wrong = []
@@ -530,6 +563,21 @@ def run_render(arguments: argparse.Namespace) -> int:
     for each in wrong:
         print(f"media: {each}", file=sys.stderr)
     return 1 if wrong else 0
+
+
+def run_relink(arguments: argparse.Namespace) -> None:
+    from .. import db
+    from ..edit import clock, sound
+
+    with db.transaction(keep=not arguments.dry_run):
+        made = sound.relink(arguments.cut, arguments.name, arguments.recording, take=arguments.take)
+    cut = made.timeline
+    print(f"{cut.name}: {made.changed} of {len(cut.clips)} clips, {clock(cut.duration_s)}, now heard through "
+          + " and ".join(made.through))
+    for number, why in made.kept:
+        print(f"  clip {number} is as it was: it {why}")
+    if arguments.dry_run:
+        print("nothing was written")
 
 
 def run_export(arguments: argparse.Namespace) -> int:

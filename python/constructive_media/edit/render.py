@@ -34,7 +34,7 @@ import json
 import math
 import shutil
 import tempfile
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Collection, Mapping, Sequence
 from dataclasses import dataclass
 from fractions import Fraction
 from pathlib import Path
@@ -173,6 +173,11 @@ class Rendered:
     looked: int
     #: The gain given to each stretch of sound, in decibels.
     gains: tuple[float, ...]
+    #: How many stretches of sound are their take's microphones mixed, and how long those are together.
+    mixed: int = 0
+    mixed_s: float = 0.0
+    #: The microphones that were mixed and the seconds each led for, the longest first.
+    led: tuple[tuple[str, float], ...] = ()
 
     @property
     def uniform(self) -> bool:
@@ -471,7 +476,7 @@ def render(
     originals: bool = False, lufs: float | None = -16.0, ceiling_db: float = -1.5,
     highpass_hz: float = 80.0, fade_s: float = 0.02, megabytes: float | None = None,
     settings: Settings | None = None, progress: Callable[[int, int], None] | None = None,
-    note: Mapping[str, Any] | None = None,
+    note: Mapping[str, Any] | None = None, mix: bool = False, duck_db: float | None = None,
 ) -> Rendered:
     """Render a cut to `out` and record what it was made from.
 
@@ -480,10 +485,14 @@ def render(
     `megabytes` asks for a file of about that size, however long the cut is.
     `note` is more to write down about the file, beside how it was made:
     that it is a preview, say, and not the cut as it is meant to be seen.
+    With `mix` each stretch of sound is its take's worn microphones mixed to
+    follow whoever is speaking, the others turned down by `duck_db`.
     """
     cut = timelines.load(name)
     if not cut.clips:
         raise EditError(f"{name!r} has no clips to render")
+    if mix and silent:
+        raise EditError("a render without sound has nothing to mix")
     canvas, fit = canvas or cut.canvas, fit or cut.fit
     width, tall = size(canvas, height)
     files = recordings(cut.clips, originals=originals)
@@ -504,27 +513,57 @@ def render(
                    centres=centres(cut.clips) if fit == "crop" else None)
     if not planned.frames:
         raise EditError(f"{name!r} is shorter than one frame")
-    if lufs is not None:
-        planned = levelled(planned, lufs, highpass_hz)
     bits = bitrate(width, tall, per_s, megabytes=megabytes, duration_s=planned.duration_s, silent=silent)
-
     target = Path(out).expanduser().resolve()
     work = (settings or Settings.from_env()).work_dir / "renders"
-    encoder = build(planned, target, work, bits=bits, ceiling_db=ceiling_db, highpass_hz=highpass_hz,
-                    fade_s=fade_s, progress=progress)
+    mixes: list[Any] = []
+    mixing: Path | None = None
+    replaced: set[int] = set()          # the clips whose own sound the mix took the place of
+    try:
+        if mix:
+            from ..takes.mix import DUCK_DB
+            from . import sound         # it reads this module
+
+            duck_db = DUCK_DB if duck_db is None else duck_db
+            work.mkdir(parents=True, exist_ok=True)
+            mixing = Path(tempfile.mkdtemp(prefix="mix-", dir=work))
+            as_cut = planned.stretches
+            planned, mixes = sound.followed(cut.clips, planned, mixing, duck_db=duck_db)
+            for was, now in zip(as_cut, planned.stretches):
+                if now.file != was.file:
+                    replaced.update(range(was.first, was.first + was.count))
+            if not mixes:
+                raise EditError(
+                    f"nothing in {name!r} has two worn microphones recording through it to mix. "
+                    "`media takes` shows what was recorded together, and `media wear` says who wore which"
+                )
+        if lufs is not None:
+            planned = levelled(planned, lufs, highpass_hz)
+        encoder = build(planned, target, work, bits=bits, ceiling_db=ceiling_db, highpass_hz=highpass_hz,
+                        fade_s=fade_s, progress=progress)
+    finally:
+        if mixing is not None:
+            shutil.rmtree(mixing, ignore_errors=True)
 
     described = ffmpeg.probe(target)
     measured = described.duration_s if described else None
     looked = ffmpeg.frame_sizes(target, [(measured or planned.duration_s) * part for part in LOOKED_AT])
     sizes = tuple(sorted(set(looked)))
+    led: dict[str, float] = {}
+    for one in mixes:
+        for who, share in one.led.items():
+            led[who] = led.get(who, 0.0) + share * one.seconds
     made = Rendered(target, len(cut.clips), planned.duration_s, measured, width, tall, per_s, encoder, sizes,
-                    len(looked), tuple(stretch.gain_db for stretch in planned.stretches))
+                    len(looked), tuple(stretch.gain_db for stretch in planned.stretches), len(mixes),
+                    sum(one.seconds for one in mixes), tuple(sorted(led.items(), key=lambda one: -one[1])))
     with db.transaction():
         derive.record(
-            target, "render", "media render", _sources(cut.clips, silent), project=cut.project,
+            target, "render", "media render",
+            _sources(cut.clips, silent, [read for one in mixes for read in one.heard], replaced),
+            project=cut.project,
             params={"timeline": cut.name, "revision": cut.revision, "canvas": canvas, "fit": fit, "width": width,
                     "height": tall, "fps": str(per_s), "silent": silent, "originals": originals, "lufs": lufs,
-                    **(note or {})},
+                    **({"mix": True, "duck_db": duck_db} if mix else {}), **(note or {})},
         )
         common = sizes[0] if sizes else (0, 0)
         db.cursor().execute(
@@ -620,13 +659,22 @@ def _join(pictures: Sequence[Path], sounds: Sequence[Path], target: Path, folder
     ffmpeg.run(ffmpeg.FFMPEG, *args, target)
 
 
-def _sources(clips: Sequence[Clip], silent: bool) -> list[derive.Source]:
-    """Each recording a render drew on, from the earliest it was used to the latest."""
+def _sources(clips: Sequence[Clip], silent: bool, mixed: Sequence[tuple[Any, float, float]] = (),
+             replaced: Collection[int] = ()) -> list[derive.Source]:
+    """Each recording a render drew on, from the earliest it was used to the latest.
+
+    `mixed` is what was read from microphones that are in no clip: each one,
+    and from when to when. `replaced` is the clips, counted from 0, whose own
+    sound was not used because a mix took its place.
+    """
     spans: dict[tuple[str, str], tuple[Any, float, float]] = {}
-    for clip in clips:
+    for asset, start, end in mixed:
+        _, low, high = spans.get((str(asset), "sound"), (asset, start, end))
+        spans[(str(asset), "sound")] = (asset, min(low, start), max(high, end))
+    for index, clip in enumerate(clips):
         apart = clip.sound is not None and clip.sound_start_s is not None
         used = [(clip.picture, "picture", clip.start_s, clip.start_s + clip.duration_s)]
-        if not silent:
+        if not silent and index not in replaced:
             used.append((clip.sound, "sound", clip.sound_start_s, clip.sound_start_s + clip.duration_s) if apart
                         else (clip.picture, "sound", clip.start_s, clip.start_s + clip.duration_s))
         for asset, role, start, end in used:

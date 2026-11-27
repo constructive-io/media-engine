@@ -115,6 +115,8 @@ media compile reel --count 12        # or: shots that are good and unalike
 media timeline talk-over             # the cut, clip by clip
 media flags talk-over                # every flag inside the cut, and what cutting them would save
 media render talk-over               # the cut as a file to watch
+media relink talk-over talk-table table  # the same cut heard through another recording of its take
+media render talk-over --mix         # or through its worn microphones, mixed to follow whoever is speaking
 media export talk-over --to handover/ --preview --renders  # for an editing program, with something to watch beside it
 media outputs                        # every derived file on record, and what is lying about that is not
 ```
@@ -126,6 +128,15 @@ made of it: together, one folder to send. `media flags NAME` fails when the
 cut holds something marked off the record, so run it before handing a cut
 over. `media outputs` deletes nothing; `--kind render` narrows it and
 `--in FOLDER` looks somewhere other than the work folder.
+
+When a cut sounds wrong, change what it is heard through and leave the cut
+alone. `media relink CUT NEW RECORDING` copies it with the sound moved to
+another recording of the take (its label, its file's name, or a pattern
+fitting one); a clip that recording does not cover is listed and left.
+`media render --mix` needs two microphones in the take that `media wear` has
+tied to people, or that are in it as `lav`: it mixes them under each stretch
+so whoever is speaking is up and the rest are `--duck` decibels down
+(12 unless said), and prints who led. Listen to the result before sending it.
 
 `media <command> --help` describes each command and its options. The README has
 what each step measures and how far to trust it.

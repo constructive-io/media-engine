@@ -152,6 +152,8 @@ media assemble talk --take interview  # the best passages as a cut, each seen an
 media cutaways talk-over --over talk  # other footage over some of it, the sound untouched
 media flags talk-over                # every flag inside the cut, and what cutting them would save
 media render talk-over               # the cut as a file to watch
+media relink talk-over talk-table table  # the same cut heard through another recording of its take
+media render talk-over --mix         # or through its worn microphones, mixed to follow whoever is speaking
 media export talk-over --to handover/ --preview --renders  # the cut for an editing program, with something to watch beside it
 media lineage out.mp4                # what a derived file was made from
 media outputs                        # every derived file on record, and what is lying about that is not
@@ -345,6 +347,21 @@ ingest unless `--originals` is given, and `--megabytes` holds the file to a
 size. When it is done it looks at frames through the file and says so if
 they are not all the size that was asked for, and the file is recorded with
 the recordings it was made from, so `media lineage` can answer for it.
+
+A cut is made from the recording that was easiest to read, which is seldom
+the one that sounds best. `media relink` stores it again with each clip's
+sound moved to the same moment in another recording of its take, by the
+offsets `media sync` found: a recorder on the table in place of the camera's
+own microphone. A clip the recording does not cover is left as it was and
+listed. `media render --mix` goes further where people wore microphones.
+One microphone is right while one person talks, and when the speaker changes
+everyone else is heard through somebody else's. So under each stretch the
+take's worn microphones are mixed the way an editor rides faders: whoever is
+speaking is up, a little before their first word, and the others are down by
+`--duck` decibels and never off, because they carry the room and the
+laughter. Through a pause the last speaker stays up, and a recorder that was
+turned down is brought level with the rest. A stretch the microphones do not
+cover is left as cut, and the render says which were mixed and who led.
 
 `media export` hands a cut to an editing program. It writes FCPXML, which Final
 Cut, Resolve and Premiere import as a timeline, the same cut as a CMX3600

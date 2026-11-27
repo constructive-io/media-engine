@@ -43,7 +43,7 @@ class CommandLineTest(unittest.TestCase):
                         "compile", "selectors", "timelines",
                         "loudness", "audible", "laughter", "coordination",
                         "wear", "microphones",
-                        "timeline", "note", "keep", "cut", "prefer", "pairs", "decisions", "script", "render", "export",
+                        "timeline", "note", "keep", "cut", "prefer", "pairs", "decisions", "script", "render", "relink", "export",
                         "conv", "persona", "personas", "voices", "voice", "say", "reference", "clean", "audition", "library",
                         "film", "still", "stage", "print", "init",
                         "status", "adapters"):
