@@ -1,7 +1,7 @@
 # A short talk with slides. Render it, then film it:
 #
-#   me say  examples/talk/talk.conv out/talk.flac
-#   me film out/talk.flac out/talk.mp4 --page examples/talk
+#   media say  examples/talk/talk.conv out/talk.flac
+#   media film out/talk.flac out/talk.mp4 --page examples/talk
 #
 @characters
 ADA:   { persona: ada, name: Ada Marsh, title: Keeper of the light }

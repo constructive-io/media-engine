@@ -488,11 +488,11 @@ class ExportTest(Shoot, DatabaseTest):
                    (self.assets["plain"],))
         timelines.save("made-up-short", [Clip(self.assets["quay cam"], 0.0, 0.01), Clip(self.assets["plain"], 0, 1)])
         status, out, err = test_cli.run("export", name, "--to", str(self.out))
-        self.assertEqual((status, err), (1, "me: 1 of the recordings it points at are not there: gone.mp4\n"))
+        self.assertEqual((status, err), (1, "media: 1 of the recordings it points at are not there: gone.mp4\n"))
         self.assertIn("  shot at 25, 29.97 frames a second: check the last clip against its sound\n", out)
         self.assertIn("**1 of them were not there when this was written,**", (self.out / "README.md").read_text())
         status, out, _ = test_cli.run("export", "made-up-short", "--to", str(self.out / "short"))
         self.assertEqual(status, 1)
         self.assertIn("  too short for a frame, and left out: clip 1\n", out)
         self.assertEqual(test_cli.run("export", "made-up-nothing"),
-                         (1, "", "me: no timeline is called 'made-up-nothing'; `me timelines` lists them\n"))
+                         (1, "", "media: no timeline is called 'made-up-nothing'; `media timelines` lists them\n"))

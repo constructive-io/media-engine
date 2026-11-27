@@ -211,7 +211,7 @@ class JudgeCommandsTest(Judging):
         self.assertEqual(run("judge"), (0, "1 passages read by made-up-reader\n", ""))
         self.assertEqual(run("judge"),
                          (0, "nothing to read: made-up-reader has read every passage interview ranks\n", ""))
-        self.assertEqual(run("judge", "--recipe", "no-such-recipe")[::2], (1, "me: no recipe is called 'no-such-recipe'; `me rank` lists them\n"))
+        self.assertEqual(run("judge", "--recipe", "no-such-recipe")[::2], (1, "media: no recipe is called 'no-such-recipe'; `media rank` lists them\n"))
 
     def test_search_can_ask_whether_each_one_answers(self):
         search.index(by=self.bag)
@@ -234,7 +234,7 @@ class UnsetTest(unittest.TestCase):
                 os.environ.pop("CONSTRUCTIVE_MEDIA_" + variable, None)
             status, out, err = run("judge")
             self.assertEqual((status, out), (1, ""))
-            self.assertTrue(err.startswith("me: nothing says where the text model is. Set CONSTRUCTIVE_MEDIA_URL_TEXT "),
+            self.assertTrue(err.startswith("media: nothing says where the text model is. Set CONSTRUCTIVE_MEDIA_URL_TEXT "),
                             err)
             self.assertEqual(len(err.splitlines()), 1)
             status, _, err = run("index")

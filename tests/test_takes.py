@@ -428,7 +428,7 @@ class MatchTest(TakesTest):
         found = match.find()
         added, ((left, reason),) = match.apply(found)
         self.assertEqual((added, left.recording_path), (0, "/made-up/collar.wav"))
-        self.assertIn("me sync", reason)
+        self.assertIn("media sync", reason)
 
 
 class CommandsTest(TakesTest):
@@ -514,7 +514,7 @@ class CommandsTest(TakesTest):
     def test_a_take_that_is_not_there_is_one_line(self):
         for command in (("takes", "nowhere"), ("sync", "nowhere")):
             status, out, err = run(*command)
-            self.assertEqual((status, out, err), (1, "", "me: no take is called 'nowhere'; `me takes` lists them\n"))
+            self.assertEqual((status, out, err), (1, "", "media: no take is called 'nowhere'; `media takes` lists them\n"))
 
     def test_without_numpy_sync_says_so_and_carries_on(self):
         run("group")

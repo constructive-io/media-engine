@@ -89,7 +89,7 @@ def register(commands: Any) -> None:
                     "time first, and store what it makes of each as scores: substance, interest and "
                     "self contained. Only passages this model has not read are sent, and never one in "
                     "which someone asks for it not to be used. A recipe counts the scores once it "
-                    "weighs them: `me recipe NAME --like interview --weigh substance=1`.",
+                    "weighs them: `media recipe NAME --like interview --weigh substance=1`.",
     )
     command.add_argument("--project", help="only this project's passages")
     command.add_argument("--limit", type=int, default=200, metavar="N",
@@ -101,7 +101,7 @@ def register(commands: Any) -> None:
     command = commands.add_parser(
         "index", help="make every passage findable by what it means",
         description="Send each passage's words to the embedding model and keep what comes back, so "
-                    "`me search` can find it. Only passages that are new, or whose words have changed, "
+                    "`media search` can find it. Only passages that are new, or whose words have changed, "
                     "are sent, and never one in which someone asks for it not to be used.",
     )
     command.add_argument("--project", help="only this project's passages")
@@ -284,5 +284,5 @@ def run_search(arguments: argparse.Namespace) -> int | None:
     if found.withheld:
         print(f"{found.withheld} left out: someone in them asks for it not to be used")
     if found.unindexed:
-        print(f"{found.unindexed} passages are not indexed as they now read; `me index` takes them in")
+        print(f"{found.unindexed} passages are not indexed as they now read; `media index` takes them in")
     return None

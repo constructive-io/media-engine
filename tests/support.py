@@ -356,7 +356,7 @@ class Listener:
 
 
 def make_render(folder: Path, *, clip: Path | None = None, ending: str = ".wav") -> Path:
-    """What `me say` leaves behind, made by hand: a mix, its lines, and the manifest that names them.
+    """What `media say` leaves behind, made by hand: a mix, its lines, and the manifest that names them.
 
     Two people speak for a second each, with a slide and a build under them.
     With `clip`, a video takes the screen for half a second between them.

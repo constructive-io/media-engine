@@ -321,7 +321,7 @@ def selector(name: str) -> Selector:
     cur = db.cursor()
     cur.execute("SELECT name, description, match, params FROM media_video.selectors WHERE name = %s", (name,))
     if not (found := cur.fetchone()):
-        raise EditError(f"no selector is called {name!r}; `me selectors` lists them")
+        raise EditError(f"no selector is called {name!r}; `media selectors` lists them")
     return _selector(*found)
 
 
@@ -374,8 +374,8 @@ def compilation(
         raise EditError(
             f"nothing to choose from: recipe {options.recipe!r} ranks no shots"
             + (f" matching {options.match!r}" if options.match else "")
-            + (f" ({unsigned} have no signature; `me signatures` gives them one)" if unsigned
-               else ". `me score` scores what has been analysed")
+            + (f" ({unsigned} have no signature; `media signatures` gives them one)" if unsigned
+               else ". `media score` scores what has been analysed")
         )
     selection = choose(shots, options, seed=seed, held=held, unsigned=unsigned)
     stored = timelines.save(

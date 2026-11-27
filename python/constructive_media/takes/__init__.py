@@ -82,7 +82,7 @@ def find(name: str) -> Take:
     cur.execute("SELECT id, name, project FROM media.takes WHERE name = %s", (name,))
     row = cur.fetchone()
     if row is None:
-        raise TakeError(f"no take is called {name!r}; `me takes` lists them")
+        raise TakeError(f"no take is called {name!r}; `media takes` lists them")
     return Take(*row)
 
 

@@ -60,7 +60,7 @@ Voices, banks of sounds and faces are never kept here. They live in libraries, w
 repositories of their own ([docs/LIBRARIES.md](./docs/LIBRARIES.md)), started from
 [voice-boilerplates](https://github.com/constructive-io/voice-boilerplates). A project, and
 every page to film in it (a deck, a walkthrough, an animation, a document), is started with
-`me init` ([docs/PROJECTS.md](./docs/PROJECTS.md)) from
+`media init` ([docs/PROJECTS.md](./docs/PROJECTS.md)) from
 [media-boilerplates](https://github.com/constructive-io/media-boilerplates): no template is
 kept here, and `scaffold.py` runs nothing a template holds.
 

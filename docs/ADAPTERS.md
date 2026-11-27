@@ -29,7 +29,7 @@ that does the job.
 | `embedding` | text and image embeddings | `http` |
 | `browser` | a page opened, watched and printed | `chrome` |
 
-Slots fill in as the engine lands; see the [roadmap](./ROADMAP.md). `me adapters`
+Slots fill in as the engine lands; see the [roadmap](./ROADMAP.md). `media adapters`
 lists what is installed on your machine, built in and plugged in.
 
 ## Using one
@@ -124,7 +124,7 @@ worse:
   repeating one line for minutes.
 - **Word times come from the model's attention** rather than its own timestamp
   guesses. It costs about a fifth more time.
-- **A vocabulary is shown where it is safe.** `me vocabulary` holds the names
+- **A vocabulary is shown where it is safe.** `media vocabulary` holds the names
   and terms no general model will guess, and they are shown to the model
   before it listens. That costs something: shown a vocabulary, Whisper stops
   marking time as it writes. So only pieces that fit one window are shown it,
@@ -152,7 +152,7 @@ wrong words fell from 12 to 5, and in a shorter script built around two made-up
 names, those names came out right 8 times of 8 instead of 2. On the dense
 recording it changed about one word in a hundred. With `base` it lost or
 changed a fifth of the words in the noisy recording, which is why `base` and
-`tiny` are never shown one. `me transcribe --no-vocabulary` leaves it out.
+`tiny` are never shown one. `media transcribe --no-vocabulary` leaves it out.
 
 One thing is not fixed. A piece heard with nothing before it is sometimes
 written without capitals or punctuation: 14 of the dense recording's 159
@@ -214,7 +214,7 @@ the same whatever fills the slot:
   at a time, and groups what it hears. A line goes to the voice most of it
   sounds like.
 - **Nobody has to say how many people there are.** A group is split while its
-  two halves sound like different people. `me diarize --voices 3` says it
+  two halves sound like different people. `media diarize --voices 3` says it
   outright when you know.
 - **A short "yes" is given to a voice only when it is clearly that voice**, and
   is otherwise left unknown. A wrong name on a line is worse than none.
@@ -222,7 +222,7 @@ the same whatever fills the slot:
   voices that turn out to be one person are put right by giving both the same
   name. Two people merged into one voice cannot be put right without going
   over the recording again.
-- **Names are yours to give.** A voice is `voice1` until `me name` says who it
+- **Names are yours to give.** A voice is `voice1` until `media name` says who it
   is. Going over a recording again keeps its names, and a voice named in one
   recording is suggested in the next, as a suggestion only.
 
@@ -273,9 +273,9 @@ repository, and no recording: a voice is a row that says which adapter speaks
 it and what that adapter knows it by.
 
 ```sh
-me voice "Ada Field" the-name-the-server-knows-her-by --new
-me voice ada-field another-name --emotion whisper --seed 31
-me voices
+media voice "Ada Field" the-name-the-server-knows-her-by --new
+media voice ada-field another-name --emotion whisper --seed 31
+media voices
 ```
 
 The built-in adapter reaches any server that answers the `audio/speech`
@@ -301,7 +301,7 @@ each time, and one that refuses it can be spared it with
 `CONSTRUCTIVE_MEDIA_EXTRA_SPEECH={"seed": null}`. A server that says a line the
 same way whatever the seed cannot mend a bad take by saying it again.
 
-`me say scene.conv out/scene.flac` does this for every line of a
+`media say scene.conv out/scene.flac` does this for every line of a
 [`.conv`](https://github.com/constructive-io/conversation-format) script and mixes the
 result (`constructive_media.audio.scene`).
 
@@ -328,7 +328,7 @@ silicon, through [mlx-audio](https://github.com/Blaizzy/mlx-audio):
 ```sh
 pip install "constructive-media[audio]" mlx-audio
 export CONSTRUCTIVE_MEDIA_ADAPTER_SPEECH=mlx
-me say --voice ada "The lantern is lit at dusk." out/line.wav
+media say --voice ada "The lantern is lit at dusk." out/line.wav
 ```
 
 Left to itself it loads Qwen3-TTS, which clones a voice from its clip and the
@@ -338,7 +338,7 @@ line waits for the model to be fetched, a few gigabytes. A line is said at a
 temperature of 0.3, which keeps a clone close to its clip;
 `CONSTRUCTIVE_MEDIA_EXTRA_SPEECH='{"temperature": 0.5, "language": "french"}'`
 changes what it is said with. Two models on one graphics processor at once can
-stop a machine dead, so every `me` on a machine takes turns: a line is said
+stop a machine dead, so every `media` on a machine takes turns: a line is said
 while holding one lock under the engine's home.
 
 mlx-audio is MIT, and is not one of the engine's extras because it brings two
@@ -363,7 +363,7 @@ denoiser().clean("recording.wav", "cleaned.wav", floor=-52.0)   # floor: how lou
 
 The built-in one is ffmpeg's own (`afftdn`), which takes a steady hiss down
 by ten decibels or so and leaves the voice nearly as it was. It is the last
-thing `me clean` reaches for, after the filters that cost a voice nothing; see
+thing `media clean` reaches for, after the filters that cost a voice nothing; see
 [VOICES.md](./VOICES.md#clean-a-recording-first). A model that does better is
 an adapter in this slot.
 

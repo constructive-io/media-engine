@@ -140,7 +140,7 @@ class VoicesTest(DatabaseTest):
         self.assertEqual([recording.name for recording in names.listed("after")], ["afterwards.wav"])
 
     def test_naming_says_what_is_wrong(self):
-        with self.assertRaisesRegex(SpeakerError, "me diarize"):
+        with self.assertRaisesRegex(SpeakerError, "media diarize"):
             names.name("meeting", ADA, "Ada Example", new=True)
         self.recording("meeting")
         self.recording("afterwards")

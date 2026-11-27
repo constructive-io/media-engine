@@ -518,7 +518,7 @@ def render(
                     len(looked), tuple(stretch.gain_db for stretch in planned.stretches))
     with db.transaction():
         derive.record(
-            target, "render", "me render", _sources(cut.clips, silent), project=cut.project,
+            target, "render", "media render", _sources(cut.clips, silent), project=cut.project,
             params={"timeline": cut.name, "revision": cut.revision, "canvas": canvas, "fit": fit, "width": width,
                     "height": tall, "fps": str(per_s), "silent": silent, "originals": originals, "lufs": lufs},
         )

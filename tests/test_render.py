@@ -556,7 +556,7 @@ class RenderTest(Library):
             "SELECT timeline, width, height, uniform, samples, canvas FROM media_video.render_geometry WHERE path = %s",
             (str(self.out),)), [("made-up-quay-cut", 320, 180, True, 6, "landscape")])
         made_from = derive.lineage(self.out)
-        self.assertEqual((made_from.kind, made_from.tool), ("render", "me render"))
+        self.assertEqual((made_from.kind, made_from.tool), ("render", "media render"))
         self.assertEqual(made_from.params, {
             "timeline": "made-up-quay-cut", "revision": 1, "canvas": "landscape", "fit": "pad", "width": 320,
             "height": 180, "fps": "25", "silent": False, "originals": False, "lufs": -16.0,
@@ -708,7 +708,7 @@ class RenderCommandsTest(Library):
 
     def test_me_render_fails_plainly(self):
         self.assertEqual(test_cli.run("render", "made-up-nothing"),
-                         (1, "", "me: no timeline is called 'made-up-nothing'; `me timelines` lists them\n"))
+                         (1, "", "media: no timeline is called 'made-up-nothing'; `media timelines` lists them\n"))
 
 
 class PairsRenderedTest(Media, test_cut.Footage):

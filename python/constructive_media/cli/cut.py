@@ -56,7 +56,7 @@ def register(commands: Any) -> None:
     command.add_argument("--passage", action="append", metavar="ID",
                          help="use this passage, and only the ones named this way, in the order given")
     command.add_argument("--after", metavar="TIMELINE", help="revise this cut, honouring what was said about it")
-    command.add_argument("--style", help="the manner to cut in (`me styles` lists them)")
+    command.add_argument("--style", help="the manner to cut in (`media styles` lists them)")
     command.add_argument("--target", type=float, metavar="SECONDS", help="how long the cut is to be (default 300)")
     command.add_argument("--min-length", type=float, metavar="SECONDS", help="the shortest passage to use (default 12)")
     command.add_argument("--max-length", type=float, metavar="SECONDS", help="the longest passage to use (default 95)")
@@ -103,9 +103,9 @@ def register(commands: Any) -> None:
 
     command = commands.add_parser(
         "fit", help="teach a model what you prefer from the choices you have made between shots",
-        description="Fit a model to the choices made with `me prefer`, and test it on footage it was not "
+        description="Fit a model to the choices made with `media prefer`, and test it on footage it was not "
                     "fitted to. With --save it is stored, and if it proved better than a coin, every shot "
-                    "it covers gets a `preferred` score that a recipe can weigh (`me recipe`).",
+                    "it covers gets a `preferred` score that a recipe can weigh (`media recipe`).",
     )
     command.add_argument("--save", metavar="NAME", help="store the model under this name, in place of any before")
     command.add_argument("--match", help="only choices between shots of files whose path matches; "
@@ -179,7 +179,7 @@ def register(commands: Any) -> None:
     command = commands.add_parser(
         "pairs", help="list pairs most worth choosing between",
         description="List pairs a recipe cannot tell apart, or with --mode contrast, shots it scores "
-                    "alike that look different. Answer with `me prefer`.",
+                    "alike that look different. Answer with `media prefer`.",
     )
     command.add_argument("recipe", nargs="?", default="broll", help="the recipe to go by (default %(default)s)")
     command.add_argument("--mode", choices=("close", "contrast"), default="close")
@@ -295,7 +295,7 @@ def run_compile(arguments: argparse.Namespace) -> None:
     if chosen.held:
         print(f"{chosen.held} carried over from {cut.after}")
     if chosen.unsigned:
-        print(f"{chosen.unsigned} shots have no signature and were left out; `me signatures` gives them one")
+        print(f"{chosen.unsigned} shots have no signature and were left out; `media signatures` gives them one")
     if len(cut.clips) < made.options.count:
         print(f"{made.options.count} were asked for and there were not that many to choose from")
     if arguments.dry_run:
@@ -483,7 +483,7 @@ def run_pairs(arguments: argparse.Namespace) -> None:
                 seconds=arguments.seconds)
             print(f"  {written}")
         print()
-    print(f"{len(found)} pairs; answer each with `me prefer <chosen> <rejected>`")
+    print(f"{len(found)} pairs; answer each with `media prefer <chosen> <rejected>`")
 
 
 def run_render(arguments: argparse.Namespace) -> int:
@@ -518,7 +518,7 @@ def run_render(arguments: argparse.Namespace) -> int:
                      "than the cut")
     print(made.path)
     for each in wrong:
-        print(f"me: {each}", file=sys.stderr)
+        print(f"media: {each}", file=sys.stderr)
     return 1 if wrong else 0
 
 
@@ -538,7 +538,7 @@ def run_export(arguments: argparse.Namespace) -> int:
     for written in (made.fcpxml, made.edl, made.readme):
         print(written)
     if made.missing:
-        print(f"me: {len(made.missing)} of the recordings it points at are not there: "
+        print(f"media: {len(made.missing)} of the recordings it points at are not there: "
               + ", ".join(file.name for file in made.missing), file=sys.stderr)
     return 1 if made.missing else 0
 
@@ -601,7 +601,7 @@ def run_models(arguments: argparse.Namespace) -> None:
     found = ranker.listing()
     for model in found:
         print(f"  {model.name}  {'in use' if model.proven else 'not in use'}  {_tested(model)}")
-    print(f"{len(found)} models" + ("" if found else "; `me fit --save NAME` makes one"))
+    print(f"{len(found)} models" + ("" if found else "; `media fit --save NAME` makes one"))
 
 
 def run_decisions(arguments: argparse.Namespace) -> None:
@@ -633,7 +633,7 @@ def run_script(arguments: argparse.Namespace) -> int | None:
     try:
         text = arguments.read.read_text(encoding="utf-8")
     except OSError as error:
-        print(f"me: {arguments.read} cannot be read: {error.strerror}", file=sys.stderr)
+        print(f"media: {arguments.read} cannot be read: {error.strerror}", file=sys.stderr)
         return 1
     with db.transaction(keep=not arguments.dry_run):
         done = script.read(text, episode=arguments.episode)

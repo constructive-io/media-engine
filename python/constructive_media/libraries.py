@@ -401,7 +401,7 @@ def add(source: str, *, ref: str | None = None, settings: Settings | None = None
         name = checked.library.name
         if name in libraries and libraries[name].folder != checked.library.folder:
             raise LibraryError(f"a library called `{name}` was added already, from {libraries[name].source}. "
-                               f"Remove that one first: me library remove {name}")
+                               f"Remove that one first: media library remove {name}")
         one = Added(name, str(checked.library.folder), checked.library.folder, _commit(checked.library.folder),
                     True, now)
     else:
@@ -415,7 +415,7 @@ def add(source: str, *, ref: str | None = None, settings: Settings | None = None
             if named is None:
                 raise LibraryError("\n  ".join((
                     f"no index lists a library called `{source}`. Give a folder or the address of a repository, "
-                    "or see what is listed with: me library search", *unreached)))
+                    "or see what is listed with: media library search", *unreached)))
             source = named.source
         address = f"https://github.com/{source}.git" if _SHORT.fullmatch(source) else source
         if address.startswith("-"):
@@ -436,7 +436,7 @@ def add(source: str, *, ref: str | None = None, settings: Settings | None = None
                                    f"`{name}`. It was not added")
             if name in libraries:
                 raise LibraryError(f"a library called `{name}` was added already, from {libraries[name].source}. "
-                                   f"Bring it up to date with `me library update {name}`, or remove it first")
+                                   f"Bring it up to date with `media library update {name}`, or remove it first")
             folder = kept / name
             if folder.exists():
                 shutil.rmtree(folder)
@@ -506,7 +506,7 @@ def install(file: str | Path = LOCK, *, settings: Settings | None = None,
         if not isinstance(wanted, dict):
             raise TypeError
     except OSError:
-        raise LibraryError(f"{file}: no such file. `me library lock` writes one") from None
+        raise LibraryError(f"{file}: no such file. `media library lock` writes one") from None
     except (ValueError, KeyError, TypeError):
         raise LibraryError(f'{file} should hold {{"libraries": {{"name": {{"source": …, "commit": …}}}}}}') from None
     said = tell or (lambda message: None)

@@ -95,7 +95,7 @@ def name(match: str, label: str, who: str | None, *, new: bool = False, kind: st
     )
     found = cur.fetchall()
     if not found:
-        raise SpeakerError(f"no recording matching {match!r} has had its voices found; run `me diarize` first")
+        raise SpeakerError(f"no recording matching {match!r} has had its voices found; run `media diarize` first")
     if len(found) > 1:
         names = ", ".join(Path(path).name for _, path in found[:5])
         raise SpeakerError(f"{len(found)} recordings match {match!r} ({names}{', ...' if len(found) > 5 else ''}); "

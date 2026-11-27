@@ -1,6 +1,6 @@
 """The skill and the examples say what the engine does.
 
-Every `me` command the skill names is a real one, the script it shows is a
+Every `media` command the skill names is a real one, the script it shows is a
 script the reader accepts, and every file it points at is there. The example
 speech server answers the request the `speech` slot sends.
 """
@@ -51,7 +51,7 @@ class TheSkill(unittest.TestCase):
         known, named = commands(), set()
         for page in PAGES:
             for block in blocks(page, "sh"):
-                named |= set(re.findall(r"^me ([a-z-]+)", block, re.MULTILINE))
+                named |= set(re.findall(r"^media ([a-z-]+)", block, re.MULTILINE))
         self.assertGreater(len(named), 30)
         self.assertEqual(named - known, set())
 
@@ -82,7 +82,7 @@ class TheSkill(unittest.TestCase):
         made = (ROOT / "python" / "constructive_media" / "audio" / "scene.py").read_text(encoding="utf-8")
         for words in ("need a listen:", "left out, having no file:", "seconds:"):
             self.assertTrue(words in page, f"the skill does not show `{words}`")
-            self.assertTrue(words in said, f"`me say` no longer prints `{words}`")
+            self.assertTrue(words in said, f"`media say` no longer prints `{words}`")
         for key in ("needs_review", "left_out", "status"):
             self.assertTrue(f"`{key}`" in page or f".{key}`" in page, f"the skill does not name `{key}`")
             self.assertTrue(f'"{key}"' in made + said, f"a render no longer reports `{key}`")

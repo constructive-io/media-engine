@@ -1,4 +1,4 @@
-"""The `me` command line.
+"""The `media` command line.
 
 Each group of commands lives in its own module and adds itself to the parser
 with a `register(commands)` function. A command is a function that takes the
@@ -37,7 +37,7 @@ GROUPS = (library, analyze, listen, takes, edit, cut, scripts, speech, stage, li
 
 def parser() -> argparse.ArgumentParser:
     root = argparse.ArgumentParser(
-        prog="me", description="Constructive Media: one engine for video, images, audio and voice.",
+        prog="media", description="Constructive Media: one engine for video, images, audio and voice.",
     )
     root.add_argument("--version", action="version", version=f"constructive-media {__version__}")
     commands = root.add_subparsers(dest="command", required=True, metavar="command")
@@ -60,10 +60,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     except (AdapterError, BrowserError, CleanError, ConvError, DatabaseError, DenoiseError, EditError, FfmpegError,
             LibraryError, ModelError, ScaffoldError, SettingsError, SpeakerError, SpeechError, StageError, TakeError, TextError,
             TranscriptionError) as error:
-        print(f"me: {error}", file=sys.stderr)
+        print(f"media: {error}", file=sys.stderr)
         return 1
     except ModuleNotFoundError as error:
-        print(f"me: this command needs the {error.name!r} package, which is not installed. "
+        print(f"media: this command needs the {error.name!r} package, which is not installed. "
               "See the README for what to install.", file=sys.stderr)
         return 1
     except KeyboardInterrupt:

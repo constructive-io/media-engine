@@ -270,7 +270,7 @@ class SearchCommandsTest(Indexed):
         self.assertIn("  made-up-lighthouse  0:10.0-0:29.9  ", light)
         self.assertEqual(count, "2 passages found by made-up-bag")
         self.assertEqual(held, "1 left out: someone in them asks for it not to be used")
-        self.assertEqual(waiting, "1 passages are not indexed as they now read; `me index` takes them in")
+        self.assertEqual(waiting, "1 passages are not indexed as they now read; `media index` takes them in")
 
     def test_search_can_store_what_it_found_as_a_cut(self):
         status, out, err = run("search", "Who sold herring from a barrow every morning?", "--cut", "made-up-found",
@@ -281,4 +281,4 @@ class SearchCommandsTest(Indexed):
         self.assertRegex(count, r"^1 clips, 0:1\d\.\d, stored as made-up-found$")
         self.assertEqual(len(timelines.load("made-up-found").clips), 1)
         self.assertEqual(run("search", "anything at all", "--relevance", "2")[::2],
-                         (1, "me: relevance is a share, from 0 to 1\n"))
+                         (1, "media: relevance is a share, from 0 to 1\n"))

@@ -282,7 +282,7 @@ class StartTest(InFolder):
         for called in (None, "", "!!!"):
             with self.assertRaises(ScaffoldError) as raised:
                 self.start("deck", called)
-            self.assertEqual(str(raised.exception), "give it a name: me init deck NAME")
+            self.assertEqual(str(raised.exception), "give it a name: media init deck NAME")
         with self.assertRaises(ScaffoldError):
             self.start("deck", "tides", where=self.where / "nowhere")
 
@@ -394,9 +394,9 @@ class CommandTest(InFolder):
 
     def test_what_went_wrong_is_said_in_a_line(self):
         for arguments, said in (
-            (("poster", "tides"), "me: there is no template called `poster` here. There is: deck, module, workspace\n"),
-            (("deck",), "me: give it a name: me init deck NAME\n"),
-            (("deck", "tides", "-t", "deck"), "me: the template is given once: as the first word, or with --template\n"),
+            (("poster", "tides"), "media: there is no template called `poster` here. There is: deck, module, workspace\n"),
+            (("deck",), "media: give it a name: media init deck NAME\n"),
+            (("deck", "tides", "-t", "deck"), "media: the template is given once: as the first word, or with --template\n"),
             (("deck", "tides", "--repo", "owner"), None),
         ):
             status, out, err = self.init(*arguments)

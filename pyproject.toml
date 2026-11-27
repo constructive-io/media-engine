@@ -28,7 +28,7 @@ all = ["constructive-media[video,detection,torchvision,speakers,audio]"]
 test = ["onnx>=1.16"]
 
 [project.scripts]
-me = "constructive_media.cli:main"
+media = "constructive_media.cli:main"
 constructive-media = "constructive_media.cli:main"
 
 [project.urls]

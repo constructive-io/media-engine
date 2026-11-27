@@ -8,7 +8,7 @@ lands tested, with nothing in it that breaks [the licensing rule](./LICENSING.md
 | 1 | Schema modules: `media-core`, `media-video`, `media-audio` | Done |
 | 2 | Settings: one place for the database, paths and model choices, read from the environment | Done |
 | 3 | [Adapter interface](./ADAPTERS.md): a registry, plugin discovery, and the first built-in adapter (`ffmpeg` effects) | Done |
-| 4 | Engine and `me` command line, first part: the database driver, the `ffmpeg` bridge, ingest, lineage, shots, frames and colour signatures | Done |
+| 4 | Engine and `media` command line, first part: the database driver, the `ffmpeg` bridge, ingest, lineage, shots, frames and colour signatures | Done |
 | 5 | Object detection on an Apache-2.0 detector (D-FINE through ONNX Runtime), with torchvision as a second choice | Done |
 | 6 | Transcription: speech to sentences and timed words with Whisper through whisper.cpp, and a vocabulary to listen for | Done |
 | 7 | Takes and sync: recordings of one moment grouped by clock or matched by content, then placed on one timeline by shared words, by sound and by clock, each placing proved against what is said | Done |
@@ -24,11 +24,11 @@ lands tested, with nothing in it that breaks [the licensing rule](./LICENSING.md
 | 17 | [The stage](./STAGE.md): a rendered script filmed as a video. A timeline of what fell when, a player any page loads, layouts for a deck, a document and a walkthrough, a browser behind the `browser` slot, and clips put in with their own frames | Done, and filmed with a real browser in CI |
 | 18 | [Voices](./VOICES.md): a recording measured and cut into a clip to clone from, the clip sent to any server that clones, one line said in one voice, and a voice auditioned for its words and for its clip leaking in | Done, and tested with stand-ins for the models |
 | 19 | [Libraries](./LIBRARIES.md): voices, banks and faces in repositories of their own, with consent asked of every voice; added by address, kept at a commit, and written down for a project so another machine has the same | Done |
-| 20 | [Indexes](./LIBRARIES.md#find-one): a list of libraries in a repository, read by name and by what they hold, so that a library is found with `me library search` and added with `me library add NAME`; it says where a library is and vouches for nothing | Done |
+| 20 | [Indexes](./LIBRARIES.md#find-one): a list of libraries in a repository, read by name and by what they hold, so that a library is found with `media library search` and added with `media library add NAME`; it says where a library is and vouches for nothing | Done |
 | 21 | [Cleaning a recording](./VOICES.md#clean-a-recording-first): the noise under a voice measured in the quiet between phrases, the least that will do advised and done (a high-pass, notches at a hum, a denoiser behind the `denoise` slot), and the same stretches measured again to say what was gained and what the voice lost | Done, with ffmpeg's denoiser |
 | 22 | Speech on a Mac with no server: the `mlx` speech adapter runs a model that clones (Qwen3-TTS) in the engine's own process, one at a time across a machine | Done, and tested with a stand-in for the model. `mlx-audio` is installed by you: see [LICENSING.md](./LICENSING.md) |
 | 23 | Movement on the stage: [how a thing arrives](./STAGE.md#how-a-thing-arrives) (`data-enter`), a page that draws by the script's clock (`stage.since`), and who is speaking written on the page | Done, and filmed with a real browser |
-| 24 | [Starting a project](./PROJECTS.md): `me init` reads a repository of boilerplates in the format `pgpm init` reads, with the standard library alone, and makes a pnpm workspace and the decks in it. The templates are in [media-boilerplates](https://github.com/constructive-io/media-boilerplates), and both tools write the same files from them | Done |
+| 24 | [Starting a project](./PROJECTS.md): `media init` reads a repository of boilerplates in the format `pgpm init` reads, with the standard library alone, and makes a pnpm workspace and the decks in it. The templates are in [media-boilerplates](https://github.com/constructive-io/media-boilerplates), and both tools write the same files from them | Done |
 
 ## Left for later, and why
 
@@ -37,7 +37,7 @@ lands tested, with nothing in it that breaks [the licensing rule](./LICENSING.md
   can already hand over what a blend is made of (`embed` and `say_as`); the
   command that blends, scores and keeps one is not written. A clip is made
   from a recording of one voice until then.
-- **A denoiser that is a model.** `me clean` uses ffmpeg's own, which is worth
+- **A denoiser that is a model.** `media clean` uses ffmpeg's own, which is worth
   about ten decibels on a steady hiss. A model does better on noise that
   changes, and is an adapter in the `denoise` slot when one is added.
 

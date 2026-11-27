@@ -1,4 +1,4 @@
-"""`python -m constructive_media` is the `me` command line."""
+"""`python -m constructive_media` is the `media` command line."""
 
 import sys
 

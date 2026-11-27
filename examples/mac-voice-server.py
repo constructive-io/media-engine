@@ -10,7 +10,7 @@ plain voices and it reads every seed the same way.
 
     export CONSTRUCTIVE_MEDIA_URL_SPEECH=http://127.0.0.1:8080/v1
     export CONSTRUCTIVE_MEDIA_MODEL_SPEECH=say
-    me voice Ada Samantha --new                     # `say -v '?'` lists the voices
+    media voice Ada Samantha --new                  # `say -v '?'` lists the voices
 
 Needs `say` (macOS) and `ffmpeg`. Standard library only.
 """

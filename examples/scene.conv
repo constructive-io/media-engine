@@ -1,5 +1,5 @@
 # A short scene to try the engine with. Give ADA and GRACE a voice each
-# (`me voice`), then `me say examples/scene.conv out/scene.flac`.
+# (`media voice`), then `media say examples/scene.conv out/scene.flac`.
 @characters
 ADA:   { persona: ada }
 GRACE: { persona: grace, reverb: room }

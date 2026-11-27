@@ -21,7 +21,7 @@ words said in it go to the model with every line. A voice with only a
 `profile` is asked for by that name, for a model that has voices of its own.
 
 Two models on one graphics processor at once can stop a machine dead, so a
-line is said while holding a lock that every `me` on the machine shares.
+line is said while holding a lock that every `media` on the machine shares.
 
 `CONSTRUCTIVE_MEDIA_EXTRA_SPEECH` is a JSON object of what to say a line
 with, in place of the defaults here: `{"temperature": 0.3, "top_p": 0.8,

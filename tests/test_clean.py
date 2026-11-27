@@ -167,7 +167,7 @@ class CleanTest(unittest.TestCase):
         self.assertEqual(status, 0)
         self.assertIn("8.4 seconds, the voice at", out)
         self.assertIn("rumble", out)
-        self.assertIn(f"to do it: me clean {recording}", out)
+        self.assertIn(f"to do it: media clean {recording}", out)
         status, out, _ = run("clean", str(recording), str(self.folder / "cleaned.wav"))
         self.assertEqual(status, 0)
         self.assertIn(f"{self.folder / 'cleaned.wav'}: highpass", out)

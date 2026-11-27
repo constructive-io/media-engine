@@ -548,12 +548,12 @@ class Recording(DatabaseTest, Rendered):
 class Commands(unittest.TestCase):
     def test_what_cannot_be_asked_for_is_said_before_anything_is_done(self):
         status, _, err = run("say", "no-such-script.conv", "out.flac")
-        self.assertEqual((status, err), (2, "me: no-such-script.conv: no such file\n"))
+        self.assertEqual((status, err), (2, "media: no-such-script.conv: no such file\n"))
         with tempfile.TemporaryDirectory() as folder:
             script = Path(folder) / "night.conv"
             script.write_text("---\n[pause 1]\n")
             status, _, err = run("say", str(script), "out.flac", "--loudness", "-20", "--as-mixed")
-        self.assertEqual((status, err), (2, "me: --loudness and --as-mixed cannot both be given\n"))
+        self.assertEqual((status, err), (2, "media: --loudness and --as-mixed cannot both be given\n"))
 
 
 if __name__ == "__main__":

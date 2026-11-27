@@ -29,7 +29,7 @@ Early, and built in the open one layer at a time.
 | --- | --- |
 | Schema modules (`packages/`) | Here, tested, audited |
 | Settings and the adapter interface for the database, models and effects (`python/`) | Here, tested |
-| Engine and `me` command line: ingest, lineage, shots, frames, signatures, detection, transcription, takes and sync, speakers, passages, flags, scores and rankings, decisions, shot selection and timelines, a ranker taught from preferences, interviews assembled from passages with footage laid over them, cuts rendered to a file and exported to an editing program, a text model's opinion of the best passages, search by meaning | Here, tested |
+| Engine and `media` command line: ingest, lineage, shots, frames, signatures, detection, transcription, takes and sync, speakers, passages, flags, scores and rankings, decisions, shot selection and timelines, a ranker taught from preferences, interviews assembled from passages with footage laid over them, cuts rendered to a file and exported to an editing program, a text model's opinion of the best passages, search by meaning | Here, tested |
 | [`.conv`](https://github.com/constructive-io/conversation-format) scripts read and checked, held to the format's own conformance files | Here, tested |
 | The mix: clips on named tracks, brought to a level, looped, faded, ducked under speech and put through effects, written with a stem for each track | Here, tested |
 | The check on a spoken line: what was heard against what was meant, a voice's reference recording leaking into the line, a stutter, a line cut off, a click at the start | Here, tested |
@@ -38,7 +38,7 @@ Early, and built in the open one layer at a time.
 | [The stage](./docs/STAGE.md): a rendered script filmed as a video. A page follows the recording, as a deck, a document or a walkthrough, with the speakers, captions and clips drawn over it; a browser with no window is watched, and the pictures are laid under the sound | Here, tested, and filmed with a real browser |
 | [Voices](./docs/VOICES.md): a noisy recording measured and cleaned, a recording cut into a clip a voice can be cloned from, the clip sent to a server that clones or to a model run on a Mac with no server, and a voice auditioned before it is used | Here, tested with stand-ins for the models |
 | [Libraries](./docs/LIBRARIES.md): voices, sound banks and faces in repositories of their own, each voice with its consent, added by address and kept at a commit | Here, tested |
-| [Starting a project](./docs/PROJECTS.md): `me init` makes a workspace and its decks from a repository of boilerplates, in the format `pgpm init` reads | Here, tested |
+| [Starting a project](./docs/PROJECTS.md): `media init` makes a workspace and its decks from a repository of boilerplates, in the format `pgpm init` reads | Here, tested |
 | Engine: generation of images, video and sounds | Being brought in |
 
 The roadmap is in [docs/ROADMAP.md](./docs/ROADMAP.md).
@@ -102,85 +102,85 @@ export CONSTRUCTIVE_MEDIA_DATABASE_URL=postgres://postgres:password@localhost:54
 Then point it at some media:
 
 ```sh
-me ingest ~/footage --project demo   # register every file, once
-me shots                             # split each video into shots
-me frames                            # save and measure sample frames
-me signatures                        # a colour and motion signature per shot
-me detect                            # find objects and people in the frames
-me vocabulary Zentrova "Ottoline Varga" --project demo   # names to listen for
-me transcribe                        # what is said, sentence by sentence, word by word
-me group                             # recordings that rolled together become a take
-me match                             # a recorder with no clock finds its camera by what was said
-me sync                              # place every recording on its take's timeline, and prove it
-me takes                             # each take and how much of it is placed
-me diarize                           # tell the voices in each recording apart
-me speakers                          # each recording's voices, and a clip of each to listen to
-me name interview voice1 "Ottoline Varga" --new   # say whose voice it is
-me passages                          # cut each take's speech into passages worth using
-me score                             # flag what to cut, then score every passage and shot
-me rank interview --top 10           # the best of them, and how much each was measured
-me judge                             # a text model reads the best of them and says whether anything is said
-me index                             # make every passage findable by what it means
-me search "the winter the boats came in close"         # the passages that answer to it
-me search "why the light went out" --cut dark --seconds 60   # or a cut of them
-me script --out script.md            # the best passages as a document to mark keep, cut or trim
-me script --read script.md           # store the marks as decisions
-me compile reel --count 12           # shots that are good and unalike, stored as a cut
-me note reel 3 drop                  # say what you made of a clip
-me compile reel-2 --after reel       # the next cut: what was kept stays, what was dropped is replaced
-me pairs --render pairs/             # the shots a ranking cannot tell apart, side by side to choose between
-me prefer 3f9a01c2 77b0de41          # which of two you would use
-me fit --save taste                  # a model of what you prefer, tested on footage held out from it
-me recipe reel --like broll --weigh preferred=0.5   # a recipe that ranks by it
-me assemble talk --take interview    # the best passages as a cut, each seen and heard through the right recording
-me cutaways talk-over --over talk    # other footage over some of it, the sound untouched
-me render talk-over                  # the cut as a file to watch
-me export talk-over --to handover/   # the cut for an editing program, pointed at the recordings themselves
-me lineage out.mp4                   # what a derived file was made from
-me conv scene.conv                   # check a .conv script: every problem, its line and how to mend it
-me voice "Ada Field" ada-plain --new # give a persona a voice, by the name the speech server knows it by
-me say scene.conv out/scene.flac --stems   # the script as sound, each line said until a take of it passes
-me status                            # where things are kept and what is held
-me adapters                          # every slot and what can fill it
+media ingest ~/footage --project demo  # register every file, once
+media shots                          # split each video into shots
+media frames                         # save and measure sample frames
+media signatures                     # a colour and motion signature per shot
+media detect                         # find objects and people in the frames
+media vocabulary Zentrova "Ottoline Varga" --project demo  # names to listen for
+media transcribe                     # what is said, sentence by sentence, word by word
+media group                          # recordings that rolled together become a take
+media match                          # a recorder with no clock finds its camera by what was said
+media sync                           # place every recording on its take's timeline, and prove it
+media takes                          # each take and how much of it is placed
+media diarize                        # tell the voices in each recording apart
+media speakers                       # each recording's voices, and a clip of each to listen to
+media name interview voice1 "Ottoline Varga" --new  # say whose voice it is
+media passages                       # cut each take's speech into passages worth using
+media score                          # flag what to cut, then score every passage and shot
+media rank interview --top 10        # the best of them, and how much each was measured
+media judge                          # a text model reads the best of them and says whether anything is said
+media index                          # make every passage findable by what it means
+media search "the winter the boats came in close"      # the passages that answer to it
+media search "why the light went out" --cut dark --seconds 60  # or a cut of them
+media script --out script.md         # the best passages as a document to mark keep, cut or trim
+media script --read script.md        # store the marks as decisions
+media compile reel --count 12        # shots that are good and unalike, stored as a cut
+media note reel 3 drop               # say what you made of a clip
+media compile reel-2 --after reel    # the next cut: what was kept stays, what was dropped is replaced
+media pairs --render pairs/          # the shots a ranking cannot tell apart, side by side to choose between
+media prefer 3f9a01c2 77b0de41       # which of two you would use
+media fit --save taste               # a model of what you prefer, tested on footage held out from it
+media recipe reel --like broll --weigh preferred=0.5  # a recipe that ranks by it
+media assemble talk --take interview  # the best passages as a cut, each seen and heard through the right recording
+media cutaways talk-over --over talk  # other footage over some of it, the sound untouched
+media render talk-over               # the cut as a file to watch
+media export talk-over --to handover/  # the cut for an editing program, pointed at the recordings themselves
+media lineage out.mp4                # what a derived file was made from
+media conv scene.conv                # check a .conv script: every problem, its line and how to mend it
+media voice "Ada Field" ada-plain --new # give a persona a voice, by the name the speech server knows it by
+media say scene.conv out/scene.flac --stems  # the script as sound, each line said until a take of it passes
+media status                         # where things are kept and what is held
+media adapters                       # every slot and what can fill it
 ```
 
 Every stage picks up where it left off and only works on what is new. A model
 is downloaded the first time a stage needs it: 1.6 GB for the default
 transcriber, 29 MB for the default speaker model.
 
-A take is the camera and the microphones that recorded one moment. `me sync`
+A take is the camera and the microphones that recorded one moment. `media sync`
 works out how far apart they started from the words they share, then from how
 the sound rises and falls, then from the devices' clocks once those are shown
 to agree. Every answer is checked against what is actually said at the same
-moment in both, and one that fails the check is not stored. `me sync --check`
+moment in both, and one that fails the check is not stored. `media sync --check`
 runs that check on what is stored and changes nothing.
 
-`me diarize` listens to what was transcribed and finds how many voices there
+`media diarize` listens to what was transcribed and finds how many voices there
 are and which lines each one spoke. It does not know who anyone is. It calls
 them `voice1`, `voice2` and so on and cuts a short clip of each; you listen and
-say who it is with `me name`, once, and every line that voice spoke carries the
+say who it is with `media name`, once, and every line that voice spoke carries the
 name. A voice already named in one recording is suggested when it is heard in
 another, and never applied without you. An hour and three quarters of talk is
 gone over in about fifteen seconds.
 
-`me passages` reads a take as one conversation, however many microphones
-heard it, and cuts it where the talking stops. `me score` flags the fillers,
+`media passages` reads a take as one conversation, however many microphones
+heard it, and cuts it where the talking stops. `media score` flags the fillers,
 stutters, dead air and lines the recogniser guessed at, then scores each
 passage and shot from what was read, heard and seen. A score nobody measured
-is left out, never counted as a zero, and `me rank` says how much of its
+is left out, never counted as a zero, and `media rank` says how much of its
 recipe each result was measured on. A passage in which someone asks for
 something not to be used is never ranked, whatever it scores, until a person
-dismisses that flag. `me flag` runs the flags on their own.
+dismisses that flag. `media flag` runs the flags on their own.
 
-`me judge` asks what no measurement can: whether anything is said. A passage
+`media judge` asks what no measurement can: whether anything is said. A passage
 of thanks scores as well as an explanation on every measure of form, so the
 best-ranked passages, most said in the least time first, are read by a text
 model, and what it makes of each is stored as three more scores with the
 model's name on them: `substance`, `interest` and `self_contained`. They are
 scores like any other, counted by a recipe that weighs them
-(`me recipe said --like interview --weigh substance=1`), and a passage is
-read once by each model. `me index` keeps every passage as an embedding and
-`me search` finds the ones nearest a question in meaning, weighed with how
+(`media recipe said --like interview --weigh substance=1`), and a passage is
+read once by each model. `media index` keeps every passage as an embedding and
+`media search` finds the ones nearest a question in meaning, weighed with how
 good each is, so a passage that is on the subject and unusable does not come
 first. `--answers` has the text model check that each one answers the
 question and is not only about it, and `--cut` stores what was found as a
@@ -205,57 +205,57 @@ for a server that wants one. `CONSTRUCTIVE_MEDIA_EXTRA_TEXT` is a JSON object
 sent with every request, for whatever a server calls its own options. A model
 that thinks before it answers needs it, either to be told not to
 (`{"reasoning_effort": "none"}`, on a server that takes that) or to be allowed
-enough for both (`{"max_tokens": 2000}`); `me judge` says so when a model
+enough for both (`{"max_tokens": 2000}`); `media judge` says so when a model
 spends everything it was allowed and answers nothing.
 
 Try a model on a few passages you know before trusting it. One that marks
 filler as highly as an explanation adds noise, and small ones are strict to a
 fault about what answers a question.
 
-What a person decides is kept, with who decided and when. `me keep` and
-`me cut` rule a passage or a shot in or out, everywhere or for one episode,
-and `me prefer` records which of two was better. `me script` writes the
+What a person decides is kept, with who decided and when. `media keep` and
+`media cut` rule a passage or a shot in or out, everywhere or for one episode,
+and `media prefer` records which of two was better. `media script` writes the
 best passages out as a plain document in the order they were said; mark
-each one and `me script --read` stores the marks, and saying the same thing
+each one and `media script --read` stores the marks, and saying the same thing
 twice stores it once.
 
-`me compile` chooses shots for a cut. The best shots by score are the same
+`media compile` chooses shots for a cut. The best shots by score are the same
 shot over and over, so each pick is weighed for its quality less how much
 it looks like what is already picked, and the picks are ordered so that
 neighbours differ. Every run says how alike its neighbours are beside what
 the top of the list would have given. A `--seed` makes a variant, and the
 same seed makes the same one. A cut is revised by reacting to its clips with
-`me note` and compiling the next one `--after` it. `me timelines` lists the
-cuts and `me timeline` shows one.
+`media note` and compiling the next one `--after` it. `media timelines` lists the
+cuts and `media timeline` shows one.
 
-`me fit` teaches a model from the choices made with `me prefer`: which
+`media fit` teaches a model from the choices made with `media prefer`: which
 measurements of a shot go with being chosen, and by how much. It is tested on
 footage it was not fitted to, a whole shoot held out at a time, since shots
 from one shoot are alike enough to flatter a model that has seen their
 neighbours. The share it gets right is shown beside the half a coin would
 get. A model that has not beaten the coin by more than chance is stored with
 its figures and left unused. One that has gives every shot a `preferred`
-score, and a recipe made with `me recipe` can weigh it beside the rest.
+score, and a recipe made with `media recipe` can weigh it beside the rest.
 
-`me assemble` makes an interview into a cut. The passages a person kept go
+`media assemble` makes an interview into a cut. The passages a person kept go
 in first, then the best by a recipe until the cut is as long as it was asked
 to be, and every passage passed over is counted with the reason. Each one is
 seen through the take's main camera, or another that was rolling, and heard
 through a microphone before a camera: the one measured cleanest, or failing
 that the one whose words the recogniser was surest of. Quiet at either end
 of a passage is trimmed to what the style allows; only the ends move, so a
-filler in the middle of a passage stays where it was said. `me styles` lists
+filler in the middle of a passage stays where it was said. `media styles` lists
 the stored manners of cutting, and any one setting can be given on its own.
 A cut made `--after` another keeps the clips that were kept or adjusted,
 with their sound still in step, and leaves out what was dropped.
 
-`me cutaways` lays other footage over some of a cut's clips while the sound
+`media cutaways` lays other footage over some of a cut's clips while the sound
 carries on underneath: the middle of a long clip, or the whole of a short
 one, never the first. It leaves out shots with somebody filling the frame
 and anything recorded in the takes the cut is made from. A cutaway that was
 dropped is replaced by another of the same length.
 
-`me render` makes a cut into a file. Every clip is given a whole number of
+`media render` makes a cut into a file. Every clip is given a whole number of
 frames counted from the start of the cut, so rounding never adds up, and the
 sound is cut to the same count in samples: a long cut ends as much in step as
 it began. Sound that carries on from one clip to the next in the same
@@ -268,9 +268,9 @@ where the people in the shot were found. It reads the small copies made at
 ingest unless `--originals` is given, and `--megabytes` holds the file to a
 size. When it is done it looks at frames through the file and says so if
 they are not all the size that was asked for, and the file is recorded with
-the recordings it was made from, so `me lineage` can answer for it.
+the recordings it was made from, so `media lineage` can answer for it.
 
-`me export` hands a cut to an editing program. It writes FCPXML, which Final
+`media export` hands a cut to an editing program. It writes FCPXML, which Final
 Cut, Resolve and Premiere import as a timeline, the same cut as a CMX3600
 edit decision list for anything else, and a page that says what both point
 at. Nothing is copied: the files name the original recordings where they are
@@ -283,7 +283,7 @@ that sound under it and the camera's own switched off. A cut whose footage
 was shot at more than one rate says so, and so does one that points at a
 recording that is not there.
 
-`me conv` reads scripts in the [`.conv` format](https://github.com/constructive-io/conversation-format):
+`media conv` reads scripts in the [`.conv` format](https://github.com/constructive-io/conversation-format):
 who speaks, what they say, and the sounds and music under them. It reports
 everything wrong in a script at once, each problem with its line, what is
 wrong and the nearest thing that would be right, and `--json` prints the
@@ -293,7 +293,7 @@ format's own conformance files, which are kept in
 [`tests/fixtures/conversation-format`](./tests/fixtures/conversation-format), and it runs no
 model.
 
-`me say` renders a script. Everybody who speaks needs a voice (`me voice`),
+`media say` renders a script. Everybody who speaks needs a voice (`media voice`),
 and a server that speaks and a model that listens need to be set up; see
 [docs/ADAPTERS.md](./docs/ADAPTERS.md#speech). To hear a script before you
 have a speech model, [`examples/mac-voice-server.py`](./examples/mac-voice-server.py)
@@ -314,7 +314,7 @@ out/scene.manifest.json         each line's seed, takes and verdict, and where e
 A line no take of which passed is kept in the scene, marked `needs_review` in
 the manifest and put in `media_audio.review_queue` for a person to listen to.
 An echo or a room put on a line rings on under whatever follows: the next
-line comes in when the words end. `me say scene.conv out/scene.flac --only ada,7`
+line comes in when the words end. `media say scene.conv out/scene.flac --only ada,7`
 says again just one persona's lines and line 7, and keeps every other line as
 it was. A sound described by
 a `prompt:` cannot be made yet: give it a `file:`, or pass
@@ -339,9 +339,9 @@ A rendered script is filmed by a page that follows it. A script's
 the page is the built-in one, or any HTML of your own:
 
 ```sh
-me film out/scene.flac out/scene.mp4                    # the speakers and what they say
-me film out/talk.flac  out/talk.mp4 --page examples/talk   # a deck that follows the talk
-me stage out/talk.flac --page examples/talk             # the same in your browser, to scrub through
+media film out/scene.flac out/scene.mp4                 # the speakers and what they say
+media film out/talk.flac  out/talk.mp4 --page examples/talk  # a deck that follows the talk
+media stage out/talk.flac --page examples/talk          # the same in your browser, to scrub through
 ```
 
 Decks, documents that scroll with the voice, and walkthroughs with a pointer
@@ -352,11 +352,11 @@ A voice can be one the speech server has, or one cloned from a short clip of
 a voice you have the right to use:
 
 ```sh
-me clean recording.wav                 # is it clean enough to clone from, and what would mend it
-me reference recording.wav voices/ada/neutral.flac --from 12.5 --to 34 --listen
-me voice ada ada --reference voices/ada/neutral.flac --new
-me say --voice ada "The lantern is lit at dusk." out/line.wav
-me audition ada
+media clean recording.wav              # is it clean enough to clone from, and what would mend it
+media reference recording.wav voices/ada/neutral.flac --from 12.5 --to 34 --listen
+media voice ada ada --reference voices/ada/neutral.flac --new
+media say --voice ada "The lantern is lit at dusk." out/line.wav
+media audition ada
 ```
 
 On a Mac the speech can come from a model run in the engine's own process, with
@@ -368,8 +368,8 @@ that are meant to be shared live in a repository of their own, a library,
 where every voice carries its consent:
 
 ```sh
-me library add owner/lighthouse-voices
-me library voices lighthouse
+media library add owner/lighthouse-voices
+media library voices lighthouse
 ```
 
 That is [docs/LIBRARIES.md](./docs/LIBRARIES.md).
@@ -377,8 +377,8 @@ That is [docs/LIBRARIES.md](./docs/LIBRARIES.md).
 A project of your own starts from a template:
 
 ```sh
-me init workspace harbour-talks        # a pnpm workspace with a first deck in it
-me init deck quarterly-review          # another deck, in its packages/
+media init workspace harbour-talks     # a pnpm workspace with a first deck in it
+media init deck quarterly-review       # another deck, in its packages/
 ```
 
 The templates are in
@@ -431,10 +431,10 @@ engine knows by name, with its source and its license, is in
   adapters for tools under copyleft licenses, each a package of its own that
   you choose to install.
 - [media-boilerplates](https://github.com/constructive-io/media-boilerplates):
-  what `me init` starts a project from: a pnpm workspace, and what goes in
+  what `media init` starts a project from: a pnpm workspace, and what goes in
   one. A narrated deck, a walkthrough, an animation, and a document that is
   read aloud, filmed as it scrolls, and printed: each a script and a page that
-  `me film` turns into a video.
+  `media film` turns into a video.
 - [voice-boilerplates](https://github.com/constructive-io/voice-boilerplates):
   a template for a library of voices, sounds and faces in a repository of your
   own.

@@ -63,8 +63,8 @@ def write(
     if ranking.recipe.subject != "passage":
         raise EditError(f"recipe {recipe!r} ranks {ranking.recipe.subject}s; a script is made of passages")
     if not ranking.entries:
-        raise EditError("there are no ranked passages to write out. `me passages` finds them and "
-                        "`me score` scores them")
+        raise EditError("there are no ranked passages to write out. `media passages` finds them and "
+                        "`media score` scores them")
     entries = sorted(ranking.entries, key=lambda entry: (entry.source, entry.start_s))
     marked = decisions.standing(entry.subject_id for entry in entries)
     seconds = sum(entry.end_s - entry.start_s for entry in entries)

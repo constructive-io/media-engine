@@ -199,7 +199,7 @@ class InterviewTest(Talks):
         self.assertEqual(refused(), passed.format("with no camera rolling"))
         self.assertEqual(refused(take=None, project="made-up-nowhere"),
                          "nothing to make 'made-up-talk' from: recipe 'interview' ranks no passages here. "
-                         "`me passages` finds them and `me score` scores them")
+                         "`media passages` finds them and `media score` scores them")
         self.assertEqual(refused(recipe="broll"), "recipe 'broll' ranks shots; an interview is cut from passages")
         self.assertEqual([cut.name for cut in timelines.listing()], ["made-up-paused"])
 
@@ -549,13 +549,13 @@ class AssembleCommandsTest(Talks):
         self.assertEqual(status, 0)
         self.assertRegex(out.splitlines()[0], r"lighthouse\.mov with collar\.wav  kept  So how long")
         status, _, err = run("assemble", "made-up-other", "--take", "made-up-lighthouse")
-        self.assertEqual((status, err), (1, "me: nothing to make 'made-up-other' from: every passage looked at "
+        self.assertEqual((status, err), (1, "media: nothing to make 'made-up-other' from: every passage looked at "
                                             "was passed over (1 too few words)\n"))
         status, _, err = run("assemble", "made-up-other", "--style", "made-up-style")
-        self.assertEqual((status, err), (1, "me: no style is called 'made-up-style'; `me styles` lists them\n"))
+        self.assertEqual((status, err), (1, "media: no style is called 'made-up-style'; `media styles` lists them\n"))
         status, _, err = run("cutaways", "made-up-over", "--over", "made-up-talk", "--project", "made-up-nowhere")
         self.assertEqual(status, 1)
-        self.assertIn("me: nothing was laid over 'made-up-talk'", err)
+        self.assertIn("media: nothing was laid over 'made-up-talk'", err)
         status, out, _ = run("cutaways", "made-up-over", "--over", "made-up-talk", "--dry-run")
         self.assertEqual((status, out.splitlines()[-1]), (0, "nothing was written"))
         self.assertEqual(run("timelines")[1].splitlines()[-1], "1 timelines")

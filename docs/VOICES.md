@@ -20,8 +20,8 @@ not is refused.
 ## Say something
 
 ```sh
-me say --voice ada "The lantern is lit at dusk." out/line.wav
-me say --voice ada "Quietly, now." out/hush.wav --emotion whisper --seed 31
+media say --voice ada "The lantern is lit at dusk." out/line.wav
+media say --voice ada "Quietly, now." out/hush.wav --emotion whisper --seed 31
 ```
 
 The words are said, listened back to, and said again with another seed until a
@@ -41,12 +41,12 @@ What clones best, measured over many voices and models:
 | Form | one channel, 24 kHz, at -19 LUFS with peaks under -2 dB |
 | Words | exactly what is said in the finished clip, not in the recording it was cut from |
 
-`me reference` does the last two, and tells you about the rest:
+`media reference` does the last two, and tells you about the rest:
 
 ```sh
-me reference recording.wav                               # measure it, and say what is wrong with it
-me reference recording.wav voices/ada/neutral.flac --from 12.5 --to 34 --listen
-me reference recording.wav voices/ada/neutral.flac --from 12.5 --to 34 --tighten --listen
+media reference recording.wav                            # measure it, and say what is wrong with it
+media reference recording.wav voices/ada/neutral.flac --from 12.5 --to 34 --listen
+media reference recording.wav voices/ada/neutral.flac --from 12.5 --to 34 --tighten --listen
 ```
 
 Measuring says how long the recording is, how loud, whether it stops in the
@@ -73,9 +73,9 @@ cleaned as little as will do, because every cleaner takes some of the voice
 with the noise and a clone copies that loss as well.
 
 ```sh
-me clean recording.wav                 # measure it, and say what is worth doing
-me clean recording.wav cleaned.wav     # do that, and say what it gained and what the voice lost
-me clean recording.wav cleaned.wav --steps highpass,notch --hum 50
+media clean recording.wav              # measure it, and say what is worth doing
+media clean recording.wav cleaned.wav  # do that, and say what it gained and what the voice lost
+media clean recording.wav cleaned.wav --steps highpass,notch --hum 50
 ```
 
 What is measured is the quiet between phrases, the only place noise is heard
@@ -96,10 +96,10 @@ lost; a voice that lost more than a decibel was damaged, and it says that too.
 ## Give it to a persona
 
 ```sh
-me voice ada the-servers-name-for-a-voice --new                       # a voice the server has
-me voice ada ada --reference voices/ada/neutral.flac --new            # a voice cloned from a clip
-me voice ada ada-hushed --reference voices/ada/whisper.flac --emotion whisper
-me voices
+media voice ada the-servers-name-for-a-voice --new                    # a voice the server has
+media voice ada ada --reference voices/ada/neutral.flac --new         # a voice cloned from a clip
+media voice ada ada-hushed --reference voices/ada/whisper.flac --emotion whisper
+media voices
 ```
 
 The words of a clip are read from the `.txt` beside it, or given with
@@ -137,8 +137,8 @@ line with the last words of its own clip. Before a voice is used, hear it say
 a handful of lines and have them checked:
 
 ```sh
-me audition ada                       # eight lines, short and long, into audition/ada-neutral/
-me audition ada --lines lines.txt     # your own, one to a line
+media audition ada                    # eight lines, short and long, into audition/ada-neutral/
+media audition ada --lines lines.txt  # your own, one to a line
 ```
 
 Each line is said once, with no second chances, listened back to and checked

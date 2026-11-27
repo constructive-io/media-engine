@@ -553,7 +553,7 @@ def start(repo: str, name: str, called: str | None = None, *, where: str | Path 
         called = ask(Question(name=key, message=f"Enter {'workspace' if is_workspace else 'module'} name",
                               required=True), None)
     if not called or not slug(str(called)):
-        raise ScaffoldError(f"give it a name: me init {name} NAME")
+        raise ScaffoldError(f"give it a name: media init {name} NAME")
     folder = slug(str(called))
     notes: list[str] = []
     if is_workspace:
@@ -566,7 +566,7 @@ def start(repo: str, name: str, called: str | None = None, *, where: str | Path 
         into = where / "packages" / folder if found and found[0] == where else where / folder
         if template.requires and not found:
             notes.append(f"this is not inside a {template.requires} workspace, so it was made where you are. "
-                         "`me init workspace NAME` makes a workspace")
+                         "`media init workspace NAME` makes a workspace")
         given["moduleName"] = folder
         given.setdefault("packageIdentifier", folder)
         answers = answer(template, given, where=where, ask=ask, sources=sources)

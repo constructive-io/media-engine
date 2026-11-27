@@ -245,7 +245,7 @@ jobs:
       - name: Install ffmpeg
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
 
-      # `me film` is tested with a real browser, so there has to be one.
+      # `media film` is tested with a real browser, so there has to be one.
       - name: Find the browser
         run: |
           command -v google-chrome || command -v chromium || command -v chromium-browser \
@@ -301,4 +301,4 @@ jobs:
           if grep -q "skipped" "$RUNNER_TEMP/tests.log"; then echo "a test skipped itself"; exit 1; fi
 
       - name: The installed command line answers
-        run: cd "$RUNNER_TEMP" && me --version && me adapters
+        run: cd "$RUNNER_TEMP" && media --version && media adapters

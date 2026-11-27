@@ -280,7 +280,7 @@ def recipe(name: str) -> Recipe:
     for found in recipes():
         if found.name == name:
             return found
-    raise EditError(f"no recipe is called {name!r}; `me rank` lists them")
+    raise EditError(f"no recipe is called {name!r}; `media rank` lists them")
 
 
 def define(

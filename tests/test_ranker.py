@@ -354,7 +354,7 @@ class RankerCommandsTest(Preferences):
         self.assertEqual(lines[6], "  goes by, strongest first (+ more is preferred, - less is):")
         self.assertRegex(lines[7], r"^    \+\d+\.\d\d  sharpness$")
         self.assertEqual((len(lines), lines[-1]), (8 + len(ranker.FEATURES), "nothing stored; --save NAME keeps it"))
-        self.assertEqual(run("models")[1], "0 models; `me fit --save NAME` makes one\n")
+        self.assertEqual(run("models")[1], "0 models; `media fit --save NAME` makes one\n")
 
         status, out, _ = run("fit", "--save", "made-up-taste", "--scope", "harbour footage")
         self.assertEqual((status, out.splitlines()[-1]),
@@ -381,11 +381,11 @@ class RankerCommandsTest(Preferences):
 
     def test_what_cannot_be_done_is_said(self):
         self.assertEqual(run("fit", "--min-pairs", "500")[::2], (
-            1, "me: 45 choices between shots are on record, and a model needs 500. "
-               "`me pairs` lists pairs worth choosing between\n"))
+            1, "media: 45 choices between shots are on record, and a model needs 500. "
+               "`media pairs` lists pairs worth choosing between\n"))
         self.assertEqual(run("models", "made-up-other")[::2],
-                         (1, "me: no model is called 'made-up-other'; `me models` lists them\n"))
-        self.assertEqual(run("models", "--forget")[::2], (1, "me: name the model to forget\n"))
+                         (1, "media: no model is called 'made-up-other'; `media models` lists them\n"))
+        self.assertEqual(run("models", "--forget")[::2], (1, "media: name the model to forget\n"))
 
     def test_a_recipe_is_shown_made_and_changed(self):
         self.assertEqual(run("recipe", "broll")[1].splitlines()[1],
@@ -404,8 +404,8 @@ class RankerCommandsTest(Preferences):
         best = run("rank", "made-up-reel", "--top", "1")[1].splitlines()[0]
         self.assertRegex(best, rf"^  \d\.\d\d  {self.file[max(self.sharpness, key=self.sharpness.get)]}  ")
         self.assertEqual(run("recipe", "made-up-other")[::2],
-                         (1, "me: no recipe is called 'made-up-other'; `me rank` lists them\n"))
+                         (1, "media: no recipe is called 'made-up-other'; `media rank` lists them\n"))
         self.assertEqual(run("recipe", "made-up-reel", "--weigh", "sharper")[::2],
-                         (1, "me: --weigh takes SCORE=WEIGHT, as in preferred=0.5, not 'sharper'\n"))
+                         (1, "media: --weigh takes SCORE=WEIGHT, as in preferred=0.5, not 'sharper'\n"))
         self.assertEqual(run("recipe", "made-up-none", "--describe", "nothing")[::2],
-                         (1, "me: a recipe needs at least one score to weigh, each by more than nothing\n"))
+                         (1, "media: a recipe needs at least one score to weigh, each by more than nothing\n"))

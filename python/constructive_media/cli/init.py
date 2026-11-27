@@ -1,4 +1,4 @@
-"""`me init`: start a project from a boilerplate."""
+"""`media init`: start a project from a boilerplate."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-#: What `me init` is told with a flag of its own; any other `--name value` answers a question of the template.
+#: What `media init` is told with a flag of its own; any other `--name value` answers a question of the template.
 _OWN = ("--repo", "--dir", "--template", "-t", "--from-branch", "--refresh", "--no-cache", "--list", "--cwd",
         "--no-tty", "--bare", "--json", "--help", "-h")
 _TAKE_NO_VALUE = ("--refresh", "--no-cache", "--list", "--no-tty", "--bare", "--json", "--help", "-h")
@@ -18,12 +18,12 @@ def register(commands: argparse._SubParsersAction) -> None:
     command = commands.add_parser(
         "init", help="start a project from a boilerplate: a workspace, or a deck inside one",
         description="Start a project from a template: a folder of files with blanks in them, kept in a "
-                    "repository of boilerplates. `me init workspace NAME` makes a workspace, with a first deck "
-                    "in it when the boilerplates say so. Inside a workspace, `me init deck NAME` adds another to "
+                    "repository of boilerplates. `media init workspace NAME` makes a workspace, with a first deck "
+                    "in it when the boilerplates say so. Inside a workspace, `media init deck NAME` adds another to "
                     "its packages. A template's questions are asked, or answered with a flag each: "
                     "--title \"On tides\". Nothing in a template is run. The same boilerplates work with "
                     "`pgpm init --repo`.",
-        epilog="Which boilerplates are read is --repo, or CONSTRUCTIVE_MEDIA_BOILERPLATES. `me init --list` says "
+        epilog="Which boilerplates are read is --repo, or CONSTRUCTIVE_MEDIA_BOILERPLATES. `media init --list` says "
                "what templates they hold and what each asks.")
     command.add_argument("path", nargs="?", metavar="TEMPLATE",
                          help="the template: `workspace`, `module`, or another name the boilerplates give one "
@@ -46,7 +46,7 @@ def register(commands: argparse._SubParsersAction) -> None:
 
 
 def split(argv: list[str]) -> tuple[list[str], dict[str, Any]]:
-    """Take a template's answers out of what was typed: every `--name value` that is not a flag of `me init`."""
+    """Take a template's answers out of what was typed: every `--name value` that is not a flag of `media init`."""
     kept: list[str] = []
     answers: dict[str, Any] = {}
     at = 0

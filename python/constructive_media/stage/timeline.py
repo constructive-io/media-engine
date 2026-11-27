@@ -61,7 +61,7 @@ def read(manifest: str | Path) -> dict[str, Any]:
     if path.suffix != ".json":
         path = Path(f"{path.with_suffix('')}.manifest.json")
     if not path.is_file():
-        raise StageError(f"{path}: no such manifest. `me say` writes one beside the sound it renders")
+        raise StageError(f"{path}: no such manifest. `media say` writes one beside the sound it renders")
     try:
         report = json.loads(path.read_text(encoding="utf-8"))
     except ValueError:
@@ -87,7 +87,7 @@ def build(manifest: str | Path | dict[str, Any], folder: str | Path, *, size: tu
 
     mix = Path(report["output"])
     if not mix.is_file():
-        raise StageError(f"{mix}: the sound this manifest is of is not there. Render it again with `me say`")
+        raise StageError(f"{mix}: the sound this manifest is of is not there. Render it again with `media say`")
     sound = folder / f"sound{mix.suffix.lower() if mix.suffix.lower() in _PLAYS else '.wav'}"
     if sound.suffix == mix.suffix.lower():
         shutil.copyfile(mix, sound)

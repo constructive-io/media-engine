@@ -35,7 +35,7 @@ def register(commands: Any) -> None:
     command = commands.add_parser(
         "diarize", help="find the voices in each transcribed recording, and who speaks each line",
         description="Group a recording's speech by voice. Each voice gets a label (voice1 is whoever "
-                    "speaks most) and a card: a few seconds of it to listen to. Name them with `me name`.",
+                    "speaks most) and a card: a few seconds of it to listen to. Name them with `media name`.",
     )
     command.add_argument("--match", help=MATCH_HELP)
     command.add_argument("--voices", type=int, metavar="N",
@@ -58,7 +58,7 @@ def register(commands: Any) -> None:
         description="Tie one voice of one recording to a person. Every line it speaks there is then theirs.",
     )
     command.add_argument("recording", help="a regular expression matching one recording's path")
-    command.add_argument("voice", help="the voice's label, as `me speakers` shows it: voice1, voice2")
+    command.add_argument("voice", help="the voice's label, as `media speakers` shows it: voice1, voice2")
     command.add_argument("who", nargs="?", help="the person's name, or their slug")
     command.add_argument("--new", action="store_true", help="add this person if they are not known yet")
     command.add_argument("--character", action="store_true",
@@ -134,7 +134,7 @@ def run_name(arguments: argparse.Namespace) -> int | None:
     from ..speakers import names
 
     if (arguments.who is None) != arguments.clear:
-        print("me: give a name, or --clear to take one off", file=sys.stderr)
+        print("media: give a name, or --clear to take one off", file=sys.stderr)
         return 2
     recording, segments = names.name(
         arguments.recording, arguments.voice, arguments.who, new=arguments.new,

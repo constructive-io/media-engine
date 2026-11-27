@@ -1,16 +1,16 @@
 # The stage: a script to a video
 
-`me say` turns a [`.conv`](https://github.com/constructive-io/conversation-format)
+`media say` turns a [`.conv`](https://github.com/constructive-io/conversation-format)
 script into sound, and writes down when everything in it fell. The stage turns
 that into pictures: a page follows the recording, a browser with no window is
 watched while it does, and the pictures are laid under the sound.
 
 ```sh
-me say  talk.conv out/talk.flac              # the sound, and out/talk.manifest.json
-me film out/talk.flac out/talk.mp4           # a video of the built-in page
-me film out/talk.flac out/talk.mp4 --page deck    # a video of your own page
-me stage out/talk.flac --page deck           # the same page in your browser, with the sound, to scrub through
-me print deck out/talk.pdf                   # the page as a PDF
+media say  talk.conv out/talk.flac           # the sound, and out/talk.manifest.json
+media film out/talk.flac out/talk.mp4        # a video of the built-in page
+media film out/talk.flac out/talk.mp4 --page deck  # a video of your own page
+media stage out/talk.flac --page deck        # the same page in your browser, with the sound, to scrub through
+media print deck out/talk.pdf                # the page as a PDF
 ```
 
 The film is as long as the sound, to the frame. Filming is in real time: a
@@ -20,7 +20,7 @@ A film at 1920 by 1080 is written at up to 8 Mbit a second, which keeps small
 text sharp: a minute of slides comes to thirty megabytes or so. `--bitrate 1M`
 wrote the same minute in ten, its text still sharp. Dark gradients are the
 first thing to show a low rate, so look at a frame before sending one on.
-`me film` says how big the file came out.
+`media film` says how big the file came out.
 
 It needs `ffmpeg` and a Chrome or Chromium that is already installed. Nothing
 else is installed, and nothing of the browser is part of this package: see the
@@ -175,7 +175,7 @@ initials.
 
 ## The timeline
 
-`me stage out/talk.flac --write out/talk.stage` writes a folder that holds
+`media stage out/talk.flac --write out/talk.stage` writes a folder that holds
 everything a page needs, with every path relative, to serve from anywhere or
 copy into a site:
 
@@ -208,7 +208,7 @@ line starts, from 0 to `top`.
 
 ## A page that is not built on the player
 
-`me film out/talk.flac out/talk.mp4 --url http://localhost:3000/deck` films a
+`media film out/talk.flac out/talk.mp4 --url http://localhost:3000/deck` films a
 page served by something else: a site, an application, a deck made with any
 tool. It keeps this contract and nothing more:
 

@@ -16,7 +16,7 @@ def register(commands: Any) -> None:
                     "`[video …]` clip is put in from its own frames. The sound goes under it. Filming is in "
                     "real time. With no page, a plain one is filmed: the speakers and what they say.",
     )
-    command.add_argument("manifest", help="the manifest `me say` wrote, or the sound it is beside")
+    command.add_argument("manifest", help="the manifest `media say` wrote, or the sound it is beside")
     command.add_argument("output", help="the video to write, such as out/scene.mp4")
     _page(command)
     command.add_argument("--url", metavar="ADDRESS",
@@ -33,9 +33,9 @@ def register(commands: Any) -> None:
         "stage", help="watch the page that follows a render, in your own browser",
         description="Serve a page with a render's timeline and sound, and say where it is. Open the address "
                     "to watch it with the sound: space plays and stops, the arrows go from slide to slide. "
-                    "It is the same page `me film` films. It serves this machine only, until it is stopped.",
+                    "It is the same page `media film` films. It serves this machine only, until it is stopped.",
     )
-    command.add_argument("manifest", nargs="?", help="the manifest `me say` wrote, or the sound it is beside; "
+    command.add_argument("manifest", nargs="?", help="the manifest `media say` wrote, or the sound it is beside; "
                                                      "without one the page is stepped through by hand")
     _page(command)
     command.add_argument("--port", type=int, default=0, metavar="N", help="the port to serve on (default: any free one)")
@@ -69,7 +69,7 @@ def _size(written: str) -> tuple[int, int] | None:
     width, _, height = written.lower().partition("x")
     if width.isdigit() and height.isdigit():
         return int(width), int(height)
-    print(f"me: {written}: a size is a width and a height, such as 1920x1080", file=sys.stderr)
+    print(f"media: {written}: a size is a width and a height, such as 1920x1080", file=sys.stderr)
     return None
 
 
@@ -108,7 +108,7 @@ def run_stage(arguments: argparse.Namespace) -> int | None:
         faces = beside if beside.is_dir() else None
     if arguments.write:
         if not arguments.manifest:
-            print("me: --write needs the render whose timeline is written", file=sys.stderr)
+            print("media: --write needs the render whose timeline is written", file=sys.stderr)
             return 2
         made = timeline.build(arguments.manifest, arguments.write, size=size, fps=arguments.fps, faces=faces,
                               more_faces=libraries.faces(), tell=print)

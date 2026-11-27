@@ -119,7 +119,7 @@ class Keeping(DatabaseTest):
                          ["ada-field", "whisper", "http", "ada-hushed", "(seed 31, from a recording, provisional)"])
         self.assertEqual(lines[2], "2 voices for 1 personas")
 
-        # The words of a clip are read from beside it, where `me reference` writes them.
+        # The words of a clip are read from beside it, where `media reference` writes them.
         with tempfile.TemporaryDirectory() as folder:
             clip = Path(folder) / "ada.flac"
             clip.write_bytes(b"")
@@ -141,7 +141,7 @@ class Keeping(DatabaseTest):
         status, _, err = run("voice", "ada", "ada-plain", "--drop")
         self.assertEqual(status, 2)
         status, _, err = run("voice", "ada", "ada-plain")
-        self.assertEqual((status, err), (1, "me: nobody is called 'ada' yet; add --new to add them\n"))
+        self.assertEqual((status, err), (1, "media: nobody is called 'ada' yet; add --new to add them\n"))
         status, _, err = run("voice", "ada", "ada-plain", "--engine", "nothing-by-this-name", "--new")
         self.assertEqual(status, 1)
         self.assertIn("no 'speech' adapter named 'nothing-by-this-name'", err)

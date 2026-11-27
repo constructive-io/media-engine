@@ -1,4 +1,4 @@
-"""`me library`: voices, sound banks and faces from repositories of their own."""
+"""`media library`: voices, sound banks and faces from repositories of their own."""
 
 from __future__ import annotations
 
@@ -29,7 +29,7 @@ def register(commands: argparse._SubParsersAction) -> None:
         "add", help="add a library to this machine, from a folder or a git address",
         description="Add a library. A folder is used where it is; an address is cloned under the engine's home "
                     "and kept at the commit it was added at. `owner/name` is a repository on GitHub. Afterwards "
-                    "`@include` finds its banks, films find its faces, and `me library voices` gives its voices "
+                    "`@include` finds its banks, films find its faces, and `media library voices` gives its voices "
                     "to the personas here.")
     action.add_argument("source", help="a folder, the address of a git repository, owner/name on GitHub, or the "
                                        "name an index lists it under")
@@ -40,7 +40,7 @@ def register(commands: argparse._SubParsersAction) -> None:
         "search", help="look in the indexes for libraries, by any words",
         description="List the libraries the indexes of this machine name, or those every word given is found in: "
                     "by name, summary, tag, license or what they hold (voices, banks, faces). Which indexes are "
-                    "read is CONSTRUCTIVE_MEDIA_LIBRARY_INDEX. Add one that is found by its name: me library add NAME")
+                    "read is CONSTRUCTIVE_MEDIA_LIBRARY_INDEX. Add one that is found by its name: media library add NAME")
     action.add_argument("words", nargs="*", help="words to look for; none lists everything")
     action.add_argument("--refresh", action="store_true", help="fetch the indexes again before looking")
     action.add_argument("--json", action="store_true", help="print what was found as JSON")
@@ -54,7 +54,7 @@ def register(commands: argparse._SubParsersAction) -> None:
         "update", help="bring an added library to where its main branch is, or to a commit",
         description="Fetch an added library and move it to --ref, or to where its main branch now is. One that "
                     "has problems there is left where it was. Voices already given are not changed: give them "
-                    "again with `me library voices`.")
+                    "again with `media library voices`.")
     action.add_argument("name", help="the library's name")
     action.add_argument("--ref", metavar="COMMIT", help="the commit, tag or branch to bring it to")
     action.set_defaults(run=run_update)
@@ -78,7 +78,7 @@ def register(commands: argparse._SubParsersAction) -> None:
     action = actions.add_parser(
         "lock", help="write down which libraries are added and at what commit, for a project to keep",
         description="Write media-libraries.json: every library added to this machine, where it is from and the "
-                    "commit it is at. Commit that file with a project, and `me library install` gives anyone "
+                    "commit it is at. Commit that file with a project, and `media library install` gives anyone "
                     "else the same libraries.")
     action.add_argument("file", nargs="?", default=None, help="the file to write (default: media-libraries.json)")
     action.set_defaults(run=run_lock)
@@ -186,7 +186,7 @@ def run_search(arguments: argparse.Namespace) -> None:
         if one.summary:
             print(f"    {one.summary}")
         print(f"    {one.source}")
-    print("add one with: me library add NAME")
+    print("add one with: media library add NAME")
 
 
 def run_add(arguments: argparse.Namespace) -> None:
@@ -196,7 +196,7 @@ def run_add(arguments: argparse.Namespace) -> None:
     at = f" at {one.commit[:12]}" if one.commit else ""
     print(f"added {one.name}{at}, {_holds(checked.library)}: {one.folder}")
     if checked.library.voices:
-        print(f"give its voices to the personas here with: me library voices {one.name}")
+        print(f"give its voices to the personas here with: media library voices {one.name}")
 
 
 def run_list(arguments: argparse.Namespace) -> None:
@@ -210,7 +210,7 @@ def run_list(arguments: argparse.Namespace) -> None:
                                  "linked": one.linked} for name, one in found.items()}, indent=2))
         return
     if not found:
-        print("no library has been added. Add one with: me library add <a folder or a git address>")
+        print("no library has been added. Add one with: media library add <a folder or a git address>")
         return
     for name, one in found.items():
         checked = libraries.check(one.folder, measure=False)

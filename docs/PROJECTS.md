@@ -1,10 +1,10 @@
 # Starting a project
 
-`me init` starts a project from a template: a folder of files with blanks in
+`media init` starts a project from a template: a folder of files with blanks in
 them, kept in a repository of boilerplates.
 
 ```sh
-me init workspace harbour-talks       # a pnpm workspace, with a first deck in it
+media init workspace harbour-talks    # a pnpm workspace, with a first deck in it
 cd harbour-talks
 pnpm install                          # the script checker
 pnpm lint                             # every script is a script. Needs no voice
@@ -12,10 +12,10 @@ pnpm build                            # packages/first-talk/out/first-talk.mp4
 ```
 
 ```sh
-me init deck quarterly-review --title "The quarter in ten minutes"
-me init walkthrough first-day         # a tour of an application's screens, with a pointer
-me init animation how-it-works        # pictures the page draws, moving with the voice
-me init document annual-report        # a document read aloud, and the same page as a PDF
+media init deck quarterly-review --title "The quarter in ten minutes"
+media init walkthrough first-day      # a tour of an application's screens, with a pointer
+media init animation how-it-works     # pictures the page draws, moving with the voice
+media init document annual-report     # a document read aloud, and the same page as a PDF
 ```
 
 Each of these, run at the top of a pnpm workspace, puts a package in
@@ -29,7 +29,7 @@ unless you say otherwise.
 ## What a template asks
 
 ```sh
-me init --list
+media init --list
 ```
 
 ```
@@ -99,7 +99,7 @@ cd harbour-talks
 pgpm init --repo constructive-io/media-boilerplates --moduleName first-talk
 ```
 
-Both write the same files in the same places. `me init` reads the format with
+Both write the same files in the same places. `media init` reads the format with
 Python's standard library and needs no Node.
 
 ## Boilerplates of your own
@@ -137,10 +137,10 @@ media/
   reserved".
 - `requiresWorkspace` (`pnpm`, `pgpm`, `lerna`, `npm` or `false`) says which
   kind of workspace a module goes into the `packages/` of.
-- `aliases` and `first` are read by `me init` alone: other names for a
+- `aliases` and `first` are read by `media init` alone: other names for a
   template, and what a new workspace starts with.
 
 ```sh
-me init poster launch-night --repo your-org/your-boilerplates
+media init poster launch-night --repo your-org/your-boilerplates
 export CONSTRUCTIVE_MEDIA_BOILERPLATES=your-org/your-boilerplates
 ```

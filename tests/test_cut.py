@@ -298,7 +298,7 @@ class CompilationTest(Footage):
             select.compilation("made-up-reel", match="(")
 
     def test_nothing_to_choose_from_says_what_to_run(self):
-        with self.assertRaisesRegex(EditError, "ranks no shots matching 'nowhere'. `me score`"):
+        with self.assertRaisesRegex(EditError, "ranks no shots matching 'nowhere'. `media score`"):
             select.compilation("made-up-reel", match="nowhere")
         with self.assertRaisesRegex(EditError, "recipe 'interview' ranks passages"):
             select.compilation("made-up-reel", recipe="interview")
@@ -554,7 +554,7 @@ class ScriptTest(test_edit.Scored):
     def test_a_script_needs_ranked_passages(self):
         with self.assertRaisesRegex(EditError, "recipe 'broll' ranks shots; a script is made of passages"):
             script.write("broll")
-        with self.assertRaisesRegex(EditError, "no ranked passages to write out. `me passages` finds them"):
+        with self.assertRaisesRegex(EditError, "no ranked passages to write out. `media passages` finds them"):
             script.write(project="somewhere-else")
 
 
@@ -608,14 +608,14 @@ class CutCommandsTest(Footage):
 
     def test_what_cannot_be_done_is_said_plainly(self):
         self.assertEqual(run("compile", "made-up-reel", "--match", "nowhere")[::2], (
-            1, "me: nothing to choose from: recipe 'broll' ranks no shots matching 'nowhere'. "
-               "`me score` scores what has been analysed\n"))
+            1, "media: nothing to choose from: recipe 'broll' ranks no shots matching 'nowhere'. "
+               "`media score` scores what has been analysed\n"))
         self.assertEqual(run("timeline", "made-up-lost")[::2],
-                         (1, "me: no timeline is called 'made-up-lost'; `me timelines` lists them\n"))
+                         (1, "media: no timeline is called 'made-up-lost'; `media timelines` lists them\n"))
         run("compile", "made-up-reel", "--count", "2")
-        self.assertEqual(run("note", "made-up-reel", "1", "keep", "--never")[::2], (1, "me: --never goes with drop\n"))
+        self.assertEqual(run("note", "made-up-reel", "1", "keep", "--never")[::2], (1, "media: --never goes with drop\n"))
         self.assertEqual(run("note", "made-up-reel", "9", "drop")[::2],
-                         (1, "me: 'made-up-reel' has clips 1 to 2, and no clip 9\n"))
+                         (1, "media: 'made-up-reel' has clips 1 to 2, and no clip 9\n"))
         self.assertEqual(run("note", "made-up-reel", "1", "love")[0], 2)
         status, out, _ = run("compile", "made-up-all", "--count", "20", "--project", "made-up")
         self.assertEqual((status, out.splitlines()[-1]), (0, "20 were asked for and there were not that many to choose from"))
@@ -629,9 +629,9 @@ class CutCommandsTest(Footage):
                          f"preferred: shot {red} (harbour.mov 0:00.0-0:06.0) over shot {green} (harbour.mov 0:40.0-0:46.0)\n")
         self.assertEqual(run("prefer", red, green, "--why", "the boats")[1].split(":")[0], "already preferred")
         self.assertEqual(run("cut", green, "--episode", "made-up-lost")[::2],
-                         (1, "me: no episode is called 'made-up-lost'\n"))
+                         (1, "media: no episode is called 'made-up-lost'\n"))
         self.assertEqual(run("keep", "zzzzzz")[::2],
-                         (1, "me: 'zzzzzz' is not an id: give at least the first 6 characters of one\n"))
+                         (1, "media: 'zzzzzz' is not an id: give at least the first 6 characters of one\n"))
         status, out, _ = run("decisions", "--recent", "1")
         self.assertEqual(status, 0)
         self.assertEqual(out.splitlines()[:3], ["      2  shot keep  (human)", "      1  shot pref  (human)", "3 decisions"])
@@ -642,7 +642,7 @@ class CutCommandsTest(Footage):
         self.assertEqual((status, out), (0, (
             f"  {self.short('red-1')}  harbour.mov 0:00.0-0:06.0\n"
             f"  {self.short('red-2')}  harbour.mov 0:10.0-0:16.0  (0.010 apart in score, 1.00 alike)\n\n"
-            "1 pairs; answer each with `me prefer <chosen> <rejected>`\n")))
+            "1 pairs; answer each with `media prefer <chosen> <rejected>`\n")))
         self.assertEqual(run("pairs", "--mode", "contrast", "--count", "2")[1].count("alike"), 2)
 
     def test_a_script_is_written_marked_and_read(self):
@@ -663,4 +663,4 @@ class CutCommandsTest(Footage):
             self.assertEqual(run("script", "--read", str(path))[1].splitlines()[0],
                              "0 kept, 0 cut, 0 noted; 1 already on record, 0 left unmarked")
             self.assertEqual(run("script", "--read", str(Path(folder) / "lost.md"))[::2],
-                             (1, f"me: {Path(folder) / 'lost.md'} cannot be read: No such file or directory\n"))
+                             (1, f"media: {Path(folder) / 'lost.md'} cannot be read: No such file or directory\n"))

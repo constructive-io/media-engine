@@ -109,7 +109,7 @@ def apply(matches: list[Match], *, prefix: str = "take") -> tuple[int, list[tupl
             left.append((match, "its camera is in more than one take"))
             continue
         elif not is_primary and method is None:
-            left.append((match, "its camera has not been placed in its take yet; run `me sync` first"))
+            left.append((match, "its camera has not been placed in its take yet; run `media sync` first"))
             continue
         cur.execute("SELECT label FROM media.take_assets WHERE take_id = %s", (take_id,))
         used = {label for (label,) in cur.fetchall()}

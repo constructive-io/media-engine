@@ -15,7 +15,7 @@ holds. It is a folder, most often a git repository, with one file at its top:
       ]
     }
 
-`source` is what `me library add` would be given: `owner/name` on GitHub, or
+`source` is what `media library add` would be given: `owner/name` on GitHub, or
 an address that starts `https://`, `ssh://`, `git@` or `file://`. Nothing else
 is taken from an index, since an index is somebody else's file.
 

@@ -251,7 +251,7 @@ class AddedTest(InFolder):
         self.assertEqual([path.name for path in (self.folder / "home/libraries").iterdir()], ["lighthouse"])
         with self.assertRaises(LibraryError) as raised:
             libraries.add(f"file://{origin}", settings=self.settings)
-        self.assertIn("me library update lighthouse", str(raised.exception))
+        self.assertIn("media library update lighthouse", str(raised.exception))
 
         # The origin moves on: the library stays where it was until it is brought up to date.
         (origin / "banks/harbour.sounds").write_text("@sounds\nHORN: { file: rain.flac }\n")
@@ -310,7 +310,7 @@ class AddedTest(InFolder):
     def test_a_project_file_that_cannot_be_read_is_told(self):
         with self.assertRaises(LibraryError) as raised:
             libraries.install(self.folder / libraries.LOCK, settings=self.settings)
-        self.assertIn("`me library lock` writes one", str(raised.exception))
+        self.assertIn("`media library lock` writes one", str(raised.exception))
         (self.folder / libraries.LOCK).write_text('{"libraries": []}')
         with self.assertRaises(LibraryError) as raised:
             libraries.install(self.folder / libraries.LOCK, settings=self.settings)
@@ -444,7 +444,7 @@ class IndexTest(InFolder):
         with self.assertRaises(LibraryError) as raised:
             libraries.add("fog", settings=settings)
         self.assertIn("no index lists a library called `fog`", str(raised.exception))
-        self.assertIn("me library search", str(raised.exception))
+        self.assertIn("media library search", str(raised.exception))
         # An index says where a library is. What is there has to call itself the same.
         with self.assertRaises(LibraryError) as raised:
             libraries.add("tides", settings=settings)
@@ -508,7 +508,7 @@ class IndexTest(InFolder):
                 "    harbour-office/lighthouse-voices",
                 "tides",
                 "    owner/tides",
-                "add one with: me library add NAME"])
+                "add one with: media library add NAME"])
             self.assertEqual(run("library", "search", "weather", "--json")[1].count('"name"'), 1)
             self.assertEqual(run("library", "search", "fog", "light")[1], "nothing is listed with fog and light in it\n")
         with mock.patch.dict(os.environ, {"CONSTRUCTIVE_MEDIA_LIBRARY_INDEX": "none"}):

@@ -45,7 +45,7 @@ def register(commands: Any) -> None:
                     "where everything landed, and each track on its own with --stems. The render is written "
                     "down, and so is every line that should be listened to. With --voice there is no script: "
                     "the words are given, said in that persona's voice, checked the same way and written as "
-                    "the output, as in `me say --voice ada \"The lantern is lit.\" out.wav`.",
+                    "the output, as in `media say --voice ada \"The lantern is lit.\" out.wav`.",
     )
     command.add_argument("script", help="a .conv script; with --voice, the words to say")
     command.add_argument("output", help="the file to write; its ending says what kind, such as .flac or .wav")
@@ -57,7 +57,7 @@ def register(commands: Any) -> None:
     command.add_argument("--banks", action="append", default=[], metavar="FOLDER",
                          help="where `@include NAME` finds NAME.sounds; give it again for more folders "
                               "(default: a `banks` folder beside the script, then one here; the banks of "
-                              "libraries added with `me library add` are looked in after either)")
+                              "libraries added with `media library add` are looked in after either)")
     command.add_argument("--sounds", action="append", default=[], metavar="FOLDER",
                          help="where sound files are looked for before the script's own folder; "
                               "give it again for more folders")
@@ -111,7 +111,7 @@ def register(commands: Any) -> None:
                     "goes to a high-pass filter and a mains hum to notches, neither of which a voice minds; "
                     "hiss, and noise where the voice sits, go to the denoiser, which takes a little of the "
                     "voice too. A recording that is clean enough is left alone and nothing is written. Clean "
-                    "a recording before a clip is cut from it with `me reference`: a clone copies the noise.",
+                    "a recording before a clip is cut from it with `media reference`: a clone copies the noise.",
     )
     command.add_argument("recording", help="a recording of a voice")
     command.add_argument("output", nargs="?", help="the cleaned recording to write, such as clean.wav")
@@ -159,13 +159,13 @@ def run_voice(arguments: argparse.Namespace) -> int | None:
 
     if arguments.drop:
         if arguments.profile:
-            print("me: --drop takes a voice away; it does not take a profile", file=sys.stderr)
+            print("media: --drop takes a voice away; it does not take a profile", file=sys.stderr)
             return 2
         gone = speech.drop(slug(arguments.who), arguments.emotion)
         print(f"{gone} voices of {arguments.who} taken away")
         return None if gone else 1
     if not arguments.profile:
-        print("me: give the profile, what the adapter knows the voice by, or --drop to take a voice away",
+        print("media: give the profile, what the adapter knows the voice by, or --drop to take a voice away",
               file=sys.stderr)
         return 2
     if arguments.engine:
@@ -176,7 +176,7 @@ def run_voice(arguments: argparse.Namespace) -> int | None:
         reference = os.path.abspath(reference)   # found again from wherever the next command is run
     said = arguments.said
     beside = os.path.splitext(reference)[0] + ".txt" if reference else None
-    if said is None and beside and os.path.isfile(beside):   # where `me reference` writes a clip's words
+    if said is None and beside and os.path.isfile(beside):   # where `media reference` writes a clip's words
         with open(beside, encoding="utf-8") as written:
             said = written.read().strip() or None
     voice = speech.Voice(arguments.who, emotion, arguments.engine, arguments.profile, reference, said,
@@ -194,14 +194,14 @@ def run_say(arguments: argparse.Namespace) -> int | None:
     if arguments.voice:
         return _say_words(arguments)
     if arguments.emotion or arguments.seed is not None:
-        print("me: --emotion and --seed go with --voice; in a script they are written on the line",
+        print("media: --emotion and --seed go with --voice; in a script they are written on the line",
               file=sys.stderr)
         return 2
     if not os.path.isfile(arguments.script):
-        print(f"me: {arguments.script}: no such file", file=sys.stderr)
+        print(f"media: {arguments.script}: no such file", file=sys.stderr)
         return 2
     if arguments.as_mixed and arguments.loudness is not None:
-        print("me: --loudness and --as-mixed cannot both be given", file=sys.stderr)
+        print("media: --loudness and --as-mixed cannot both be given", file=sys.stderr)
         return 2
     from .. import conv, libraries, text
     from ..audio import line, scene
@@ -232,7 +232,7 @@ def run_say(arguments: argparse.Namespace) -> int | None:
 def _say_words(arguments: argparse.Namespace) -> int | None:
     given = [name for name in _OF_A_SCRIPT if getattr(arguments, name) not in (None, False, [])]
     if given:
-        print(f"me: --{given[0].replace('_', '-')} is for a script; --voice says the words it is given",
+        print(f"media: --{given[0].replace('_', '-')} is for a script; --voice says the words it is given",
               file=sys.stderr)
         return 2
     from ..audio import line, voice
@@ -257,7 +257,7 @@ def run_reference(arguments: argparse.Namespace) -> int | None:
     if not arguments.output:
         if (arguments.start is not None or arguments.end is not None or arguments.said or arguments.listen
                 or arguments.tighten is not None):
-            print("me: give the clip to write as well; with only a recording it is measured and nothing is cut",
+            print("media: give the clip to write as well; with only a recording it is measured and nothing is cut",
                   file=sys.stderr)
             return 2
         measured = voice.measure(arguments.recording)
@@ -303,7 +303,7 @@ def run_clean(arguments: argparse.Namespace) -> int | None:
         steps = [step.strip() for step in arguments.steps.split(",") if step.strip()]
     if not arguments.output:
         if steps is not None or arguments.hum:
-            print("me: give the recording to write as well; with only a recording it is measured and nothing "
+            print("media: give the recording to write as well; with only a recording it is measured and nothing "
                   "is cleaned", file=sys.stderr)
             return 2
         noise = clean.measure(arguments.recording)
@@ -315,7 +315,7 @@ def run_clean(arguments: argparse.Namespace) -> int | None:
         for said in why:
             print(f"  {said}")
         if advised:
-            print(f"  to do it: me clean {arguments.recording} CLEANED.wav")
+            print(f"  to do it: media clean {arguments.recording} CLEANED.wav")
         return None
     told = clean.clean(arguments.recording, arguments.output, steps=steps, hum=arguments.hum)
     if arguments.json:
@@ -368,7 +368,7 @@ def run_audition(arguments: argparse.Namespace) -> int | None:
     lines = voice.LINES
     if arguments.lines:
         if not os.path.isfile(arguments.lines):
-            print(f"me: {arguments.lines}: no such file", file=sys.stderr)
+            print(f"media: {arguments.lines}: no such file", file=sys.stderr)
             return 2
         with open(arguments.lines, encoding="utf-8") as file:
             lines = [line.strip() for line in file if line.strip() and not line.lstrip().startswith("#")]

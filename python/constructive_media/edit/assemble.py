@@ -156,7 +156,7 @@ def style(name: str) -> Style:
     cur = db.cursor()
     cur.execute("SELECT name, description, params FROM media_video.styles WHERE name = %s", (name,))
     if not (found := cur.fetchone()):
-        raise EditError(f"no style is called {name!r}; `me styles` lists them")
+        raise EditError(f"no style is called {name!r}; `media styles` lists them")
     return _style(*found)
 
 
@@ -477,7 +477,7 @@ def interview(
                + ", ".join(f"{count} {why}" for why, count in reasons.most_common()) + ")" if considered
                else f"recipe {recipe!r} ranks no passages here"
                + (f" ({withheld} left out for something said off the record)" if withheld else "")
-               + ". `me passages` finds them and `me score` scores them")
+               + ". `media passages` finds them and `media score` scores them")
         )
     in_order = shape.chronological and only is None
     ordered = sorted(parts, key=lambda part: (part.take, part.start_s)) if in_order else parts
@@ -602,7 +602,7 @@ def cutaways(
             + ("it was asked to cover none of its clips" if not wanted and not again
                else "none of its clips has room for a cutaway" if not open_to and not again
                else f"recipe {recipe!r} ranks no shot that is long enough, has nobody filling the frame and "
-                    f"was not recorded in the same take. `me score` scores what has been analysed")
+                    f"was not recorded in the same take. `media score` scores what has been analysed")
         )
     stored = timelines.save(
         name, [part for index, clip in enumerate(clips) for part in laid.get(index, [clip])], kind="mixed",

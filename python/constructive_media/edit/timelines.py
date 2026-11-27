@@ -216,7 +216,7 @@ def load(name: str) -> Timeline:
         (name,),
     )
     if not (found := cur.fetchone()):
-        raise EditError(f"no timeline is called {name!r}; `me timelines` lists them")
+        raise EditError(f"no timeline is called {name!r}; `media timelines` lists them")
     (timeline_id, name, kind, status, revision, project, title, seed, after, selector, episode, canvas, fit, params,
      style) = found
     cur.execute(
@@ -258,7 +258,7 @@ def mark(name: str, status: str) -> None:
     cur = db.cursor()
     cur.execute("UPDATE media_video.timelines SET status = %s WHERE name = %s RETURNING id", (status, name))
     if not cur.fetchone():
-        raise EditError(f"no timeline is called {name!r}; `me timelines` lists them")
+        raise EditError(f"no timeline is called {name!r}; `media timelines` lists them")
 
 
 def react(

@@ -29,7 +29,7 @@ def run_conv(arguments: argparse.Namespace) -> int:
 
     shared = libraries.banks()
     if arguments.json and len(arguments.scripts) > 1:
-        print("me: --json prints one script", file=sys.stderr)
+        print("media: --json prints one script", file=sys.stderr)
         return 2
     failed = 0
     for script in arguments.scripts:

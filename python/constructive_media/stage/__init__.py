@@ -1,6 +1,6 @@
 """The stage: a page that follows a recording, and a film of it.
 
-`me say` turns a script into sound and writes down when everything in it
+`media say` turns a script into sound and writes down when everything in it
 fell: each line, each `[slide …]`, each `[speakers …]`, each `[video …]`.
 The stage turns that into pictures.
 

@@ -190,7 +190,7 @@ def train(
         raise EditError(
             f"{len(found)} choices between shots are on record"
             + (f" matching {match!r}" if match else "")
-            + f", and a model needs {max(min_pairs, FEWEST)}. `me pairs` lists pairs worth choosing between"
+            + f", and a model needs {max(min_pairs, FEWEST)}. `media pairs` lists pairs worth choosing between"
         )
     theta, scale = _fitted(found, penalty)
     held_out_by, folds, accuracy, tested = "shoot", *_held_out(found, lambda example: example.shoots, penalty)
@@ -230,7 +230,7 @@ def load(name: str) -> Model:
     cur = db.cursor()
     cur.execute(_STORED + " AND name = %s", (name,))
     if not (found := cur.fetchone()):
-        raise EditError(f"no model is called {name!r}; `me models` lists them")
+        raise EditError(f"no model is called {name!r}; `media models` lists them")
     return _model(*found)
 
 

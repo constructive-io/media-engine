@@ -63,7 +63,7 @@ An adapter for a tool that does not meet the rule lives in a separate
 repository, [media-engine-plugins](https://github.com/constructive-io/media-engine-plugins),
 as a package of its own under that tool's license. The engine never imports a
 plugin by name. It discovers the ones you have installed, never makes one the
-default, and `me adapters` shows each with its license and where it came from.
+default, and `media adapters` shows each with its license and where it came from.
 Two are there now: `pedalboard` for the `effects` slot (GPL-3.0) and
 `ultralytics` for the `detection` slot (AGPL-3.0).
 

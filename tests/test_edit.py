@@ -656,9 +656,9 @@ class EditCommandsTest(Interview):
         self.assertEqual((status, out.splitlines()[0]), (0, "      1 passages  made-up-lighthouse  (1 removed)"))
         status, out, _ = run("passages", "--by", "sentence")
         self.assertEqual((status, out.splitlines()[-1]), (0, f"{SENTENCES} passages in 1 takes"))
-        self.assertEqual(run("passages", "no-such-take")[::2], (1, "me: no take is called 'no-such-take'; `me takes` lists them\n"))
+        self.assertEqual(run("passages", "no-such-take")[::2], (1, "media: no take is called 'no-such-take'; `media takes` lists them\n"))
         self.assertEqual(run("passages", "--by", "sentence", "--min-gap", "2")[::2],
-                         (1, "me: finding passages by sentence has no min_gap_s to set\n"))
+                         (1, "media: finding passages by sentence has no min_gap_s to set\n"))
 
     def test_flags_are_counted_by_kind(self):
         self.assertEqual(run("flag", "--match", "collar")[:2], (0, (
@@ -678,7 +678,7 @@ class EditCommandsTest(Interview):
         self.assertLessEqual(len(first), 150)
         self.assertEqual(rest, ["1 passages by interview",
                                 "1 left out: someone in them asks for it not to be used"])
-        self.assertEqual(run("rank", "made-up")[::2], (1, "me: no recipe is called 'made-up'; `me rank` lists them\n"))
+        self.assertEqual(run("rank", "made-up")[::2], (1, "media: no recipe is called 'made-up'; `media rank` lists them\n"))
 
     def test_rank_without_a_recipe_lists_them(self):
         status, out, _ = run("rank")

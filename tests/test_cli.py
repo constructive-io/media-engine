@@ -69,7 +69,7 @@ class CommandLineTest(unittest.TestCase):
         with mock.patch.dict(os.environ, nowhere), mock.patch("constructive_media.db._shared", None):
             status, out, err = run("status")
         self.assertEqual(status, 1)
-        self.assertTrue(err.startswith("me: "), err)
+        self.assertTrue(err.startswith("media: "), err)
         self.assertEqual(len(err.splitlines()), 1)
         self.assertNotIn("Traceback", out + err)
 
@@ -84,7 +84,7 @@ class CommandLineTest(unittest.TestCase):
     def test_a_bad_setting_is_reported_the_same_way(self):
         with mock.patch.dict(os.environ, {"CONSTRUCTIVE_MEDIA_DATABASE_URL": "mysql://db.example.test/x"}):
             status, _, err = run("status")
-        self.assertEqual((status, err.startswith("me: ")), (1, True))
+        self.assertEqual((status, err.startswith("media: ")), (1, True))
 
     def test_a_recogniser_that_cannot_run_is_reported_the_same_way(self):
         from constructive_media.models import ModelError
@@ -96,7 +96,7 @@ class CommandLineTest(unittest.TestCase):
                     mock.patch("constructive_media.audio.transcripts.transcribe", side_effect=failure), \
                     mock.patch("constructive_media.transcription.transcriber"):
                 status, _, err = run("transcribe")
-            self.assertEqual((status, err), (1, f"me: {failure}\n"))
+            self.assertEqual((status, err), (1, f"media: {failure}\n"))
 
 
 @unittest.skipUnless(HAVE_FFMPEG and HAVE_NUMPY, "ffmpeg and numpy are needed")
@@ -250,7 +250,7 @@ class SpeakerCommandsTest(DatabaseTest):
         self.assertTrue((cards / "voice2.wav").is_file())
 
         self.assertEqual(run("name", "meeting", "voice1", "Ada Example"),
-                         (1, "", "me: nobody is called 'Ada Example' yet; add --new to add them\n"))
+                         (1, "", "media: nobody is called 'Ada Example' yet; add --new to add them\n"))
         self.assertEqual(run("name", "meeting", "voice1", "Ada Example", "--new")[:2],
                          (0, "voice1 in meeting.wav is Ada Example: 1 segments\n"))
         self.assertEqual(run("name", "meeting", "voice1")[0], 2)

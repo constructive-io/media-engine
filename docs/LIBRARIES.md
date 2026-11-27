@@ -23,10 +23,10 @@ one file that says what is in it. The engine holds none of this; the
 not change for it.
 
 ```sh
-me library add owner/lighthouse-voices     # a repository on GitHub, or any git address, or a folder
-me library voices lighthouse               # give its voices to the personas here
-me say scene.conv out/scene.flac           # `@include weather` is found in it
-me film out/scene.flac out/scene.mp4       # and so is Ada's face
+media library add owner/lighthouse-voices  # a repository on GitHub, or any git address, or a folder
+media library voices lighthouse            # give its voices to the personas here
+media say scene.conv out/scene.flac        # `@include weather` is found in it
+media film out/scene.flac out/scene.mp4    # and so is Ada's face
 ```
 
 ## What a library holds
@@ -107,8 +107,8 @@ being easy to record.
 ## Check one
 
 ```sh
-me library check              # this folder
-me library check ../lighthouse-voices --json
+media library check           # this folder
+media library check ../lighthouse-voices --json
 ```
 
 Needs no database and no model. It reads the manifest and everything it
@@ -120,9 +120,9 @@ any, which makes it a check to run before every commit and in CI.
 ## Find one
 
 ```sh
-me library search                  # every library the indexes list
-me library search voices weather   # those with every word in them: a name, a summary, a tag, what they hold
-me library add lighthouse          # by the name it is listed under
+media library search               # every library the indexes list
+media library search voices weather  # those with every word in them: a name, a summary, a tag, what they hold
+media library add lighthouse       # by the name it is listed under
 ```
 
 An *index* is a list of libraries and where each one is, so that a library
@@ -147,9 +147,9 @@ often a repository, with one file at its top:
 ```
 
 It is called `media-index.json`. `name` is what the library calls itself and
-`source` is what `me library add` would be given: `owner/name` on GitHub, or
+`source` is what `media library add` would be given: `owner/name` on GitHub, or
 an address that starts `https://`, `ssh://`, `git@` or `file://`. `holds` is
-any of `voices`, `banks` and `faces`. `me library check FOLDER` reads an
+any of `voices`, `banks` and `faces`. `media library check FOLDER` reads an
 index as it reads a library, and says everything wrong with it.
 
 Which indexes a machine reads is a setting, with commas between and the first
@@ -167,20 +167,20 @@ and what was fetched before is still used.
 An index says where a library is, and nothing more. It does not vouch for it:
 a library found by name is read and checked as any other is, it is refused
 when what is at the address calls itself something else, and what a project
-writes down with `me library lock` is the address and the commit, so the same
+writes down with `media library lock` is the address and the commit, so the same
 render is made on a machine that reads no index at all. Anyone can keep one:
 it is a file in a repository.
 
 ## Use one
 
 ```sh
-me library add lighthouse                  # by name, from an index
-me library add owner/name                  # cloned under ~/.constructive-media/libraries
-me library add https://example.com/voices.git --ref v1.2.0
-me library add ../lighthouse-voices        # a folder, used where it is, to try a library as you write it
-me library list
-me library update lighthouse               # to where its main branch is now, or --ref
-me library remove lighthouse
+media library add lighthouse               # by name, from an index
+media library add owner/name               # cloned under ~/.constructive-media/libraries
+media library add https://example.com/voices.git --ref v1.2.0
+media library add ../lighthouse-voices     # a folder, used where it is, to try a library as you write it
+media library list
+media library update lighthouse            # to where its main branch is now, or --ref
+media library remove lighthouse
 ```
 
 A library is kept at the commit it was added at until you update it, so a
@@ -199,8 +199,8 @@ Once added:
   database:
 
   ```sh
-  me library voices lighthouse
-  me library voices lighthouse --only ada,grace
+  media library voices lighthouse
+  media library voices lighthouse --only ada,grace
   ```
 
   A persona who is not here yet is added. One who already has a voice from
@@ -209,12 +209,12 @@ Once added:
 ## Make the same render on another machine
 
 ```sh
-me library lock        # writes media-libraries.json: each library, where it is from, its commit
-me library install     # on the other machine: adds each at that commit
+media library lock     # writes media-libraries.json: each library, where it is from, its commit
+media library install  # on the other machine: adds each at that commit
 ```
 
 Commit `media-libraries.json` with the project. Voices are then given with
-`me library voices`, as above.
+`media library voices`, as above.
 
 ## Write one
 
@@ -223,9 +223,9 @@ Start from the template in
 which has the layout above, a check that runs in CI, and a `.gitignore` that
 keeps recordings out. Then:
 
-1. Record, and cut each clip with `me reference`.
+1. Record, and cut each clip with `media reference`.
 2. Write each voice down in `media-library.json`, with its consent.
-3. `me library check`, then `me library add .` and `me audition ada`.
+3. `media library check`, then `media library add .` and `media audition ada`.
 4. Commit the clips and their words. Keep the recordings they were cut from
    somewhere else: a library of clips is small, and stays quick to clone.
 
