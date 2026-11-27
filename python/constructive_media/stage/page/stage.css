@@ -61,6 +61,8 @@
   visibility: visible;
   transition: opacity 0.4s ease;
 }
+/* Until the first moment is on the page nothing fades: a film does not open on the slides it is putting away. */
+.stage-starting [data-slide] { transition: none !important; }
 :where(.stage-deck, .stage-walkthrough) [data-slide] :where(h1) { font-size: 2.4em; line-height: 1.08; margin: 0 0 0.4em; }
 :where(.stage-deck, .stage-walkthrough) [data-slide] :where(h2) { font-size: 1.6em; line-height: 1.12; margin: 0 0 0.5em; }
 :where(.stage-deck, .stage-walkthrough) [data-slide] :where(p, li) { margin: 0 0 0.5em; }
@@ -72,6 +74,47 @@
   transition: opacity 0.45s ease, transform 0.45s ease;
 }
 :where(.stage-deck, .stage-walkthrough) [data-step].is-shown { opacity: 1; transform: none; }
+
+/*
+ * How something arrives, when the page says: data-enter="rise | fade | left | right | grow | pop | wipe | draw".
+ * On a step it happens when the voice reaches the step. On anything else in a slide, when the slide comes on.
+ * `--stage-delay` holds one back, for things that come in a row, and `--stage-time` is how long it takes.
+ */
+:where(.stage-deck, .stage-walkthrough) [data-enter] {
+  opacity: 0;
+  transform: translateY(18px);
+  transition:
+    opacity var(--stage-time, 0.45s) ease var(--stage-delay, 0s),
+    transform var(--stage-time, 0.45s) ease var(--stage-delay, 0s),
+    clip-path var(--stage-time, 0.7s) ease var(--stage-delay, 0s);
+}
+:where(.stage-deck, .stage-walkthrough) [data-enter="fade"] { transform: none; }
+:where(.stage-deck, .stage-walkthrough) [data-enter="left"] { transform: translateX(-90px); }
+:where(.stage-deck, .stage-walkthrough) [data-enter="right"] { transform: translateX(90px); }
+:where(.stage-deck, .stage-walkthrough) [data-enter="grow"],
+:where(.stage-deck, .stage-walkthrough) [data-enter="pop"] { transform: scale(0.8); transform-box: fill-box; transform-origin: 50% 50%; }
+:where(.stage-deck, .stage-walkthrough) [data-enter="pop"] { transform: scale(0.4); transition-timing-function: cubic-bezier(0.2, 1.5, 0.4, 1); }
+:where(.stage-deck, .stage-walkthrough) [data-enter="wipe"] { opacity: 1; transform: none; clip-path: inset(0 100% 0 0); }
+/* A shape that is drawn in: the player measures each as one long, so one rule draws any of them. */
+:where(.stage-deck, .stage-walkthrough) [data-enter="draw"] { transform: none; transition: opacity 0.1s linear var(--stage-delay, 0s); }
+:where(.stage-deck, .stage-walkthrough) [data-enter="draw"]:where(path, line, polyline, polygon, circle, ellipse, rect),
+:where(.stage-deck, .stage-walkthrough) [data-enter="draw"] :where(path, line, polyline, polygon, circle, ellipse, rect) {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  transition: stroke-dashoffset var(--stage-time, 1.2s) ease var(--stage-delay, 0s), opacity 0.1s linear var(--stage-delay, 0s);
+}
+:where(.stage-deck, .stage-walkthrough) [data-step][data-enter].is-shown,
+:where(.stage-deck, .stage-walkthrough) [data-slide].is-current [data-enter]:not([data-step]) {
+  opacity: 1;
+  transform: none;
+  clip-path: inset(0);
+}
+:where(.stage-deck, .stage-walkthrough) [data-step][data-enter="draw"].is-shown:where(path, line, polyline, polygon, circle, ellipse, rect),
+:where(.stage-deck, .stage-walkthrough) [data-step][data-enter="draw"].is-shown :where(path, line, polyline, polygon, circle, ellipse, rect),
+:where(.stage-deck, .stage-walkthrough) [data-slide].is-current [data-enter="draw"]:not([data-step]):where(path, line, polyline, polygon, circle, ellipse, rect),
+:where(.stage-deck, .stage-walkthrough) [data-slide].is-current [data-enter="draw"]:not([data-step]) :where(path, line, polyline, polygon, circle, ellipse, rect) {
+  stroke-dashoffset: 0;
+}
 
 /* ---- a document: one page that goes to where the voice is */
 

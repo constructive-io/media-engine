@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+from pathlib import Path
 
 
 def register(commands: argparse._SubParsersAction) -> None:
@@ -30,9 +31,20 @@ def register(commands: argparse._SubParsersAction) -> None:
                     "and kept at the commit it was added at. `owner/name` is a repository on GitHub. Afterwards "
                     "`@include` finds its banks, films find its faces, and `me library voices` gives its voices "
                     "to the personas here.")
-    action.add_argument("source", help="a folder, the address of a git repository, or owner/name on GitHub")
+    action.add_argument("source", help="a folder, the address of a git repository, owner/name on GitHub, or the "
+                                       "name an index lists it under")
     action.add_argument("--ref", metavar="COMMIT", help="the commit, tag or branch to keep it at")
     action.set_defaults(run=run_add)
+
+    action = actions.add_parser(
+        "search", help="look in the indexes for libraries, by any words",
+        description="List the libraries the indexes of this machine name, or those every word given is found in: "
+                    "by name, summary, tag, license or what they hold (voices, banks, faces). Which indexes are "
+                    "read is CONSTRUCTIVE_MEDIA_LIBRARY_INDEX. Add one that is found by its name: me library add NAME")
+    action.add_argument("words", nargs="*", help="words to look for; none lists everything")
+    action.add_argument("--refresh", action="store_true", help="fetch the indexes again before looking")
+    action.add_argument("--json", action="store_true", help="print what was found as JSON")
+    action.set_defaults(run=run_search)
 
     action = actions.add_parser("list", help="the libraries added, and what each holds")
     action.add_argument("--json", action="store_true", help="print them as JSON")
@@ -90,8 +102,10 @@ def _holds(library) -> str:
 def run_check(arguments: argparse.Namespace) -> int | None:
     import json
 
-    from .. import libraries
+    from .. import indexes, libraries
 
+    if indexes.is_index(arguments.folder) and not (Path(arguments.folder).expanduser() / libraries.MANIFEST).is_file():
+        return _check_index(arguments)
     checked = libraries.check(arguments.folder)
     library = checked.library
     if arguments.json:
@@ -113,6 +127,66 @@ def run_check(arguments: argparse.Namespace) -> int | None:
         return 1
     print(f"ok: {library.name}, {_holds(library)}")
     return None
+
+
+def _check_index(arguments: argparse.Namespace) -> int | None:
+    import json
+
+    from .. import indexes
+
+    checked = indexes.check(arguments.folder)
+    if arguments.json:
+        print(json.dumps({"index": checked.name, "problems": list(checked.problems), "notes": list(checked.notes),
+                          "libraries": [_listed(one) for one in checked.listed]}, indent=2, ensure_ascii=False))
+        return 1 if checked.problems else None
+    for problem in checked.problems:
+        print(problem)
+    for note in checked.notes:
+        print(f"note: {note}")
+    if checked.problems:
+        count = len(checked.problems)
+        print(f"{count} problem{'' if count == 1 else 's'}: this is not an index yet", file=sys.stderr)
+        return 1
+    count = len(checked.listed)
+    print(f"ok: the index {checked.name}, {count} librar{'y' if count == 1 else 'ies'}")
+    return None
+
+
+def _listed(one) -> dict:
+    return {"name": one.name, "source": one.source, "summary": one.summary, "license": one.license,
+            "holds": list(one.holds), "tags": list(one.tags), "index": one.index}
+
+
+def run_search(arguments: argparse.Namespace) -> None:
+    import json
+
+    from .. import indexes, libraries
+    from ..settings import Settings
+
+    settings = Settings.from_env()
+
+    def aside(message: str) -> None:
+        print(message, file=sys.stderr)
+
+    found = indexes.search(arguments.words, settings, refresh=arguments.refresh, tell=aside)
+    if arguments.json:
+        print(json.dumps([_listed(one) for one in found], indent=2, ensure_ascii=False))
+        return
+    if not settings.indexes:
+        print("this machine reads no index. Name one in CONSTRUCTIVE_MEDIA_LIBRARY_INDEX, or add a library by "
+              "its address")
+        return
+    if not found:
+        print("nothing is listed" + (f" with {' and '.join(arguments.words)} in it" if arguments.words else ""))
+        return
+    here = libraries.added(settings)
+    for one in found:
+        about = ", ".join(part for part in (" and ".join(one.holds), one.license) if part)
+        print(f"{one.name}" + (f"  ({about})" if about else "") + ("  added" if one.name in here else ""))
+        if one.summary:
+            print(f"    {one.summary}")
+        print(f"    {one.source}")
+    print("add one with: me library add NAME")
 
 
 def run_add(arguments: argparse.Namespace) -> None:

@@ -117,9 +117,64 @@ clone from; every bank reads; every sound a bank plays is there; every face
 is a picture. Every problem is said at once, and it exits 1 when there are
 any, which makes it a check to run before every commit and in CI.
 
+## Find one
+
+```sh
+me library search                  # every library the indexes list
+me library search voices weather   # those with every word in them: a name, a summary, a tag, what they hold
+me library add lighthouse          # by the name it is listed under
+```
+
+An *index* is a list of libraries and where each one is, so that a library
+can be found by what it holds and added by its name. It is a folder, most
+often a repository, with one file at its top:
+
+```json
+{
+  "index": "harbour",
+  "summary": "Libraries kept by the harbour office.",
+  "libraries": [
+    {
+      "name": "lighthouse",
+      "source": "harbour-office/lighthouse-voices",
+      "summary": "The keepers of the light, and the weather they keep it in.",
+      "license": "CC-BY-4.0",
+      "holds": ["voices", "banks", "faces"],
+      "tags": ["weather"]
+    }
+  ]
+}
+```
+
+It is called `media-index.json`. `name` is what the library calls itself and
+`source` is what `me library add` would be given: `owner/name` on GitHub, or
+an address that starts `https://`, `ssh://`, `git@` or `file://`. `holds` is
+any of `voices`, `banks` and `faces`. `me library check FOLDER` reads an
+index as it reads a library, and says everything wrong with it.
+
+Which indexes a machine reads is a setting, with commas between and the first
+to name a library believed:
+
+```sh
+export CONSTRUCTIVE_MEDIA_LIBRARY_INDEX=constructive-io/media-libraries,~/indexes/ours
+export CONSTRUCTIVE_MEDIA_LIBRARY_INDEX=none      # read none: libraries are added by address only
+```
+
+An index at an address is cloned under the engine's home and looked at again
+once a day, or with `--refresh`. One that cannot be reached is passed over,
+and what was fetched before is still used.
+
+An index says where a library is, and nothing more. It does not vouch for it:
+a library found by name is read and checked as any other is, it is refused
+when what is at the address calls itself something else, and what a project
+writes down with `me library lock` is the address and the commit, so the same
+render is made on a machine that reads no index at all. Anyone can keep one:
+it is a file in a repository.
+
 ## Use one
 
 ```sh
+me library add lighthouse                  # by name, from an index
 me library add owner/name                  # cloned under ~/.constructive-media/libraries
 me library add https://example.com/voices.git --ref v1.2.0
 me library add ../lighthouse-voices        # a folder, used where it is, to try a library as you write it

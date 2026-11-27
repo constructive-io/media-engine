@@ -71,6 +71,15 @@ trained on VoxCeleb and published under Apache-2.0, as ONNX files.
 | `resnet34` | ResNet34: as good, at about a third of the speed | Apache-2.0 | [Wespeaker/wespeaker-voxceleb-resnet34](https://huggingface.co/Wespeaker/wespeaker-voxceleb-resnet34) |
 | `resnet221_lm` | ResNet221: the surest that two voices are two, at a twelfth of the speed | Apache-2.0 | [Wespeaker/wespeaker-voxceleb-resnet221-LM](https://huggingface.co/Wespeaker/wespeaker-voxceleb-resnet221-LM) |
 
+## Speech: text to a voice
+
+The `http` adapter names no model: the server it reaches has its own. The
+`mlx` adapter, which runs one on a Mac, loads Qwen3-TTS when no other is named:
+`mlx-community/Qwen3-TTS-12Hz-1.7B-Base-bf16`, a conversion for MLX of
+[Qwen3-TTS](https://huggingface.co/Qwen/Qwen3-TTS-12Hz-1.7B-Base), published
+under Apache-2.0. It is fetched by mlx-audio the first time a line is said,
+and it clones a voice from a clip of 15 to 28 seconds and the words said in it.
+
 ## Models you bring
 
 Three slots reach a model through a server you run or rent, and know no model

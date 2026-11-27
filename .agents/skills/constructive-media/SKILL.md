@@ -4,7 +4,7 @@ description: Constructive Media — one engine for video, images, audio and voic
 compatibility: Python 3.11+, PostgreSQL 17+ with pgvector, pgpm, ffmpeg, whisper.cpp; Chrome or Chromium for video of a page
 metadata:
   author: constructive-io
-  version: "0.3.0"
+  version: "0.4.0"
 ---
 
 # Constructive Media
@@ -178,7 +178,16 @@ engine hands both over; a page never carries a copy) and marks its parts:
 | `<body data-stage="deck">` | one slide at a time. `document` scrolls to what is being read; `walkthrough` moves a pointer across a screen; `plain` leaves the page alone |
 | `data-slide="pricing"` | what `[slide pricing]` shows |
 | `data-step="2"` | revealed at `step:2` |
+| `data-enter="left"` | how it arrives: `rise`, `fade`, `left`, `right`, `grow`, `pop`, `wipe`, or `draw` for an SVG stroke. `style="--stage-delay: 0.15s"` holds one back, `--stage-time` is how long it takes |
 | `data-point="60%,40%"` | where a walkthrough's pointer goes |
+
+A build per spoken line reads best: put `[slide ID step:N]` before the line
+that speaks of it. `body[data-stage-speaker="ada"]` styles the page by who is
+talking. What a page draws itself, a chart filling or a clock, is drawn from
+`window.stage.since('pricing', 2)`, the seconds since the script reached that
+step (null before it), so the film and the preview agree. The engine names
+whoever speaks first at the bottom left: keep that corner of a slide clear.
+All of it is in [docs/STAGE.md](../../../docs/STAGE.md).
 
 There is a deck in [`examples/talk`](../../../examples/talk).
 
@@ -217,10 +226,18 @@ me say --voice ada --emotion whisper "Bring the map." out/quiet.wav
 recording. The clip is 15 to 28 seconds of one person in one mood:
 
 ```sh
+me clean recording.wav                 # how noisy it is, and what is worth doing about it
+me clean recording.wav cleaned.wav     # do that; a recording that is clean enough is left alone
 me reference recording.wav voices/ada/neutral.flac --from 12 --to 34 --listen
 me voice ada ada --reference voices/ada/neutral.flac --new
 me audition ada --out out/audition
 ```
+
+End the clip in the quiet after a complete sentence (`--to`), and make its
+words exactly what is heard: a model goes on from where its clip stops, so a
+clip that ends mid-word is heard at the start of every line. `--tighten`
+shortens long pauses. On a Mac with no speech server, `pip install mlx-audio`
+and `CONSTRUCTIVE_MEDIA_ADAPTER_SPEECH=mlx` run the model in the engine itself.
 
 `me reference` cuts the clip, sets its loudness, writes the words said in it
 beside it and says what is wrong with it. `me audition` says a set of lines
@@ -233,7 +250,8 @@ voice, who consented:
 
 ```sh
 me library check my-library                 # is it a library, and what is wrong with it
-me library add owner/lighthouse-voices      # a GitHub repository, any git address, or a folder
+me library search weather voices            # look in the indexes for a library, by any words
+me library add owner/lighthouse-voices      # a GitHub repository, any git address, a folder, or a name an index lists
 me library voices lighthouse                # give its voices to the personas here
 me library lock                             # write media-libraries.json beside your scripts
 me library install                          # on another machine: the same libraries at the same commits

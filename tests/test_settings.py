@@ -91,6 +91,13 @@ class SettingsTest(unittest.TestCase):
         self.assertIsNone(settings.adapter("speech"))
         self.assertIsNone(settings.adapter("image"))
 
+    def test_where_libraries_are_found_by_name(self):
+        self.assertEqual(Settings.from_env({}).indexes, ("constructive-io/media-libraries",))
+        chosen = Settings.from_env({"CONSTRUCTIVE_MEDIA_LIBRARY_INDEX": " ~/indexes/ours , owner/theirs,"})
+        self.assertEqual(chosen.indexes, ("~/indexes/ours", "owner/theirs"))
+        for nowhere in ("none", "OFF"):
+            self.assertEqual(Settings.from_env({"CONSTRUCTIVE_MEDIA_LIBRARY_INDEX": nowhere}).indexes, ())
+
     def test_settings_cannot_be_changed_after_reading(self):
         settings = Settings.from_env({"CONSTRUCTIVE_MEDIA_ADAPTER_EFFECTS": "studio"})
         with self.assertRaises(AttributeError):

@@ -18,7 +18,8 @@ that does the job.
 | `transcription` | speech to text, with word timings | `whispercpp` |
 | `detection` | objects and people in a frame | `onnx`, `torchvision` |
 | `speaker` | a voice as numbers, alike for one person and apart for two | `onnx` |
-| `speech` | text to speech | `http` |
+| `speech` | text to speech | `http`, `mlx` |
+| `denoise` | a voice with the noise under it taken off | `ffmpeg` |
 | `voice_conversion` | one voice re-spoken in another | |
 | `image` | image generation | |
 | `video` | video generation | |
@@ -319,9 +320,52 @@ cloned voices and the server's own. Making a clip, auditioning a voice and
 sharing voices in a library are in [VOICES.md](./VOICES.md) and
 [LIBRARIES.md](./LIBRARIES.md).
 
-A model that clones a voice on your own machine without a server is a plugin:
-its adapter is handed the voice's reference recording and the words said in
-it, and it is chosen per voice, by the voice's `engine`.
+### On a Mac, with no server
+
+The `mlx` adapter runs a speech model in the engine's own process on Apple
+silicon, through [mlx-audio](https://github.com/Blaizzy/mlx-audio):
+
+```sh
+pip install "constructive-media[audio]" mlx-audio
+export CONSTRUCTIVE_MEDIA_ADAPTER_SPEECH=mlx
+me say --voice ada "The lantern is lit at dusk." out/line.wav
+```
+
+Left to itself it loads Qwen3-TTS, which clones a voice from its clip and the
+words said in it; `CONSTRUCTIVE_MEDIA_MODEL_SPEECH` names another model
+mlx-audio can load, as a folder or a repository on Hugging Face. The first
+line waits for the model to be fetched, a few gigabytes. A line is said at a
+temperature of 0.3, which keeps a clone close to its clip;
+`CONSTRUCTIVE_MEDIA_EXTRA_SPEECH='{"temperature": 0.5, "language": "french"}'`
+changes what it is said with. Two models on one graphics processor at once can
+stop a machine dead, so every `me` on a machine takes turns: a line is said
+while holding one lock under the engine's home.
+
+mlx-audio is MIT, and is not one of the engine's extras because it brings two
+packages under MPL-2.0 with it, tqdm and certifi. You install it yourself,
+knowing that; the engine needs neither.
+
+Any other model that runs in the engine's own process is an adapter too, built
+in when everything it needs is within [the rule](./LICENSING.md) and a plugin
+when it is not. It is handed the voice's clip and the words said in it, and
+can be chosen per voice, by the voice's `engine`.
+
+## Denoise
+
+A denoiser is given a recording of a voice and writes it again with less of
+the noise that was under it:
+
+```python
+from constructive_media.denoise import denoiser
+
+denoiser().clean("recording.wav", "cleaned.wav", floor=-52.0)   # floor: how loud the noise is, when it is known
+```
+
+The built-in one is ffmpeg's own (`afftdn`), which takes a steady hiss down
+by ten decibels or so and leaves the voice nearly as it was. It is the last
+thing `me clean` reaches for, after the filters that cost a voice nothing; see
+[VOICES.md](./VOICES.md#clean-a-recording-first). A model that does better is
+an adapter in this slot.
 
 ## Effects
 

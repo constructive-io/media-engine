@@ -135,6 +135,22 @@ class ServeTest(unittest.TestCase):
             self.assertTrue((PAGE / name).is_file(), name)
         self.assertIn("window.__stage", (PAGE / "stage.js").read_text())
 
+    def test_the_ways_a_thing_arrives_are_all_in_the_sheet_and_the_player_says_when(self):
+        sheet, player = (PAGE / "stage.css").read_text(), (PAGE / "stage.js").read_text()
+        for way in ("fade", "left", "right", "grow", "pop", "wipe", "draw"):
+            self.assertIn(f'[data-enter="{way}"]', sheet, way)
+        for held in ("var(--stage-delay, 0s)", "var(--stage-time, "):
+            self.assertIn(held, sheet)
+        # What is written in docs/STAGE.md for a page to use.
+        for said in ("when: function (slide, step)", "since: function (slide, step)", "body.dataset.stageSpeaker",
+                     "setAttribute('pathLength', '1')"):
+            self.assertIn(said, player)
+        written = (PAGE.parents[3] / "docs" / "STAGE.md").read_text()
+        for way in ("rise", "fade", "left", "right", "grow", "pop", "wipe", "draw"):
+            self.assertIn(f"| `{way}` |", written, way)
+        for said in ("--stage-delay", "--stage-time", "stage.since(", "stage.when(", "data-stage-speaker"):
+            self.assertIn(said, written)
+
     def test_what_is_written_on_a_panel_does_not_take_the_page_s_ink(self):
         # A page with dark ink on a light ground still has captions on a dark panel.
         sheet = (PAGE / "stage.css").read_text()

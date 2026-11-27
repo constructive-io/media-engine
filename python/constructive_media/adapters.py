@@ -49,6 +49,7 @@ SLOTS: dict[str, str] = {
     "video": "video generation",
     "lip_sync": "a face re-timed to new speech",
     "effects": "audio effects",
+    "denoise": "a voice with the noise under it taken off",
     "text": "text generation and judgement",
     "embedding": "text and image embeddings",
     "browser": "a page opened and watched, for a film of it",
@@ -233,6 +234,20 @@ def builtins() -> Iterator[Adapter]:
         factory=lazy("constructive_media.speech.http:SpeechServer"),
         license="MIT",
         summary="Words said aloud, by any server that speaks the audio/speech API",
+    )
+    yield Adapter(
+        slot="speech",
+        name="mlx",
+        factory=lazy("constructive_media.speech.mlx:MlxSpeech"),
+        license="MIT",
+        summary="Words said aloud on this machine by a model run through MLX, cloning a voice from a recording",
+    )
+    yield Adapter(
+        slot="denoise",
+        name="ffmpeg",
+        factory=lazy("constructive_media.denoise.ffmpeg:FfmpegDenoiser"),
+        license="MIT",
+        summary="A steady noise taken off by its spectrum, through the ffmpeg program",
     )
     yield Adapter(
         slot="text",

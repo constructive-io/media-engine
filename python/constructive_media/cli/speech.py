@@ -86,7 +86,9 @@ def register(commands: Any) -> None:
                     "write its words beside it in a .txt file. The words are the ones given with --said, or "
                     "with --listen the ones a transcriber hears in the clip as cut, for you to read against "
                     "the sound and put right. A clip is best between 15 and 28 seconds, of one person "
-                    "speaking one way, ending on a calm phrase.",
+                    "speaking one way, ending in the quiet after a calm sentence: a model goes on from where "
+                    "its clip stops, so one that stops mid-word, or whose words say more than its sound, is "
+                    "heard at the start of every line. --tighten takes the middle out of long pauses.",
     )
     command.add_argument("recording", help="a recording of the voice")
     command.add_argument("output", nargs="?", help="the clip to write, such as voices/ada/neutral.flac")
@@ -95,8 +97,29 @@ def register(commands: Any) -> None:
     command.add_argument("--said", metavar="TEXT", help="the words said in the clip")
     command.add_argument("--listen", action="store_true",
                          help="have the transcriber write down the words, when --said does not give them")
+    command.add_argument("--tighten", type=float, nargs="?", const=0.8, metavar="SECONDS",
+                         help="shorten every pause longer than this to this (0.8 when no number is given), for "
+                              "a recording with a hole in it")
     command.add_argument("--json", action="store_true", help="print what was measured as JSON")
     command.set_defaults(run=run_reference)
+
+    command = commands.add_parser(
+        "clean", help="measure the noise in a recording of a voice, or take it off",
+        description="With only a recording: listen to the quiet between its phrases and say how far the voice "
+                    "stands over it, what the noise is made of, and what is worth doing about it. With an "
+                    "output as well: do that, and say what was gained and what the voice lost to it. Rumble "
+                    "goes to a high-pass filter and a mains hum to notches, neither of which a voice minds; "
+                    "hiss, and noise where the voice sits, go to the denoiser, which takes a little of the "
+                    "voice too. A recording that is clean enough is left alone and nothing is written. Clean "
+                    "a recording before a clip is cut from it with `me reference`: a clone copies the noise.",
+    )
+    command.add_argument("recording", help="a recording of a voice")
+    command.add_argument("output", nargs="?", help="the cleaned recording to write, such as clean.wav")
+    command.add_argument("--steps", metavar="LIST", help="what to do, in place of what the measuring advises: "
+                         "any of highpass, notch and denoise, with commas between")
+    command.add_argument("--hum", type=int, choices=(50, 60), help="the mains to notch out, when it is not heard")
+    command.add_argument("--json", action="store_true", help="print what was measured and done as JSON")
+    command.set_defaults(run=run_clean)
 
     command = commands.add_parser(
         "audition", help="have a voice say lines it has never seen, and count what passed",
@@ -232,7 +255,8 @@ def run_reference(arguments: argparse.Namespace) -> int | None:
     from ..audio import voice
 
     if not arguments.output:
-        if arguments.start is not None or arguments.end is not None or arguments.said or arguments.listen:
+        if (arguments.start is not None or arguments.end is not None or arguments.said or arguments.listen
+                or arguments.tighten is not None):
             print("me: give the clip to write as well; with only a recording it is measured and nothing is cut",
                   file=sys.stderr)
             return 2
@@ -254,7 +278,7 @@ def run_reference(arguments: argparse.Namespace) -> int | None:
 
         listens = transcriber()
     told = voice.reference(arguments.recording, arguments.output, start=arguments.start, end=arguments.end,
-                           said=arguments.said, transcriber=listens)
+                           said=arguments.said, transcriber=listens, tighten=arguments.tighten)
     if arguments.json:
         print(json.dumps(told, indent=2, ensure_ascii=False))
         return None
@@ -267,6 +291,65 @@ def run_reference(arguments: argparse.Namespace) -> int | None:
     else:
         print("its words are not written down yet: give them with --said, or have them heard with --listen")
     return None
+
+
+def run_clean(arguments: argparse.Namespace) -> int | None:
+    import json
+
+    from ..audio import clean
+
+    steps = None
+    if arguments.steps is not None:
+        steps = [step.strip() for step in arguments.steps.split(",") if step.strip()]
+    if not arguments.output:
+        if steps is not None or arguments.hum:
+            print("me: give the recording to write as well; with only a recording it is measured and nothing "
+                  "is cleaned", file=sys.stderr)
+            return 2
+        noise = clean.measure(arguments.recording)
+        advised, why = clean.advise(noise)
+        if arguments.json:
+            print(json.dumps({"input": arguments.recording, **noise.told(), "steps": advised, "why": why}, indent=2))
+            return None
+        print(f"{arguments.recording}: {_noise(noise.told())}")
+        for said in why:
+            print(f"  {said}")
+        if advised:
+            print(f"  to do it: me clean {arguments.recording} CLEANED.wav")
+        return None
+    told = clean.clean(arguments.recording, arguments.output, steps=steps, hum=arguments.hum)
+    if arguments.json:
+        print(json.dumps(told, indent=2))
+        return None
+    if not told["output"]:
+        print(f"{arguments.recording}: {_noise(told['before'])}")
+        for said in told["why"]:
+            print(f"  {said}")
+        print("nothing was written")
+        return None
+    done = ", ".join(f"{step} ({told['denoiser']})" if step == "denoise" else step for step in told["steps"])
+    print(f"{told['output']}: {done}")
+    print(f"  was: {_noise(told['before'])}")
+    print(f"  is:  {_noise(told['after'])}")
+    if told["gained"] is not None:
+        print(f"  its noise is {told['gained']:g} dB further under the voice, and the voice lost "
+              f"{max(0.0, told['voice_lost']):g} dB")
+    if told["damaged"]:
+        print("  the voice lost more than a cleaning should cost: listen to it against the recording, and do "
+              "less with --steps")
+    elif told["worth_it"] is False:
+        print("  that is little gained: the recording may be as good left as it was")
+    return None
+
+
+def _noise(told: dict[str, Any]) -> str:
+    if told["voice"] is None:
+        return f"{told['seconds']:.1f} seconds, with nothing to hear"
+    if told["floor"] is None:
+        return f"{told['seconds']:.1f} seconds, the voice at {told['voice']:g} dB, and no quiet between its phrases"
+    return (f"{told['seconds']:.1f} seconds, the voice at {told['voice']:g} dB and the quiet between its phrases "
+            f"at {told['floor']:g} dB: {told['snr']:g} dB between them"
+            + (f", with a hum at {told['hum']} Hz" if told["hum"] else ""))
 
 
 def _measured(measured: dict[str, Any]) -> str:

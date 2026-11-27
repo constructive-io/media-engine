@@ -24,6 +24,7 @@ stays the business of whoever owns the voice.
 
 from __future__ import annotations
 
+import re
 import shutil
 import tempfile
 from collections.abc import Callable, Sequence
@@ -49,6 +50,14 @@ HIGHPASS_HZ = 70
 #: Quiet at either end of a clip is cut to this, and no closer.
 EDGE_S = 0.15
 QUIET_DB = -50
+#: A stretch this far under full scale, for this long, is a pause; a pause past LONG_PAUSE_S is a hole in a clip.
+PAUSE_DB = -40
+PAUSE_S = 0.25
+LONG_PAUSE_S = 3.0
+#: What `tighten` brings a long pause down to when it is not told.
+TIGHT_S = 0.8
+#: A clip whose last moments are louder than a pause stops in the middle of a sound.
+LAST_S = 0.04
 
 #: An audition passes when this share of its lines did, and none began with the clip's own words.
 PASSING = 0.8
@@ -77,7 +86,63 @@ def measure(recording: str | Path) -> dict[str, Any]:
     channels, rate = pcm.shape(recording)
     heard = scene.metered(recording)
     return {"file": str(recording), "seconds": round(seconds, 2), "channels": channels, "rate": rate,
-            "loudness": heard and round(heard["loudness"], 1), "peak": heard and round(heard["peak"], 1)}
+            "loudness": heard and round(heard["loudness"], 1), "peak": heard and round(heard["peak"], 1),
+            "pause": round(max(pauses(recording), default=0.0), 2), "cut_off": cut_off(recording)}
+
+
+def cut_off(recording: str | Path) -> bool:
+    """Whether a recording stops in the middle of a sound, with no quiet after its last word."""
+    import numpy
+
+    samples, rate = pcm.read(Path(recording), stereo=False), pcm.rate(Path(recording))
+    last = samples[-max(1, int(LAST_S * rate)):]
+    return bool(len(last)) and float(numpy.abs(last).max()) > 10 ** (PAUSE_DB / 20)
+
+
+def quiets(recording: str | Path) -> list[tuple[float, float]]:
+    """Where a recording goes quiet for `PAUSE_S` or longer after it has begun: each as (from, to), in seconds."""
+    said = ffmpeg.run(ffmpeg.FFMPEG, "-hide_banner", "-nostats", "-i", recording, "-vn",
+                      "-af", f"silencedetect=noise={PAUSE_DB}dB:d={PAUSE_S}", "-f", "null", "-").stderr
+    starts = [float(one) for one in re.findall(r"silence_start: (-?[\d.]+)", said)]
+    ends = [float(one) for one in re.findall(r"silence_end: ([\d.]+)", said)]
+    return [(start, end) for start, end in zip(starts, ends) if start > 0.05]
+
+
+def pauses(recording: str | Path) -> list[float]:
+    """How long each pause in a recording is, in seconds. The quiet it ends in is not one."""
+    ends = pcm.seconds(Path(recording)) - 0.05
+    return [end - start for start, end in quiets(recording) if end < ends]
+
+
+def tightened(recording: str | Path, target: str | Path, seconds: float) -> float:
+    """Write `recording` as `target` with every pause longer than `seconds` shortened to that. What was taken out.
+
+    The middle of a long pause is what goes: the way the words before it die
+    away and the breath before the next are kept, half of `seconds` each, and
+    joined over a hundredth of a second so that the join is not heard.
+    """
+    import numpy
+
+    samples, rate = pcm.read(Path(recording), stereo=False), pcm.rate(Path(recording))
+    blend = max(1, int(0.01 * rate))
+    kept, at, taken = [], 0, 0.0
+    for start, end in quiets(recording):
+        if end - start <= seconds or end >= len(samples) / rate - 0.05:      # the quiet it ends in is no pause
+            continue
+        upto, again = int((start + seconds / 2) * rate), int((end - seconds / 2) * rate)
+        if not at <= upto < again <= len(samples):
+            continue
+        kept.append(samples[at:upto])
+        at, taken = again, taken + (again - upto) / rate
+    kept.append(samples[at:])
+    whole = kept[0]
+    for piece in kept[1:]:
+        over = min(blend, len(whole), len(piece))
+        ramp = numpy.linspace(0.0, 1.0, over, dtype=samples.dtype)
+        joined = whole[len(whole) - over:] * (1 - ramp) + piece[:over] * ramp
+        whole = numpy.concatenate([whole[:len(whole) - over], joined, piece[over:]])
+    pcm.write(Path(target), whole, rate)
+    return round(taken, 2)
 
 
 def fit(measured: dict[str, Any]) -> tuple[list[str], list[str]]:
@@ -93,6 +158,12 @@ def fit(measured: dict[str, Any]) -> tuple[list[str], list[str]]:
         notes.append(f"it runs {seconds:.1f} seconds, and under {LEAST_S:.0f} there is too little of a voice to copy")
     elif not GOOD_S[0] <= seconds <= GOOD_S[1]:
         notes.append(f"it runs {seconds:.1f} seconds; {GOOD_S[0]:.0f} to {GOOD_S[1]:.0f} is what clones best")
+    if measured.get("pause", 0) > LONG_PAUSE_S:
+        notes.append(f"there is a pause of {measured['pause']:.1f} seconds in it. A model copies a clip's pace, "
+                     "and may stop where the clip stops: shorten its pauses with --tighten")
+    if measured.get("cut_off"):
+        notes.append("it stops in the middle of a sound. A model goes on from where its clip stops, and says the "
+                     "rest before a line: end it in the quiet after a sentence, with --to")
     if measured["channels"] != 1:
         notes.append(f"it has {measured['channels']} channels; a clip to clone from has one")
     if measured["rate"] < RATE:
@@ -104,6 +175,7 @@ def fit(measured: dict[str, Any]) -> tuple[list[str], list[str]]:
 def reference(
     recording: str | Path, target: str | Path, *, start: float | None = None, end: float | None = None,
     said: str | None = None, transcriber: Transcriber | None = None, language: str = "en",
+    tighten: float | None = None,
 ) -> dict[str, Any]:
     """Cut `recording` into a clip a voice can be cloned from, written as `target`.
 
@@ -113,6 +185,10 @@ def reference(
     given they are what the transcriber hears in the clip as it was cut.
     They are written beside the clip, in a file of the same name ending
     `.txt`, for a person to read against the sound and put right.
+
+    With `tighten`, every pause in it longer than that many seconds is
+    shortened to that many: for a recording with a hole in it, where a
+    passage was cut away or somebody else spoke.
 
     A SpeechError when the clip would be too long to clone from; then
     nothing is written.
@@ -124,11 +200,16 @@ def reference(
     part = [*(("-ss", f"{start:g}") if start is not None else ()), *(("-to", f"{end:g}") if end is not None else ())]
     trim = (f"silenceremove=start_periods=1:start_threshold={QUIET_DB}dB:start_silence={EDGE_S}"
             ":detection=peak")
+    if tighten is not None and tighten < PAUSE_S:
+        raise SpeechError(f"a pause is tightened to {PAUSE_S} seconds or more: less and the words run together")
     with tempfile.TemporaryDirectory(prefix="reference-") as scratch:
         cut = Path(scratch) / "cut.wav"
         ffmpeg.run(ffmpeg.FFMPEG, "-hide_banner", "-loglevel", "error", "-y", *part, "-i", recording, "-vn",
                    "-af", f"highpass=f={HIGHPASS_HZ},{trim},areverse,{trim},areverse",
                    "-ac", "1", "-ar", str(RATE), "-c:a", "pcm_s24le", cut)
+        if tighten is not None:
+            whole, cut = cut, Path(scratch) / "tight.wav"
+            tightened(whole, cut, tighten)
         made = measure(cut)
         stops, notes = fit(made)
         if stops:
@@ -242,3 +323,18 @@ def _write(take: Path, target: Path) -> None:
         shutil.copyfile(take, target)
     else:
         ffmpeg.run(ffmpeg.FFMPEG, "-hide_banner", "-loglevel", "error", "-y", "-i", take, "-vn", target)
+
+
+def alike(one: str | Path, other: str | Path, *, embedder: Any = None, settings: Settings | None = None) -> float:
+    """How alike the voices in two recordings are, from -1 to 1, as the speaker model hears them.
+
+    Each recording is heard whole, as one voice. What counts as the same
+    person depends on the model: with the default, two clips of one person
+    come out near 0.7 or over, and two people under 0.4.
+    """
+    from ..speakers import RATE as HEARD_AT
+    from ..speakers import embedder as speaker_adapter
+
+    hears = embedder if embedder is not None else speaker_adapter(settings=settings)
+    rows = hears.embed([pcm.read(Path(sound), rate=HEARD_AT, stereo=False) for sound in (one, other)])
+    return float(sum(float(a) * float(b) for a, b in zip(rows[0], rows[1])))

@@ -36,7 +36,7 @@ Early, and built in the open one layer at a time.
 | Speech: voices kept by persona and emotion, a client for any server that speaks, and a line said again with another seed until a take of it passes the check | Here, tested with stand-ins for the models |
 | `.conv` scripts rendered to sound: every line said and checked, every sound put in its place, the whole mixed to one loudness, with the lines, the stems and a manifest kept beside it | Here, tested with stand-ins for the models |
 | [The stage](./docs/STAGE.md): a rendered script filmed as a video. A page follows the recording, as a deck, a document or a walkthrough, with the speakers, captions and clips drawn over it; a browser with no window is watched, and the pictures are laid under the sound | Here, tested, and filmed with a real browser |
-| [Voices](./docs/VOICES.md): a recording cut into a clip a voice can be cloned from, the clip sent to a server that clones, and a voice auditioned before it is used | Here, tested with stand-ins for the models |
+| [Voices](./docs/VOICES.md): a noisy recording measured and cleaned, a recording cut into a clip a voice can be cloned from, the clip sent to a server that clones or to a model run on a Mac with no server, and a voice auditioned before it is used | Here, tested with stand-ins for the models |
 | [Libraries](./docs/LIBRARIES.md): voices, sound banks and faces in repositories of their own, each voice with its consent, added by address and kept at a commit | Here, tested |
 | Engine: generation of images, video and sounds | Being brought in |
 
@@ -351,11 +351,16 @@ A voice can be one the speech server has, or one cloned from a short clip of
 a voice you have the right to use:
 
 ```sh
+me clean recording.wav                 # is it clean enough to clone from, and what would mend it
 me reference recording.wav voices/ada/neutral.flac --from 12.5 --to 34 --listen
 me voice ada ada --reference voices/ada/neutral.flac --new
 me say --voice ada "The lantern is lit at dusk." out/line.wav
 me audition ada
 ```
+
+On a Mac the speech can come from a model run in the engine's own process, with
+no server: `pip install mlx-audio` and `CONSTRUCTIVE_MEDIA_ADAPTER_SPEECH=mlx`
+([docs/ADAPTERS.md](./docs/ADAPTERS.md#on-a-mac-with-no-server)).
 
 That is [docs/VOICES.md](./docs/VOICES.md). Voices, banks of sounds and faces
 that are meant to be shared live in a repository of their own, a library,

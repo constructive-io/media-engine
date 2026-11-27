@@ -37,6 +37,9 @@
  *
  *     document.addEventListener('stage:change', e => e.detail)   // { slide, step, line, clip, show }
  *     window.stage.t, window.stage.level(), window.stage.seek(seconds)
+ *     window.stage.since('pricing', 2)   // seconds since `[slide pricing step:2]`, or null before it
+ *
+ * `data-enter="left"` on anything in a slide is how it arrives: see stage.css.
  */
 (function () {
   'use strict';
@@ -105,7 +108,8 @@
     var timeline = null, base = location.href;
     var notes = [];
 
-    root.classList.add('stage', 'stage-' + layout);
+    // `stage-starting` holds every slide's fade until the first moment has been painted.
+    root.classList.add('stage', 'stage-' + layout, 'stage-starting');
     if (CAPTURE) root.classList.add('stage-capture');
     root.style.setProperty('--stage-width', WIDTH + 'px');
     root.style.setProperty('--stage-height', HEIGHT + 'px');
@@ -117,6 +121,14 @@
         most = Math.max(most, parseInt(step.dataset.step, 10) || 0);
       });
       steps[slide.dataset.slide] = most;
+    });
+
+    // A shape that is drawn in is measured as one long, whatever its length, so that one rule draws any of them.
+    var SHAPES = 'path, line, polyline, polygon, circle, ellipse, rect';
+    document.querySelectorAll('[data-enter="draw"]').forEach(function (drawn) {
+      (drawn.matches(SHAPES) ? [drawn] : Array.prototype.slice.call(drawn.querySelectorAll(SHAPES))).forEach(function (shape) {
+        if (!shape.hasAttribute('pathLength')) shape.setAttribute('pathLength', '1');
+      });
     });
 
     // What is drawn over the page.
@@ -291,6 +303,8 @@
           faces[one.persona].classList.toggle('is-speaking', !!line && line.persona === one.persona);
         });
         root.classList.toggle('stage-speaking', !!line);
+        // Whoever is speaking, and through the quiet after them: whoever spoke last.
+        if (line) body.dataset.stageSpeaker = line.persona || '';
         var third = !!line && shows(show, 'lower-third')
           && (show.indexOf('lower-third:always') >= 0 || firstLine[line.persona] === line.line);
         thirdBox.classList.toggle('is-shown', third);
@@ -373,6 +387,17 @@
     var stage = window.stage = {
       layout: layout, capture: CAPTURE, timeline: null, t: 0, playing: false, state: {},
       level: level, seek: function () {}, play: function () {}, pause: function () {},
+      // When the script reaches `[slide ID step:N]`, in seconds, or null when it never does.
+      when: function (slide, step) {
+        var marks = timeline ? timeline.slides : [];
+        for (var i = 0; i < marks.length; i++) if (marks[i].id === slide && marks[i].step >= (step || 0)) return marks[i].t;
+        return null;
+      },
+      // How long ago that was, in seconds, or null when it has not been reached. What a page draws from.
+      since: function (slide, step) {
+        var at = stage.when(slide, step);
+        return at === null || stage.t < at ? null : stage.t - at;
+      },
     };
 
     function settled() {
@@ -389,10 +414,15 @@
       });
     }
 
+    function started() {
+      frames(2).then(function () { root.classList.remove('stage-starting'); });
+    }
+
     function filmed() {
       // No sound, and the wall clock. The frame painted before the clock starts is the film's first.
       apply(0);
       settled().then(function () { return frames(3); }).then(function () {
+        root.classList.remove('stage-starting');
         var began = performance.now();
         window.__stage = { startEpoch: Date.now(), seconds: timeline.seconds, done: false, notes: [] };
         stage.playing = true;
@@ -458,6 +488,7 @@
         clock.textContent = time(t) + ' / ' + time(timeline.seconds);
         requestAnimationFrame(tick);
       })();
+      started();
     }
 
     // With no recording the page is stepped through by hand.
@@ -466,15 +497,30 @@
       slides.forEach(function (slide) {
         for (var step = 0; step <= steps[slide.dataset.slide]; step++) places.push({ id: slide.dataset.slide, step: step });
       });
-      var at = 0;
+      var at = 0, arrived = {};
       slideAt = function () { return places[at] || { id: null, step: 0 }; };
-      function go(to) { at = Math.max(0, Math.min(places.length - 1, to)); apply(0); }
+      function go(to) {
+        at = Math.max(0, Math.min(places.length - 1, to));
+        // Stepped through by hand there is no recording to measure from: a mark was reached when it was stepped to.
+        Object.keys(arrived).forEach(function (place) { if (parseInt(place, 10) > at) delete arrived[place]; });
+        if (!(at in arrived)) arrived[at] = performance.now();
+        apply(0);
+      }
+      stage.since = function (slide, step) {
+        for (var i = 0; i <= at; i++) {
+          if (places[i].id === slide && places[i].step >= (step || 0)) {
+            return places[at].id === slide ? (performance.now() - (arrived[i] || 0)) / 1000 : null;
+          }
+        }
+        return null;
+      };
       document.addEventListener('keydown', function (event) {
         if (['ArrowRight', 'PageDown', ' '].indexOf(event.key) >= 0) { event.preventDefault(); go(at + 1); }
         else if (['ArrowLeft', 'PageUp'].indexOf(event.key) >= 0) { event.preventDefault(); go(at - 1); }
       });
       stage.seek = go;
       go(0);
+      started();
     }
 
     if (!address) { byHand(); return; }

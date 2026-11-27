@@ -169,6 +169,40 @@ DECK = """<!doctype html><meta charset="utf-8">
 """
 
 
+#: A deck that moves: a build that wipes in, a colour for whoever speaks, and a square the page draws by the clock.
+MOVING = """<!doctype html><meta charset="utf-8">
+<link rel="stylesheet" href="stage.css"><script src="stage.js" defer></script>
+<style>
+  [data-slide] { background: rgb(200, 0, 0); transition: none !important; }
+  .build, .who, .late { position: absolute; width: 50%; }
+  .build { left: 0; top: 0; height: 100%; background: rgb(0, 160, 0); --stage-time: 0.2s; }
+  .who { right: 0; top: 0; height: 50%; }
+  .late { right: 0; top: 50%; height: 50%; }
+  body[data-stage-speaker="ada"] .who { background: rgb(0, 0, 200); }
+  body[data-stage-speaker="grace"] .who { background: rgb(0, 160, 0); }
+</style>
+<body data-stage="deck" data-stage-overlay="off"><section data-slide="title">
+  <div class="build" data-step="1" data-enter="wipe"></div><div class="who"></div><div class="late"></div>
+</section>
+<script>
+  (function draw() {
+    var since = window.stage ? window.stage.since('title', 1) : null;
+    document.querySelector('.late').style.background = since !== null && since >= 0.6 ? 'rgb(0, 0, 200)' : '';
+    requestAnimationFrame(draw);
+  })();
+</script></body>
+"""
+
+
+#: Two slides that fade as the stage's own do. The film is of the first; the second is last on the page.
+OPENING = """<!doctype html><meta charset="utf-8">
+<link rel="stylesheet" href="stage.css"><script src="stage.js" defer></script>
+<body data-stage="deck" data-stage-overlay="off">
+<section data-slide="title" style="background: rgb(0, 0, 200)"></section>
+<section data-slide="last" style="background: rgb(0, 160, 0)"></section></body>
+"""
+
+
 @unittest.skipUnless(real_browser(), "no Chrome or Chromium, or no ffmpeg, is installed")
 class RealBrowserTest(unittest.TestCase):
     """The real thing, where there is one: a deck filmed, and its build seen in the film."""
@@ -180,9 +214,9 @@ class RealBrowserTest(unittest.TestCase):
         (self.folder / "deck").mkdir()
         (self.folder / "deck" / "index.html").write_text(DECK)
 
-    def colour(self, at):
+    def colour(self, at, where="64:64:128:58"):
         return tuple(ffmpeg.run("ffmpeg", "-hide_banner", "-loglevel", "error", "-ss", str(at), "-i",
-                                self.folder / "scene.mp4", "-frames:v", "1", "-vf", "crop=64:64:128:58,scale=1:1",
+                                self.folder / "scene.mp4", "-frames:v", "1", "-vf", f"crop={where},scale=1:1",
                                 "-f", "rawvideo", "-pix_fmt", "rgb24", "-", binary=True).stdout[:3])
 
     def test_a_deck_is_filmed_with_its_build_where_the_script_put_it(self):
@@ -198,6 +232,34 @@ class RealBrowserTest(unittest.TestCase):
         red, green, _ = self.colour(2.5)     # and after it, the build covers the slide
         self.assertLess(red, 60)
         self.assertGreater(green, 100)
+
+    def test_what_arrives_is_seen_arriving_and_a_page_draws_by_the_script_s_clock(self):
+        (self.folder / "deck" / "index.html").write_text(MOVING)
+        report = film.film(make_render(self.folder / "out"), self.folder / "scene.mp4", page=self.folder / "deck",
+                           size=(320, 180), fps=25)
+        self.assertEqual(report["notes"], [])
+        build, who, late = "32:32:64:74", "32:32:224:29", "32:32:224:119"
+
+        def is_like(seen, wanted):
+            for got, want in zip(seen, wanted):
+                self.assertAlmostEqual(got, want, delta=70, msg=f"{seen} is not {wanted}")
+
+        red, green, blue = (200, 0, 0), (0, 160, 0), (0, 0, 200)
+        is_like(self.colour(0.7, build), red)        # `data-enter="wipe"` keeps the build off until its step, at 1.5
+        is_like(self.colour(2.5, build), green)
+        is_like(self.colour(0.7, who), blue)         # `data-stage-speaker` is whoever spoke last: Ada, then Grace
+        is_like(self.colour(2.6, who), green)
+        is_like(self.colour(1.8, late), red)         # `stage.since('title', 1)`: 0.3 seconds, and then 1.2
+        is_like(self.colour(2.7, late), blue)
+
+    def test_a_film_opens_on_its_first_slide_and_not_on_the_others_going_away(self):
+        (self.folder / "deck" / "index.html").write_text(OPENING)
+        film.film(make_render(self.folder / "out"), self.folder / "scene.mp4", page=self.folder / "deck",
+                  size=(320, 180), fps=25)
+        for at in (0.0, 0.12):
+            red, green, blue = self.colour(at)
+            self.assertGreater(blue, 140, f"at {at}")      # the first slide, whole, in the first picture
+            self.assertLess(green, 60, f"at {at}")         # and nothing of the slide that is last on the page
 
     def test_a_page_is_printed(self):
         with serve.Stage(page=self.folder / "deck") as stage:

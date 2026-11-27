@@ -176,6 +176,66 @@ class ReferenceTest(unittest.TestCase):
         told = voice.reference(self.recording(9.0), clip, said=SAID, transcriber=listens)
         self.assertEqual((len(listens.listened), told["said"], told["heard"]), (1, SAID, False))
 
+    def holed(self, hole=5.0, rate=24_000):
+        """Talk, a long quiet, and more talk, with quiet after it."""
+        hush = np.zeros(int(rate), dtype=np.float32)
+        talk = np.concatenate([syllables(8.0, rate), np.zeros(int(hole * rate), dtype=np.float32),
+                               syllables(8.0, rate, seed=2), hush])
+        return pcm.write(self.folder / "holed.wav", talk, rate, bits=16)
+
+    def test_a_long_pause_is_remarked_on_and_the_quiet_a_recording_ends_in_is_not_one(self):
+        measured = voice.measure(self.holed())
+        self.assertAlmostEqual(measured["pause"], 5.0, delta=0.3)
+        (note,) = voice.fit(measured)[1]
+        self.assertIn("a pause of", note)
+        self.assertIn("--tighten", note)
+        # Four seconds of quiet after the last word is where it ends, and no pause.
+        ending = pcm.write(self.folder / "ending.wav", np.concatenate(
+            [syllables(16.0), np.zeros(4 * 24_000, dtype=np.float32)]), 24_000, bits=16)
+        self.assertLess(voice.measure(ending)["pause"], voice.LONG_PAUSE_S)
+
+    def test_the_middle_of_a_long_pause_is_taken_out_and_nothing_else(self):
+        recording = self.holed()
+        taken = voice.tightened(recording, self.folder / "tight.wav", 0.8)
+        self.assertAlmostEqual(taken, 4.2, delta=0.3)
+        self.assertAlmostEqual(pcm.seconds(self.folder / "tight.wav"), pcm.seconds(recording) - taken, delta=0.05)
+        self.assertAlmostEqual(max(voice.pauses(self.folder / "tight.wav")), 0.8, delta=0.3)
+        # What was said after the pause is all still there, to its last sample.
+        before, after = pcm.read(recording, stereo=False), pcm.read(self.folder / "tight.wav", stereo=False)
+        np.testing.assert_allclose(after[-24_000 * 5:], before[-24_000 * 5:], atol=1e-4)
+
+    def test_a_clip_is_cut_with_its_pauses_shortened_when_asked(self):
+        told = voice.reference(self.holed(), self.folder / "ada.flac", said=SAID, tighten=0.8)
+        self.assertAlmostEqual(told["is"]["seconds"], 16.9, delta=0.6)
+        self.assertEqual(told["notes"], [])
+        with self.assertRaises(SpeechError) as raised:
+            voice.reference(self.holed(), self.folder / "ada.flac", said=SAID, tighten=0.1)
+        self.assertIn("0.25 seconds or more", str(raised.exception))
+
+    def test_a_recording_that_stops_in_the_middle_of_a_sound_is_remarked_on(self):
+        whole = syllables(20.0)
+        stopped = pcm.write(self.folder / "stopped.wav", whole[:len(whole) - 2_000], 24_000, bits=16)
+        measured = voice.measure(stopped)
+        self.assertTrue(measured["cut_off"])
+        (note,) = voice.fit(measured)[1]
+        self.assertIn("stops in the middle of a sound", note)
+        self.assertIn("--to", note)
+        self.assertFalse(voice.measure(self.recording(20.0))["cut_off"])
+        # And the clip cut from it is told the same: cutting does not put an ending on it.
+        told = voice.reference(stopped, self.folder / "stopped.flac", said=SAID)
+        self.assertTrue(any("stops in the middle of a sound" in note for note in told["notes"]))
+
+    def test_how_alike_two_recordings_are_is_what_the_speaker_model_says(self):
+        class Hears:
+            def embed(self, sounds):
+                self.heard = [len(sound) for sound in sounds]
+                return [[0.6, 0.8], [0.8, 0.6]]
+
+        hears = Hears()
+        one, other = self.recording(3.0, name="one.wav"), self.recording(2.0, name="other.wav")
+        self.assertAlmostEqual(voice.alike(one, other, embedder=hears), 0.96)
+        self.assertEqual(hears.heard, [5 * 16_000, 4 * 16_000])       # each as one channel, at the rate it listens at
+
 
 @needs_numpy
 @needs_ffmpeg
@@ -272,6 +332,9 @@ class CommandsTest(unittest.TestCase):
         status, _, err = run("reference", "recording.wav", "--from", "3")
         self.assertEqual(status, 2)
         self.assertIn("give the clip to write", err)
+        status, _, err = run("reference", "recording.wav", "--tighten")
+        self.assertEqual(status, 2)
+        self.assertIn("give the clip to write", err)
         status, _, err = run("reference", "no-such-recording.wav")
         self.assertEqual(status, 1)
         self.assertIn("no such file", err)
@@ -279,10 +342,11 @@ class CommandsTest(unittest.TestCase):
     @unittest.skipUnless(HAVE_FFMPEG and HAVE_NUMPY, "ffmpeg and numpy are needed")
     def test_a_recording_is_measured_and_cut_from_the_command_line(self):
         with tempfile.TemporaryDirectory() as folder:
-            recording = pcm.write(Path(folder) / "recording.wav", syllables(18.0, 24_000), 24_000, bits=16)
+            talk = np.concatenate([syllables(18.0, 24_000), np.zeros(12_000, dtype=np.float32)])
+            recording = pcm.write(Path(folder) / "recording.wav", talk, 24_000, bits=16)
             status, out, _ = run("reference", str(recording))
             self.assertEqual(status, 0)
-            self.assertIn("18.0 seconds, 1 channel at 24000 Hz", out)
+            self.assertIn("18.5 seconds, 1 channel at 24000 Hz", out)
             self.assertIn("fit to clone a voice from", out)
             clip = Path(folder) / "ada.flac"
             status, out, _ = run("reference", str(recording), str(clip), "--said", SAID)

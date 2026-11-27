@@ -36,16 +36,25 @@ What clones best, measured over many voices and models:
 | --- | --- |
 | Length | 15 to 28 seconds. Under 12 there is too little of the voice; over 30 most models stop listening |
 | Who | one person, in one mood, with nobody else and no music |
-| Ending | a plain, complete sentence. A clip that ends mid-word leaks its last words into what is said |
+| Ending | the quiet after a plain, complete sentence. A model goes on from where its clip stops: one that ends mid-word, or whose words say more than its sound, is heard at the start of every line |
+| Pauses | none over three seconds. A model copies a long pause as readily as a word |
 | Form | one channel, 24 kHz, at -19 LUFS with peaks under -2 dB |
 | Words | exactly what is said in the finished clip, not in the recording it was cut from |
 
-`me reference` does the last three, and tells you about the first two:
+`me reference` does the last two, and tells you about the rest:
 
 ```sh
 me reference recording.wav                               # measure it, and say what is wrong with it
 me reference recording.wav voices/ada/neutral.flac --from 12.5 --to 34 --listen
+me reference recording.wav voices/ada/neutral.flac --from 12.5 --to 34 --tighten --listen
 ```
+
+Measuring says how long the recording is, how loud, whether it stops in the
+middle of a sound, and how long its longest pause is. `--to` is where to end
+it: in the quiet after a sentence, not at the last moment before the next.
+`--tighten` takes the middle out of every pause longer than 0.8 seconds
+(`--tighten 0.5` for another length, never under a quarter of a second, where
+words run together), and leaves the quiet the clip ends in alone.
 
 The second cuts the part asked for, takes out the rumble under 70 Hz and the
 silence at either end, brings it to the loudness and peak above, and writes
@@ -55,6 +64,34 @@ put right what was misheard. `--said "…"` gives the words instead.
 
 Keep the recording the clip was cut from somewhere else. A clip is a few
 hundred kilobytes; a library of clips stays small enough to clone in a moment.
+
+## Clean a recording first
+
+A clone copies everything in its clip, the hiss and the hum as much as the
+person. So a noisy recording is cleaned before a clip is cut from it, and
+cleaned as little as will do, because every cleaner takes some of the voice
+with the noise and a clone copies that loss as well.
+
+```sh
+me clean recording.wav                 # measure it, and say what is worth doing
+me clean recording.wav cleaned.wav     # do that, and say what it gained and what the voice lost
+me clean recording.wav cleaned.wav --steps highpass,notch --hum 50
+```
+
+What is measured is the quiet between phrases, the only place noise is heard
+alone:
+
+| It finds | It does |
+| --- | --- |
+| more than 45 dB between the voice and the quiet | nothing: the recording is left alone and nothing is written |
+| rumble under 80 Hz | a high-pass filter, which no voice minds |
+| a hum at 50 or 60 Hz | notches at it and at what rings above it |
+| hiss, or noise where the voice sits | the [denoiser](./ADAPTERS.md#denoise), and then a listen: it takes a little of the voice too |
+| no quiet at all | nothing. Music or a crowd under a voice is a second sound, not noise, and no denoiser takes it off |
+
+After a cleaning the same stretches are measured again. It says how many
+decibels further under the voice the noise now is, and how much the voice
+lost; a voice that lost more than a decibel was damaged, and it says that too.
 
 ## Give it to a persona
 

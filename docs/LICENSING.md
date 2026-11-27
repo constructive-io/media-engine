@@ -29,6 +29,12 @@ anything outside the rule or anything that declares no license at all.
 | `torch`, `torchvision` | BSD-3-Clause | The second detector | `[torchvision]` |
 | `onnx` | Apache-2.0 | Building a small model in the tests | `[test]` |
 
+One thing the engine can use is installed by you and never by the engine:
+`mlx-audio` (MIT), which the `mlx` speech adapter runs a model through on
+Apple silicon. It brings `tqdm` (MPL-2.0 and MIT) and `certifi` (MPL-2.0)
+with it, which are outside the rule, so it is not an extra and nothing in the
+engine needs it.
+
 Left out on purpose, each replaced by something that meets the rule:
 
 | Not used | Why | Instead |

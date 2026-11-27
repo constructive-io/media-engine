@@ -16,6 +16,7 @@ lives, or which adapter to use, asks for a `Settings`.
 | `CONSTRUCTIVE_MEDIA_URL_<SLOT>`       | Server that slot's adapter talks to    | none                       |
 | `CONSTRUCTIVE_MEDIA_KEY_<SLOT>`       | Key to send that server, if it asks    | none                       |
 | `CONSTRUCTIVE_MEDIA_EXTRA_<SLOT>`     | More to send it with each request, as a JSON object | none          |
+| `CONSTRUCTIVE_MEDIA_LIBRARY_INDEX`    | Where libraries are found by name: folders or git addresses, with commas between; `none` for nowhere | `constructive-io/media-libraries` |
 
 Without a database URL the standard `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`
 and `PGDATABASE` are used, and the database is called `media`.
@@ -38,6 +39,8 @@ KEY_PREFIX = ENV_PREFIX + "KEY_"
 EXTRA_PREFIX = ENV_PREFIX + "EXTRA_"
 DEFAULT_HOME = "~/.constructive-media"
 DEFAULT_DATABASE = "media"
+#: The index a library is looked for in by name, unless the environment says otherwise.
+DEFAULT_INDEX = "constructive-io/media-libraries"
 
 
 class SettingsError(ValueError):
@@ -104,6 +107,8 @@ class Settings:
     #: Never shown: a key is a secret.
     keys: Mapping[str, str] = field(default_factory=_frozen, repr=False)
     extras: Mapping[str, str] = field(default_factory=_frozen)
+    #: The indexes libraries are found in by name, the first to name one winning.
+    indexes: tuple[str, ...] = ()
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> Settings:
@@ -125,6 +130,9 @@ class Settings:
             })
 
         home = Path(value("HOME") or DEFAULT_HOME).expanduser()
+        index = value("LIBRARY_INDEX") or DEFAULT_INDEX
+        indexes = () if index.strip().lower() in ("none", "off") else tuple(
+            one.strip() for one in index.split(",") if one.strip())
         url = value("DATABASE_URL")
         return cls(
             home=home,
@@ -137,6 +145,7 @@ class Settings:
             urls=per_slot(URL_PREFIX),
             keys=per_slot(KEY_PREFIX),
             extras=per_slot(EXTRA_PREFIX),
+            indexes=indexes,
         )
 
     def adapter(self, slot: str) -> str | None:

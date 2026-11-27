@@ -97,7 +97,9 @@ page is a deck to step through with the arrow keys.
 - A step has `is-shown` once it is reached, and `is-now` while it is the last
   one reached.
 - `<body>` has `data-stage-slide` and `data-stage-step`, for styles that depend
-  on where the recording is.
+  on where the recording is, and `data-stage-speaker`, the persona who spoke
+  last, for styles that depend on who is talking:
+  `body[data-stage-speaker="ada"] { --stage-accent: #e9b44c; }`.
 - `--stage-level` on the root is how loud the voice is at this moment, from 0
   to 1, for anything that should move with it.
 
@@ -106,7 +108,47 @@ Colours and type are variables to set in your own stylesheet: `--stage-bg`,
 panels captions and names are written on, `--stage-panel`, `--stage-panel-ink`
 and `--stage-panel-dim`.
 
+### How a thing arrives
+
+`data-enter` on anything in a slide says how it comes on. On a step it
+happens when the voice reaches the step; on anything else, when its slide
+does.
+
+| `data-enter` | It |
+| --- | --- |
+| `rise` | fades in from a little below. What any other word gives too |
+| `fade` | fades in where it is |
+| `left` | slides in from the left |
+| `right` | slides in from the right |
+| `grow` | grows from four fifths of its size |
+| `pop` | springs up from small, a little past its size and back |
+| `wipe` | is uncovered from left to right |
+| `draw` | is drawn, for an SVG shape or a group of them with a stroke |
+
+```html
+<li data-step="1" data-enter="left">One.</li>
+<li data-step="1" data-enter="left" style="--stage-delay: 0.15s">Two, a moment later.</li>
+<path data-step="2" data-enter="draw" style="--stage-time: 2s" d="M0 0 L400 120" stroke="currentColor" fill="none"/>
+```
+
+`--stage-delay` holds one back, so things on one step come in a row, and
+`--stage-time` is how long it takes. A step with no `data-enter` appears as it
+always has. The engine names whoever speaks first at the bottom left of the
+frame: keep that corner of a slide clear where somebody new begins.
+
 ### A page that draws its own
+
+What moves with the script is drawn from the script's clock, never from the
+browser's, so a film and a preview show the same thing:
+
+```js
+function draw() {
+  const since = window.stage.since('pricing', 2)   // seconds since `[slide pricing step:2]`, or null before it
+  if (since !== null) bar.style.width = Math.min(1, since / 1.5) * 100 + '%'
+  requestAnimationFrame(draw)
+}
+window.stage.when('close')   // when the script reaches a mark, in seconds, or null if it never does
+```
 
 ```js
 document.addEventListener('stage:change', event => {

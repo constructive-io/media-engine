@@ -74,6 +74,10 @@ CLIP_BYTES = 6_000_000
 
 _NAME = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 _SHORT = re.compile(r"[\w.-]+/[\w.-]+")
+#: An address may come from somebody else's file, a project's or an index's. git is let fetch over the
+#: transports that only fetch, and over none that runs a program (`ext::`, or a helper named in the address).
+_FETCHING = ("-c", "protocol.allow=never", *(part for transport in ("file", "git", "http", "https", "ssh")
+                                            for part in ("-c", f"protocol.{transport}.allow=always")))
 _KNOWN = {"library", "version", "license", "summary", "homepage", "voices", "banks", "sounds", "faces"}
 _OF_A_VOICE = {"persona", "name", "emotion", "reference", "said", "profile", "engine", "seed", "consent", "tags"}
 
@@ -379,8 +383,8 @@ def add(source: str, *, ref: str | None = None, settings: Settings | None = None
     A folder is used where it is, so that a library being written can be
     tried. An address is cloned under the engine's home and kept at `ref`,
     or at the commit its main branch was at. `owner/name` is a repository on
-    GitHub. A library is read before it is added, and one with problems is
-    not added.
+    GitHub, and a bare name is looked for in the indexes this machine reads.
+    A library is read before it is added, and one with problems is not added.
     """
     settings = settings or Settings.from_env()
     libraries = added(settings)
@@ -399,6 +403,18 @@ def add(source: str, *, ref: str | None = None, settings: Settings | None = None
         one = Added(name, str(checked.library.folder), checked.library.folder, _commit(checked.library.folder),
                     True, now)
     else:
+        named = None
+        if _NAME.fullmatch(source):
+            # A bare name is looked for in the indexes, which say where it is.
+            from . import indexes
+
+            unreached: list[str] = []
+            named = indexes.find(source, settings, tell=unreached.append)
+            if named is None:
+                raise LibraryError("\n  ".join((
+                    f"no index lists a library called `{source}`. Give a folder or the address of a repository, "
+                    "or see what is listed with: me library search", *unreached)))
+            source = named.source
         address = f"https://github.com/{source}.git" if _SHORT.fullmatch(source) else source
         if address.startswith("-"):
             raise LibraryError(f"{source} is not the address of a repository")
@@ -413,6 +429,9 @@ def add(source: str, *, ref: str | None = None, settings: Settings | None = None
             if checked.library is None:
                 raise LibraryError(f"{source} was not added:\n  " + "\n  ".join(checked.problems))
             name = checked.library.name
+            if named is not None and name != named.name:
+                raise LibraryError(f"the index lists `{named.name}` at {source}, and what is there calls itself "
+                                   f"`{name}`. It was not added")
             if name in libraries:
                 raise LibraryError(f"a library called `{name}` was added already, from {libraries[name].source}. "
                                    f"Bring it up to date with `me library update {name}`, or remove it first")
@@ -602,7 +621,7 @@ def _commit(folder: Path) -> str | None:
 
 def _git(*arguments: str, cwd: Path | None = None) -> str:
     try:
-        done = subprocess.run(["git", *arguments], cwd=cwd, capture_output=True, text=True, check=False,
+        done = subprocess.run(["git", *_FETCHING, *arguments], cwd=cwd, capture_output=True, text=True, check=False,
                               stdin=subprocess.DEVNULL)
     except FileNotFoundError:
         raise LibraryError("git is needed to add a library from an address, and it is not installed") from None

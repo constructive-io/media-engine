@@ -13,9 +13,11 @@ from collections.abc import Sequence
 
 from .. import __version__
 from ..adapters import AdapterError
+from ..audio.clean import CleanError
 from ..browser import BrowserError
 from ..conv import ConvError
 from ..db import DatabaseError
+from ..denoise import DenoiseError
 from ..edit import EditError
 from ..ffmpeg import FfmpegError
 from ..libraries import LibraryError
@@ -47,8 +49,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     arguments = parser().parse_args(argv)
     try:
         return arguments.run(arguments) or 0
-    except (AdapterError, BrowserError, ConvError, DatabaseError, EditError, FfmpegError, LibraryError, ModelError,
-            SettingsError, SpeakerError, SpeechError, StageError, TakeError, TextError, TranscriptionError) as error:
+    except (AdapterError, BrowserError, CleanError, ConvError, DatabaseError, DenoiseError, EditError, FfmpegError,
+            LibraryError, ModelError, SettingsError, SpeakerError, SpeechError, StageError, TakeError, TextError, TranscriptionError) as error:
         print(f"me: {error}", file=sys.stderr)
         return 1
     except ModuleNotFoundError as error:
