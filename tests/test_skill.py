@@ -69,7 +69,7 @@ class TheSkill(unittest.TestCase):
     def test_it_points_only_at_repositories_that_are_there(self):
         # A renamed repository leaves old links behind unless something looks.
         ours = {"constructive", "media-engine", "conversation-format", "media-engine-plugins",
-                "media-engine-boilerplates"}
+                "media-engine-boilerplates", "media-engine-libraries", "media-engine-library-foley"}
         pages = [*PAGES, ROOT / "README.md", ROOT / "AGENTS.md", *sorted((ROOT / "docs").glob("*.md"))]
         for page in pages:
             named = set(re.findall(r"github(?:usercontent)?\.com/constructive-io/([\w.-]+)", page.read_text(encoding="utf-8")))
