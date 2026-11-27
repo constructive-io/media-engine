@@ -41,8 +41,7 @@ goes in, and a mixed recording comes out.
 | `me`, this engine | here | checks a script with a parser of its own, then says and mixes it |
 | Plugins | [media-engine-plugins](https://github.com/constructive-io/media-engine-plugins) | adapters under copyleft licenses, installed apart |
 | Libraries | repositories of your own, started from [voice-boilerplates](https://github.com/constructive-io/voice-boilerplates) | voices to clone, banks of sounds and faces, added with `me library add` |
-| Projects | a workspace of your own, started with `me init` from [media-boilerplates](https://github.com/constructive-io/media-boilerplates) | a pnpm workspace whose packages are decks; `me init workspace NAME`, then `me init deck NAME` inside it |
-| Pages | folders of your own, started from [video-boilerplates](https://github.com/constructive-io/video-boilerplates) or [document-boilerplates](https://github.com/constructive-io/document-boilerplates) | the deck, walkthrough or document `me film` records |
+| Projects | a workspace of your own, started with `me init` from [media-boilerplates](https://github.com/constructive-io/media-boilerplates) | a pnpm workspace whose packages are what `me film` records; `me init workspace NAME`, then `me init deck NAME` inside it, or `walkthrough`, `animation` or `document` |
 
 `me` is the engine's command, short for "media engine". The same command is
 installed as `constructive-media`. Every command that speaks takes the voice by
@@ -269,6 +268,7 @@ Start a library from
 ```sh
 me init workspace harbour-talks             # a pnpm workspace, with a first deck in packages/
 me init deck quarterly-review --title "…"   # at the top of a workspace: another deck
+me init walkthrough first-day               # or a tour of an application; `animation` and `document` are the other two
 me init --list                              # the templates, and what each asks
 ```
 
@@ -276,8 +276,8 @@ Every question a template asks is a flag of the same name, and `--no-tty`
 takes the defaults. It never writes into a folder that has something in it and
 runs nothing a template holds. The templates are in
 [media-boilerplates](https://github.com/constructive-io/media-boilerplates),
-which has a `media-workspace` skill for working in what is made; `--repo`
-reads others. The same templates work with `pgpm init --repo`. More in
+which has the skills for working in what is made (`media-workspace`,
+`narrated-video`, `narrated-document`); `--repo` reads others. The same templates work with `pgpm init --repo`. More in
 [docs/PROJECTS.md](../../../docs/PROJECTS.md).
 
 ## Before you say it is done

@@ -26,7 +26,7 @@ jobs:
       PGPORT: 5432
       PGUSER: postgres
       PGPASSWORD: password
-      PGPM_VERSION: 5.30.6
+      PGPM_VERSION: 5.41.34
 
     services:
       pg_db:
@@ -131,7 +131,7 @@ jobs:
       PGPORT: 5432
       PGUSER: postgres
       PGPASSWORD: password
-      PGPM_VERSION: 5.30.6
+      PGPM_VERSION: 5.41.34
 
     services:
       pg_db:
@@ -215,7 +215,7 @@ jobs:
       PGPORT: 5432
       PGUSER: postgres
       PGPASSWORD: password
-      PGPM_VERSION: 5.30.6
+      PGPM_VERSION: 5.41.34
       # The runner's Chrome films the pages. Its sandbox cannot start in a runner.
       CONSTRUCTIVE_MEDIA_EXTRA_BROWSER: '{"flags": ["--no-sandbox"]}'
 

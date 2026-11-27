@@ -13,11 +13,14 @@ pnpm build                            # packages/first-talk/out/first-talk.mp4
 
 ```sh
 me init deck quarterly-review --title "The quarter in ten minutes"
+me init walkthrough first-day         # a tour of an application's screens, with a pointer
+me init animation how-it-works        # pictures the page draws, moving with the voice
+me init document annual-report        # a document read aloud, and the same page as a PDF
 ```
 
-The second, run at the top of a pnpm workspace, puts another deck in
-`packages/quarterly-review`. Run anywhere else, it makes `./quarterly-review`
-and says that there is no workspace around it.
+Each of these, run at the top of a pnpm workspace, puts a package in
+`packages/`: the first makes `packages/quarterly-review`. Run anywhere else, it
+makes `./quarterly-review` and says that there is no workspace around it.
 
 The templates come from
 [media-boilerplates](https://github.com/constructive-io/media-boilerplates)
@@ -30,10 +33,22 @@ me init --list
 ```
 
 ```
+media/animation: into a pnpm workspace
+  --title  The title on the first screen [A short film]
+  --fullName  Who is speaking
+  --role  What is written under their name [Narrator]
+media/document: into a pnpm workspace
+  --title  The title of the document [A short report]
+  --fullName  Who wrote it, and reads it aloud
+  --role  What is written under their name [Author]
 media/module (also: deck): into a pnpm workspace
   --title  The title on the first screen [A short talk]
   --fullName  Who is speaking
   --role  What is written under their name [Presenter]
+media/walkthrough: into a pnpm workspace
+  --title  The title on the first screen [A short tour]
+  --fullName  Who is speaking
+  --role  What is written under their name [Guide]
 media/workspace: a workspace of its own
   --fullName  Enter author full name
   --email  Enter author email

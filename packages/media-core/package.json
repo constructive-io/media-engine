@@ -28,7 +28,7 @@
     "core"
   ],
   "devDependencies": {
-    "pgsql-test": "^5.9.7",
-    "makage": "^0.5.1"
+    "makage": "^0.8.2",
+    "pgsql-test": "^5.20.20"
   }
 }

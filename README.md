@@ -431,17 +431,13 @@ engine knows by name, with its source and its license, is in
   adapters for tools under copyleft licenses, each a package of its own that
   you choose to install.
 - [media-boilerplates](https://github.com/constructive-io/media-boilerplates):
-  what `me init` starts a project from: a pnpm workspace, and a narrated deck
-  that goes in one.
+  what `me init` starts a project from: a pnpm workspace, and what goes in
+  one. A narrated deck, a walkthrough, an animation, and a document that is
+  read aloud, filmed as it scrolls, and printed: each a script and a page that
+  `me film` turns into a video.
 - [voice-boilerplates](https://github.com/constructive-io/voice-boilerplates):
   a template for a library of voices, sounds and faces in a repository of your
   own.
-- [video-boilerplates](https://github.com/constructive-io/video-boilerplates):
-  templates for a narrated deck, a walkthrough and a scene, each a script and
-  a page that `me film` turns into a video.
-- [document-boilerplates](https://github.com/constructive-io/document-boilerplates):
-  a template for a document that is read aloud, filmed as it scrolls, and
-  printed.
 - [pgpm](https://www.npmjs.com/package/pgpm): the Postgres package manager the
   schema modules are built with.
 
