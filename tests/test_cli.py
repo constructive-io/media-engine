@@ -39,6 +39,7 @@ class CommandLineTest(unittest.TestCase):
                         "transcribe", "vocabulary", "diarize", "speakers", "name", "group", "match", "sync",
                         "takes", "passages", "flag", "score", "rank", "recipe", "judge", "index", "search", "fit", "models", "assemble", "cutaways", "styles",
                         "compile", "selectors", "timelines",
+                        "loudness", "audible", "laughter", "coordination",
                         "timeline", "note", "keep", "cut", "prefer", "pairs", "decisions", "script", "render", "export",
                         "conv", "voices", "voice", "say", "reference", "clean", "audition", "library",
                         "film", "still", "stage", "print", "init",

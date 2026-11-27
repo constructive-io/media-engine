@@ -171,18 +171,22 @@ def frame(
 
 def frames(
     path: str | Path, *, fps: float, size: tuple[int, int], pix_fmt: str = "rgb24",
+    start_s: float = 0.0, seconds: float | None = None,
 ) -> Iterator[bytes]:
     """Every frame of a video in order, resampled to a steady `fps`.
 
     Frame `i` is the picture at `i / fps` seconds, whatever the file's own
-    frame timing was.
+    frame timing was. With `start_s` it is the picture that long after there,
+    and with `seconds` the frames stop that long after the first.
     """
     if shutil.which(FFMPEG) is None:
         raise FfmpegError(f"the {FFMPEG!r} program was not found; install ffmpeg")
     width, height = size
     length = width * height * _bytes_per_pixel(pix_fmt)
     process = subprocess.Popen(
-        [FFMPEG, "-hide_banner", "-loglevel", "error", "-i", str(path), "-an",
+        [FFMPEG, "-hide_banner", "-loglevel", "error",
+         *(["-ss", f"{start_s:.3f}"] if start_s > 0 else []), "-i", str(path),
+         *(["-t", f"{seconds:.3f}"] if seconds is not None else []), "-an",
          "-vf", f"fps={fps:.6f},scale={width}:{height}",
          "-f", "rawvideo", "-pix_fmt", pix_fmt, "-"],
         stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,

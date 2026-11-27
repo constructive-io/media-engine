@@ -29,6 +29,7 @@ lands tested, with nothing in it that breaks [the licensing rule](./LICENSING.md
 | 22 | Speech on a Mac with no server: the `mlx` speech adapter runs a model that clones (Qwen3-TTS) in the engine's own process, one at a time across a machine | Done, and tested with a stand-in for the model. `mlx-audio` is installed by you: see [LICENSING.md](./LICENSING.md) |
 | 23 | Movement on the stage: [how a thing arrives](./STAGE.md#how-a-thing-arrives) (`data-enter`), a page that draws by the script's clock (`stage.since`), and who is speaking written on the page | Done, and filmed with a real browser |
 | 24 | [Starting a project](./PROJECTS.md): `media init` reads a repository of boilerplates in the format `pgpm init` reads, with the standard library alone, and makes a pnpm workspace and the decks in it. The templates are in [media-engine-boilerplates](https://github.com/constructive-io/media-engine-boilerplates), and both tools write the same files from them | Done |
+| 25 | Measures of the sound and the movement: how loud each shot is against the minute around it, how well each transcribed line can be heard, where people laugh (candidates a person confirms), and whether the lit part of a shot moves with the rest of it; each becomes a score a recipe can weigh, and the cleanest recording measured is the one a cut is heard through | Done. No model: each is arithmetic on the sound or the pictures |
 
 ## Left for later, and why
 
@@ -48,11 +49,6 @@ lands tested, with nothing in it that breaks [the licensing rule](./LICENSING.md
   who wore which microphone, and it belongs with the audio layer, where the
   microphones of a take are mixed. It comes in with that layer.
 
-- **Scores that need a layer not here yet.** How loud a shot's sound is
-  against its neighbours, how well the picture moves with the sound, how
-  clean a recording is and where people laugh each wait for the layer that
-  measures them. A recipe that weighs one of them says how much of itself it
-  could measure, and ranks on the rest.
 - **Cutting fillers out of the middle of a passage.** A stored style can ask
   for it and assembly does not do it yet: it trims quiet from a passage's
   ends and nothing inside. A cut inside a sentence has to be heard to be

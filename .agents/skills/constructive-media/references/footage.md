@@ -31,6 +31,10 @@ media name interview voice1 "Ottoline Varga" --new  # say whose voice it is
 ## Find what is worth using
 
 ```sh
+media loudness                       # how loud each shot is against the minute around it
+media coordination                   # whether the lit part of each shot moves with the rest of it
+media audible                        # how well each line can be heard: the noise under it, and distortion
+media laughter                       # where people laugh, as candidates to say yes or no to
 media passages                       # cut each take's speech into passages worth using
 media score                          # flag what to cut, then score every passage and shot
 media rank interview --top 10        # the best of them, and how much each was measured
@@ -38,6 +42,14 @@ media judge                          # a text model reads the best of them (need
 media index                          # make every passage findable by meaning (needs the `embedding` slot)
 media search "the winter the boats came in close"
 ```
+
+The four measures before `media passages` need no model, and `media score`
+turns each into scores (`energy_lift`, `coordination`, `audio_snr`,
+`undistorted`, `spectral_balance`, `laughter`). `media laughter` lists
+candidates, each with a short id: listen, then say `media laughter --yes ID`
+or `--no ID`. Once `media audible` has run, `media assemble` takes each
+passage's sound from the cleanest recording measured. A recipe counts a
+score once it weighs it: `media recipe NAME --like interview --weigh laughter=0.5`.
 
 `media judge`, `media index` and `media search` talk to a server of your own, set with
 `CONSTRUCTIVE_MEDIA_URL_TEXT` and `CONSTRUCTIVE_MEDIA_URL_EMBEDDING`. The rest

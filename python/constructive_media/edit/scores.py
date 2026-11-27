@@ -113,6 +113,68 @@ UNION ALL
 SELECT 'passage', id, 'subject_present', max(present), NULL, {SEEN}, 'picture', 'detections'
   FROM seen GROUP BY id"""
 
+#: A measurement of noise outside this is one that failed, as assembling a cut holds too.
+_PLAUSIBLE_DB = (-20, 45)
+
+#: How each passage sounds on the recording that carries it best, which is the
+#: one a cut takes its sound from. A recogniser's confidence is about the
+#: words; this is about the sound, and the two hardly move together.
+_HEARD = f"""
+WITH heard AS (
+  SELECT p.id, ta.asset_id,
+         sum(q.snr_db * o.shared) / sum(o.shared) AS snr,
+         max(q.clipped_ratio) AS clipped,
+         sum(q.hf_ratio * o.shared) / sum(o.shared) AS high
+    FROM media_video.passages p
+    JOIN media.takes t ON t.id = p.take_id
+    JOIN media.take_assets ta ON ta.take_id = p.take_id AND {_PLACED}
+    JOIN media_video.segments sg ON sg.asset_id = ta.asset_id
+     AND sg.start_s + ta.offset_s < p.end_s AND sg.end_s + ta.offset_s > p.start_s
+    JOIN media_video.audio_quality q ON q.segment_id = sg.id
+     AND q.snr_db BETWEEN {_PLAUSIBLE_DB[0]} AND {_PLAUSIBLE_DB[1]}
+   CROSS JOIN LATERAL (SELECT least(sg.end_s + ta.offset_s, p.end_s)
+                            - greatest(sg.start_s + ta.offset_s, p.start_s) AS shared) o
+   WHERE %s::text IS NULL OR t.project = %s
+   GROUP BY p.id, ta.asset_id
+), best AS (
+  SELECT DISTINCT ON (id) id, snr, clipped, high FROM heard ORDER BY id, snr DESC, asset_id
+)
+SELECT 'passage', b.id, s.name, s.value, s.raw, {SEEN}, 'audio', 'audible'
+  FROM best b
+ CROSS JOIN LATERAL (VALUES
+   -- At 6 decibels the words compete with the room. At 24 nothing is in their way.
+   ('audio_snr', (b.snr - 6) / 18, b.snr),
+   -- Half a percent of a line cut off at the top of the scale is already ruined.
+   ('undistorted', 1 - b.clipped * 200, b.clipped),
+   -- About an eighth of a voice is above four kilohertz. Far more is hiss or
+   -- wind and far less is muffled, and neither can be mended the way a quiet
+   -- recording can. Where the middle sits is a first estimate, not a finding.
+   ('spectral_balance', 1 - abs(b.high - 0.13) / 0.22, b.high)
+ ) AS s(name, value, raw)"""
+
+#: A laugh follows the line that caused it: one that starts this many seconds
+#: after a passage is still the passage's. Counting only the laughs inside it
+#: would credit the reaction and not the joke.
+LAUGH_AFTER_S = 6.0
+
+#: Whether anyone laughed at each passage, on whichever recording heard it: a
+#: laugh is often loudest on someone else's microphone. Only passages some
+#: recording of which has been listened to: there, no laugh is a finding.
+_LAUGHED = f"""
+SELECT 'passage', p.id, 'laughter',
+       coalesce(max(CASE WHEN l.confirmed THEN 1 ELSE l.confidence END), 0),
+       count(DISTINCT l.id), {SEEN}, 'audio', 'laughter'
+  FROM media_video.passages p
+  JOIN media.takes t ON t.id = p.take_id
+  JOIN media.take_assets ta ON ta.take_id = p.take_id AND {_PLACED}
+  JOIN media.assets a ON a.id = ta.asset_id
+  LEFT JOIN media_video.laughter l ON l.asset_id = ta.asset_id AND l.confirmed IS DISTINCT FROM false
+   AND l.start_s + ta.offset_s < p.end_s + {LAUGH_AFTER_S} AND l.end_s + ta.offset_s > p.start_s
+ WHERE (%s::text IS NULL OR t.project = %s)
+   AND (jsonb_exists(a.meta, 'laughter')
+        OR EXISTS (SELECT 1 FROM media_video.laughter known WHERE known.asset_id = a.id))
+ GROUP BY p.id"""
+
 _SHOTS = f"""
 WITH sharpest AS (
   SELECT a.project, percentile_cont(0.95) WITHIN GROUP (ORDER BY sh.sharpness) AS sharpness
@@ -121,22 +183,29 @@ WITH sharpest AS (
    WHERE sh.sharpness IS NOT NULL AND NOT coalesce(sh.is_black, false)
    GROUP BY a.project
 )
-SELECT 'shot', sh.id, s.name, s.value, s.raw, {SEEN}, 'picture', s.producer
+SELECT 'shot', sh.id, s.name, s.value, s.raw, {SEEN}, s.modality, s.producer
   FROM media_video.shots sh
   JOIN media.assets a ON a.id = sh.asset_id
   LEFT JOIN sharpest top ON top.project IS NOT DISTINCT FROM a.project
   LEFT JOIN media_video.signatures sig ON sig.shot_id = sh.id
   LEFT JOIN media_video.v_shot_content c ON c.shot_id = sh.id
+  LEFT JOIN media_video.coordination together ON together.shot_id = sh.id
  CROSS JOIN LATERAL (VALUES
-   ('sharpness', sh.sharpness / nullif(top.sharpness, 0), sh.sharpness, 'frames'),
-   ('colour_variety', sig.sat_mean * 2, sig.sat_mean, 'signatures'),
+   ('sharpness', sh.sharpness / nullif(top.sharpness, 0), sh.sharpness, 'picture', 'frames'),
+   ('colour_variety', sig.sat_mean * 2, sig.sat_mean, 'picture', 'signatures'),
    -- Only where a detector has looked. Before that, nobody in the frame and
    -- nobody having checked are the same empty column, and only one of them
    -- makes a shot safe to lay over someone else's voice.
-   ('subject_present', (sh.subject_n > 0)::int, sh.subject_n, 'detections'),
+   ('subject_present', (sh.subject_n > 0)::int, sh.subject_n, 'picture', 'detections'),
    ('safe_over_audio', CASE WHEN sh.subject_n IS NOT NULL THEN c.safe_over_other_audio::int END,
-    NULL, 'detections')
- ) AS s(name, value, raw, producer)
+    NULL, 'picture', 'detections'),
+   -- Six decibels over what surrounds it is twice as loud: a reaction. A
+   -- shot no louder than its surroundings is measured, and scores nothing.
+   ('energy_lift', sh.lift_db / 6, sh.lift_db, 'audio', 'loudness'),
+   -- Only where something was lit: with nothing to follow there is no
+   -- answer, which is not the same as the two moving apart.
+   ('coordination', together.corr, together.corr, 'picture', 'coordination')
+ ) AS s(name, value, raw, modality, producer)
  WHERE NOT coalesce(sh.is_black, false) AND (%s::text IS NULL OR a.project = %s)"""
 
 @dataclass(frozen=True)
@@ -265,6 +334,7 @@ def run(project: str | None = None, *, min_pause_s: float = 1.5) -> Counter[str]
     with db.transaction():
         flags.scan(project=project, min_pause_s=min_pause_s)
         return (_write(_TEXT, scope) + recogniser(project) + _write(_SEEN, scope)
+                + _write(_HEARD, scope) + _write(_LAUGHED, scope)
                 + flagged(project) + _write(_SHOTS, scope))
 
 

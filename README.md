@@ -29,7 +29,7 @@ Early, and built in the open one layer at a time.
 | --- | --- |
 | Schema modules (`packages/`) | Here, tested, audited |
 | Settings and the adapter interface for the database, models and effects (`python/`) | Here, tested |
-| Engine and `media` command line: ingest, lineage, shots, frames, signatures, detection, transcription, takes and sync, speakers, passages, flags, scores and rankings, decisions, shot selection and timelines, a ranker taught from preferences, interviews assembled from passages with footage laid over them, cuts rendered to a file and exported to an editing program, a text model's opinion of the best passages, search by meaning | Here, tested |
+| Engine and `media` command line: ingest, lineage, shots, frames, signatures, detection, transcription, takes and sync, speakers, the sound measured (how loud a shot is against what surrounds it, how well a line can be heard, where people laugh) and the movement of what is lit against the rest of the picture, passages, flags, scores and rankings, decisions, shot selection and timelines, a ranker taught from preferences, interviews assembled from passages with footage laid over them, cuts rendered to a file and exported to an editing program, a text model's opinion of the best passages, search by meaning | Here, tested |
 | [`.conv`](https://github.com/constructive-io/conversation-format) scripts read and checked, held to the format's own conformance files | Here, tested |
 | The mix: clips on named tracks, brought to a level, looped, faded, ducked under speech and put through effects, written with a stem for each track | Here, tested |
 | The check on a spoken line: what was heard against what was meant, a voice's reference recording leaking into the line, a stutter, a line cut off, a click at the start | Here, tested |
@@ -116,6 +116,10 @@ media takes                          # each take and how much of it is placed
 media diarize                        # tell the voices in each recording apart
 media speakers                       # each recording's voices, and a clip of each to listen to
 media name interview voice1 "Ottoline Varga" --new  # say whose voice it is
+media loudness                       # how loud each shot is against the minute around it
+media coordination                   # whether the lit part of each shot moves with the rest of it
+media audible                        # how well each line can be heard: the noise under it, and distortion
+media laughter                       # where people laugh, as candidates to say yes or no to
 media passages                       # cut each take's speech into passages worth using
 media score                          # flag what to cut, then score every passage and shot
 media rank interview --top 10        # the best of them, and how much each was measured
@@ -171,6 +175,27 @@ is left out, never counted as a zero, and `media rank` says how much of its
 recipe each result was measured on. A passage in which someone asks for
 something not to be used is never ranked, whatever it scores, until a person
 dismisses that flag. `media flag` runs the flags on their own.
+
+Four commands measure what the words and the pixels do not say, and
+`media score` turns each into scores. `media loudness` gives a shot its lift:
+how far it sits above the minute around it, which is where a cheer or a gasp
+shows (`energy_lift`). `media coordination` follows what is bright and
+strongly coloured in a shot, and everything else, and says how closely the
+two move together over the shot's best four seconds (`coordination`).
+`media audible` measures each transcribed line for itself: the noise under
+it, how far the speech stands above that, and how much of it was cut off at
+the top of the scale (`audio_snr`, `undistorted`, `spectral_balance`). A
+recogniser is as sure of a muffled line as of a clear one, so this is the
+only measure of whether anyone would want to listen, and `media assemble`
+takes each passage's sound from the cleanest recording measured.
+`media laughter` finds where people laugh, from the sound, since a
+recogniser throws laughter away. What it finds are candidates:
+`media laughter --yes ID` or `--no ID` says which are right, and a passage
+is credited with a laugh in it or in the six seconds after (`laughter`).
+
+The recipes that come with the engine weigh `energy_lift` and
+`coordination` for shots. The others count once a recipe weighs them:
+`media recipe talk --like interview --weigh audio_snr=0.5 --weigh laughter=0.5`.
 
 `media judge` asks what no measurement can: whether anything is said. A passage
 of thanks scores as well as an explanation on every measure of form, so the
