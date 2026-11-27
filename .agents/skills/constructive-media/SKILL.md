@@ -1,10 +1,10 @@
 ---
 name: constructive-media
-description: Constructive Media — one engine for video, images, audio and voice, driven by the `media` command line with its state in PostgreSQL. Use when asked to "render a .conv", "turn a script into audio", "make a voiced scene", "say this script", "say this in a voice", "give a persona a voice", "clone a voice", "audition a voice", "blend two voices", "mix voices", "make a new voice from two", "make a narrated deck", "film a deck", "turn a script into a video", "make a walkthrough video", "narrate a document", "add a voice library", "set up the media engine", "ingest footage", "transcribe recordings", "find the best takes", "make a cut", "render a cut", "generate an image", "generate a video", "make a picture from a prompt", "talk to a model", "have a voice conversation", "measure the voice latency", or to choose a model, an adapter or a plugin for the engine.
+description: Constructive Media — one engine for video, images, audio and voice, driven by the `media` command line with its state in PostgreSQL. Use when asked to "render a .conv", "turn a script into audio", "make a voiced scene", "say this script", "say this in a voice", "give a persona a voice", "clone a voice", "audition a voice", "blend two voices", "mix voices", "make a new voice from two", "make a quick voice", "a fast voice for talking", "mimic a voice", "use Kokoro", "make a narrated deck", "film a deck", "turn a script into a video", "make a walkthrough video", "narrate a document", "add a voice library", "set up the media engine", "ingest footage", "transcribe recordings", "find the best takes", "make a cut", "render a cut", "generate an image", "generate a video", "make a picture from a prompt", "talk to a model", "have a voice conversation", "measure the voice latency", or to choose a model, an adapter or a plugin for the engine.
 compatibility: Python 3.11+, PostgreSQL 17+ with pgvector, pgpm, ffmpeg, whisper.cpp; Chrome or Chromium for video of a page
 metadata:
   author: constructive-io
-  version: "0.11.0"
+  version: "0.12.0"
 ---
 
 # Constructive Media
@@ -24,7 +24,8 @@ goes in, and a mixed recording comes out.
 - **A script to video:** filming a deck, a document or a walkthrough that
   follows the recording. See [A script to video](#a-script-to-video).
 - **Voices:** saying a few words in a voice, cutting a clip to clone from,
-  auditioning a voice, blending voices into a new one, sharing voices, sounds
+  auditioning a voice, blending voices into a new one, a quick voice for
+  talking that leans towards a recording, sharing voices, sounds
   and faces as a library. See
   [Voices and libraries](#voices-and-libraries).
 - **Footage to a cut:** ingesting recordings, transcribing them, telling voices
@@ -282,6 +283,34 @@ says whether it is a voice anyone wants. Keep only the one they chose. A kept
 blend is a cloned voice like any other, spoken by anything that clones, and
 what it was made of is in the `.blend.json` beside its clip. It carries the
 voices it was made from: blend only voices whose owners said yes to that.
+
+**Make a quick voice for talking.** A model that clones takes seconds over a
+sentence. The `kokoro` adapter runs a small one that takes about a tenth of a
+second on a Mac and speaks in voices of its own (`af_heart`, `bm_george`: `a`
+American, `b` British, then `f` or `m`). The person installs what it needs,
+none of it an extra of the engine: `pip install mlx-audio misaki num2words
+spacy` and `python -m spacy download en_core_web_sm`. Do not tell them to
+install `misaki[en]`: that brings GPL packages the adapter does without.
+
+```sh
+CONSTRUCTIVE_MEDIA_ADAPTER_SPEECH=kokoro media talk --profile af_heart
+media mimic ada.flac voices/little-ada.safetensors --keep "Little Ada"   # about a minute
+media talk --voice little-ada
+```
+
+`media mimic` takes a recording, or a persona whose voice was cloned from a
+clip. It hears every one of the model's voices beside it, mixes the nearest
+few, and writes the mix as a table (`.safetensors`), with a passage said in it
+and a `.mimic.json` saying what it is a mix of. **It is not a clone and must
+not be called one.** A clone scores about 0.8 alike its recording; a mimicked
+voice scores 0.2 to 0.4, and the first line it prints sets that beside the
+nearest of the model's own voices alone, which is often as near. Tell the
+person both numbers, give them both to listen to, and say plainly that it is
+the same sort of voice and not theirs. Keep it under a name of its own
+(`--keep "Little Ada"`): a persona has one voice for each emotion, and keeping
+it as `ada` takes the place of the cloned one. A kept one is spoken by the
+`kokoro` adapter whatever speaks everybody else. It is made from somebody's
+recording: only with their yes.
 
 **Share voices, sounds and faces as a library.** A library is a folder or a git
 repository with a `media-library.json` that names what is in it and, for every

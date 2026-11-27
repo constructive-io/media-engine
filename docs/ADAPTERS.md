@@ -18,7 +18,7 @@ that does the job.
 | `transcription` | speech to text, with word timings | `whispercpp` |
 | `detection` | objects and people in a frame | `onnx`, `torchvision` |
 | `speaker` | a voice as numbers, alike for one person and apart for two | `onnx` |
-| `speech` | text to speech | `http`, `mlx` |
+| `speech` | text to speech | `http`, `mlx`, `kokoro` |
 | `denoise` | a voice with the noise under it taken off | `ffmpeg` |
 | `voice_conversion` | one voice re-spoken in another | |
 | `image` | a picture made from a description | `mflux` |
@@ -350,6 +350,67 @@ Any other model that runs in the engine's own process is an adapter too, built
 in when everything it needs is within [the rule](./LICENSING.md) and a plugin
 when it is not. It is handed the voice's clip and the words said in it, and
 can be chosen per voice, by the voice's `engine`.
+
+### A small, quick model
+
+The `kokoro` adapter runs [Kokoro](./MODELS.md#speech-text-to-a-voice), a
+model of 82 million weights, through mlx-audio on Apple silicon. On one
+desktop it said the first sentence of an answer in about 160 thousandths of a
+second once warm, and `media talk --measure` came to 1.2 seconds from the end
+of a sentence to the first sound. It does not clone: it speaks in a voice of
+its own, or in a [mix of them](./VOICES.md#one-that-leans-towards-a-recording).
+
+```sh
+pip install "constructive-media[audio]" mlx-audio misaki num2words spacy
+python -m spacy download en_core_web_sm
+export CONSTRUCTIVE_MEDIA_ADAPTER_SPEECH=kokoro
+media talk --profile af_heart
+```
+
+A voice's `profile` is the name of one of the model's own, as in `af_heart`,
+or the path of a table that `media mimic` wrote, a `.safetensors` file. A
+voice whose `engine` is `kokoro` is spoken by this adapter whatever
+`CONSTRUCTIVE_MEDIA_ADAPTER_SPEECH` says, and then
+`CONSTRUCTIVE_MEDIA_MODEL_SPEECH` and `CONSTRUCTIVE_MEDIA_EXTRA_SPEECH` are
+left for the adapter they were set for. When it is the one chosen, the model
+is `mlx-community/Kokoro-82M-bf16` unless another is named, and
+`CONSTRUCTIVE_MEDIA_EXTRA_SPEECH='{"speed": 1.1, "language": "british"}'`
+changes how fast it speaks and what a table that does not say is read as.
+
+None of what it needs is one of the engine's extras, and
+[LICENSING.md](./LICENSING.md#dependencies) says what each is under. The model
+is handed sounds, not letters, and [misaki](https://github.com/hexgrad/misaki)
+turns one into the other with a dictionary. A word the dictionary does not
+have, a name or the name of a program, misaki hands on to espeak-ng through a
+package that is GPL-3.0, and without that package the model leaves the word
+out of the sentence and says nothing about it. This adapter does not need the
+package. Such a word is read by its spelling, by `speech/sounding.py`: roughly,
+as a stranger would read it aloud, and it is heard. Somebody who has installed
+the GPL package gets what misaki does with it, and other languages than
+English, which this adapter does not read by itself.
+
+### An adapter whose voices can be mixed
+
+[`media mimic`](./VOICES.md#one-that-leans-towards-a-recording) mixes a
+model's own voices until they lean towards a recording. It needs three things
+more of a synthesizer than `say`, and a name for the kind of file it writes.
+An adapter without them is told so when a voice is asked of it:
+
+```python
+suffix = ".safetensors"
+
+def voices(self) -> list[str]:
+    """The voices it has of its own, by name."""
+
+def table(self, voice) -> array:
+    """One of them as its numbers: the same shape for every voice."""
+
+def write(self, table, target, *, of=()) -> Path:
+    """Write a table down as a file whose path is a profile `say` speaks from."""
+```
+
+The engine adds tables together in the shares it is trying and never looks
+inside one. The `kokoro` adapter has all of it.
 
 ### An adapter that can blend
 

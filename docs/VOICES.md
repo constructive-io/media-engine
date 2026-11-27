@@ -5,7 +5,9 @@ that says which adapter speaks it and what that adapter knows it by. There are
 two kinds:
 
 - **A voice the speech server has of its own.** The row holds the server's
-  name for it, and that is all.
+  name for it, and that is all. A [quick voice](#a-quick-voice) is one of
+  these: the row holds the name of one of a small model's own voices, or where
+  a table mixed from them is.
 - **A voice cloned from a clip.** The row also holds where a short recording
   of the voice is, and the words said in it. The clip is sent to a server that
   clones, or handed to an adapter that does. A voice
@@ -233,3 +235,71 @@ only said one passage: audition it before it is used.
 **A blend of two people's voices is made of two people's voices.** It takes
 the same permission from each of them as cloning either would, and saying so
 is yours to do when it goes into a library.
+
+## A quick voice
+
+A model that clones takes a few seconds over a sentence. That is nothing in a
+script and a long time in a conversation. [Kokoro](./MODELS.md#speech-text-to-a-voice)
+is a small model that says a sentence in about a tenth of a second on a Mac,
+and the [`kokoro` adapter](./ADAPTERS.md#a-small-quick-model) runs it. It does
+not clone. It comes with a few dozen voices, and it speaks in one of those:
+
+```sh
+media talk --profile af_heart          # with CONSTRUCTIVE_MEDIA_ADAPTER_SPEECH=kokoro
+media voice ada --engine kokoro --profile bm_george
+```
+
+The first letter of a voice's name is what it speaks, `a` American English and
+`b` British, and the second whether it is a woman's or a man's.
+
+### One that leans towards a recording
+
+Each of the model's voices is a table of numbers, and a table that is part of
+one and part of another is a voice too. `media mimic` looks for the mix that
+sounds most like somebody:
+
+```sh
+media mimic ada.flac voices/ada.safetensors                  # a recording
+media mimic ada voices/ada.safetensors                       # or a persona whose voice was cloned from a clip
+media mimic ada.flac voices/little-ada.safetensors --keep "Little Ada"
+media talk --voice little-ada
+```
+
+It says three sentences in each of the model's English voices and asks the
+speaker model how like the recording each one is. Then it starts from the
+nearest and tries mixes of the nearest six, 120 of them unless `--rounds` says
+otherwise, keeping a mix whenever it came out nearer. That takes about a
+minute. It writes the table, and beside it a passage said in the new voice and
+a file ending `.mimic.json` that says what the voice is a mix of:
+
+```
+voices/ada.safetensors: 0.41 alike ada.flac; the nearest of the model's own voices alone, bf_alice, is 0.41
+  af_bella      26%
+  af_heart      23%
+  bf_isabella   21%
+  bf_alice      16%
+  bf_emma       10%
+  bf_lily        3%
+said in it: voices/ada.wav (seed 4100, 1 take, clean)
+```
+
+**It is not a clone, and the numbers say so.** A voice cloned from a recording
+comes out about 0.8 alike it. On three test recordings a mimicked voice came
+out 0.18, 0.36 and 0.41: the same sort of voice, at about the same pitch, and
+nobody's friend would take it for them. The second number on the first line is
+the same passage in the one voice of the model's own that was nearest to begin
+with. Over the sentences a mix was found with, it was 0.01 to 0.05 nearer than
+that voice. Over a passage it was not found with it was within 0.02 of that
+voice on all three recordings, a little nearer on one and a little further on
+two, and the command says so when the mix is no nearer. What it reliably tells
+you is which of the model's voices to start from. Listen to both before you
+choose the mix.
+
+With `--keep` the persona is given the table as a voice that the `kokoro`
+adapter speaks, whatever adapter speaks everybody else, so one machine can
+say a script in cloned voices and talk in a quick one. A persona has one voice
+for each emotion: keep a mimicked voice under a name of its own, or it takes
+the place of the cloned one. The same `--seed` finds the same mix.
+
+**A voice made to lean towards somebody is made from their recording.** It
+takes the same permission as cloning them would.

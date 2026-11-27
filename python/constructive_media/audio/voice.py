@@ -479,6 +479,95 @@ def blend(
     return told
 
 
+def mimic(
+    who: str, target: str | Path, *, words: str | None = None, emotion: str | None = None, seed: int | None = None,
+    keep: str | None = None, engine: str | None = None, of: int | None = None, rounds: int | None = None,
+    voices: Voices | None = None, synthesizer: Callable[[str | None], Synthesizer] | None = None,
+    transcriber: Transcriber | None = None, embedder: Any = None, store: Callable[..., Any] | None = None,
+    settings: Settings | None = None, progress: Callable[[str], None] | None = None, **how: Any,
+) -> dict[str, Any]:
+    """Mix a small model's own voices until they lean towards `who`, and write the mix as `target`.
+
+    `who` is a recording, or a persona whose voice was cloned from a clip.
+    `target` is the table the model speaks from. Beside it go `words` said
+    in the new voice, checked as any line is with `how` passed on to
+    `line.speak`, and what the voice is a mix of. `alike` in the answer is
+    how like `who` those words came out, as the speaker model hears them:
+    words the mix was not found with. `nearest` is the one voice of the
+    model's own that was most like `who`, and how like it the same words
+    are in that voice, so that it can be seen what the mixing was worth.
+
+    With `keep`, the persona of that name is given the table as a voice,
+    which the adapter that made it speaks. Nothing is kept of a voice no
+    take of which passed.
+    """
+    from ..speakers import embedder as speaker_adapter
+    from ..speakers.names import slug
+    from ..speech import NEUTRAL
+    from ..speech import keep as write_down
+    from ..speech import mimic as mimicking
+    from . import line
+
+    words = (PASSAGE if words is None else words).strip()
+    if not words:
+        raise SpeechError("there are no words to say")
+    if Path(who).expanduser().is_file():
+        clip = Path(who).expanduser()
+        who = clip.name
+    else:
+        known = voices if voices is not None else StoredVoices()
+        voice = known.find(slug(who), emotion)
+        if not voice.reference_audio:
+            raise SpeechError(f"the {voice.emotion} voice of {voice.persona!r} was not made from a clip, so there "
+                              "is nothing to hear it by. A voice is mimicked from a recording")
+        clip = Path(voice.reference_audio).expanduser()
+        if not clip.is_file():
+            raise SpeechError(f"the clip the {voice.emotion} voice of {voice.persona!r} was made from is not "
+                              f"there: {clip}")
+        who = voice.persona
+    engine = engine or "kokoro"
+    speaks = mimicking.able(synthesizer(engine) if synthesizer else speech_adapter(engine, settings=settings))
+    listens = transcriber if transcriber is not None else transcription_adapter(settings=settings)
+    hears = embedder if embedder is not None else speaker_adapter(settings=settings)
+    target = Path(target)
+    if target.suffix != speaks.suffix:
+        raise SpeechError(f"the {speaks.name} speech adapter writes a voice as a {speaks.suffix} file, which "
+                          f"{target.name} is not")
+    sample, recipe = target.with_suffix(".wav"), target.with_suffix(".mimic.json")
+    name = slug(keep) if keep else "mimic"
+    seed = SEED if seed is None else seed
+    wanted = {key: value for key, value in (("of", of), ("rounds", rounds)) if value is not None}
+    with tempfile.TemporaryDirectory(prefix="mimic-") as scratch:
+        found = mimicking.mimic(clip, speaks, embedder=hears, folder=Path(scratch) / "tried", seed=seed,
+                                progress=progress, **wanted)
+        written = speaks.write(found.table, target, of=found.of)
+        said_by = Voice(name, emotion or NEUTRAL, speaks.name, str(written.resolve()))
+        take = line.speak(words, said_by, scratch, synthesizer=speaks, transcriber=listens, seed=seed, **how)
+        if take.path is None:
+            raise SpeechError(f"nothing could be said: {take.verdict.heard}")
+        _write(take.path, sample)
+        # The same words in the nearest voice there was to begin with, to say what the mixing was worth.
+        nearest = found.heard[0][0]
+        alone = speaks.say(take.spoken, Path(scratch) / "nearest.wav", voice=Voice(name, profile=nearest),
+                           seed=take.seed)
+        nearest_alike = alike(alone, clip, embedder=hears)
+    told = {
+        "output": str(written), "sample": str(sample), **_told(take, said_by), "engine": speaks.name,
+        "model": speaks.model, "like": who, "recording": str(clip),
+        "alike": round(alike(sample, clip, embedder=hears), 3), "found_at": round(found.alike, 3),
+        "of": [{"voice": voice, "share": round(share, 4)} for voice, share in mimicking.told(found.of)],
+        "nearest": {"voice": nearest, "alike": round(nearest_alike, 3)},
+        "voices": len(found.heard), "tried": found.tried, "words": take.spoken, "kept": None,
+    }
+    recipe.write_text(json.dumps({key: told[key] for key in ("like", "of", "alike", "nearest", "seed", "model")},
+                                 indent=2) + "\n", encoding="utf-8")
+    told["recipe"] = str(recipe)
+    if keep and take.ok:
+        (store or write_down)(said_by, new=True)
+        told["kept"] = {"persona": name, "emotion": said_by.emotion}
+    return told
+
+
 def _likeness(made: Path, clips: Sequence[Path], embedder: Any, settings: Settings | None) -> list[float] | None:
     """How like each clip a recording is, or None when there is nothing here to hear that with."""
     from ..adapters import AdapterError

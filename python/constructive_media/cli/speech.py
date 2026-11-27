@@ -182,6 +182,31 @@ def register(commands: Any) -> None:
     command.add_argument("--json", action="store_true", help="print the whole report as JSON")
     command.set_defaults(run=run_blend)
 
+    command = commands.add_parser(
+        "mimic", help="mix a quick model's own voices until they lean towards a recording",
+        description="A small speech model that says a sentence in a tenth of a second does not clone: it has "
+                    "voices of its own. This says a few sentences in each of them, asks the speaker model which "
+                    "are most like a recording, and tries mixes of the nearest few, keeping each that comes out "
+                    "nearer, as in `media mimic ada.flac ada.safetensors`. It writes the mix as a table the "
+                    "model speaks from, a passage said in it beside that, and what it is a mix of. What comes "
+                    "out is the same sort of voice and not a clone. With --keep the table is given to a persona "
+                    "as a voice. It takes a speech adapter with voices of its own to mix, which the kokoro "
+                    "adapter has.",
+    )
+    command.add_argument("who", help="a recording of the voice, or a persona whose voice was cloned from a clip")
+    command.add_argument("output", help="the table to write, a .safetensors file; what was said goes beside it")
+    command.add_argument("--words", metavar="TEXT", help="what to say in it (default: a passage of about twenty seconds)")
+    command.add_argument("--keep", metavar="NAME", help="give the table to this persona as a voice, added if new")
+    command.add_argument("--emotion", metavar="NAME",
+                         help="which voice of the persona to mimic, and the emotion a kept one speaks in")
+    command.add_argument("--engine", metavar="NAME", help="the speech adapter whose voices are mixed (default: kokoro)")
+    command.add_argument("--of", type=int, metavar="N", help="how many of the nearest voices to mix (default: 6)")
+    command.add_argument("--rounds", type=int, metavar="N", help="how many mixes to try (default: 120)")
+    command.add_argument("--seed", type=int, metavar="N", help="the seed everything is said with; the same finds the same")
+    command.add_argument("--attempts", type=int, metavar="N", help="how many takes of the passage before giving up")
+    command.add_argument("--json", action="store_true", help="print the whole report as JSON")
+    command.set_defaults(run=run_mimic)
+
 
 def _voices(one: Any) -> str:
     return (f"{one.found} found voice{'' if one.found == 1 else 's'}, "
@@ -475,6 +500,43 @@ def run_audition(arguments: argparse.Namespace) -> int | None:
             print(f"{len(told['bled'])} began with the end of the voice's recording: cut the clip so that it "
                   "ends on a calm phrase with quiet after it, and write its words down exactly")
     return None if told["passed"] else 1
+
+
+def run_mimic(arguments: argparse.Namespace) -> int | None:
+    import json
+
+    from ..audio import line, voice
+
+    how = {"attempts": arguments.attempts} if arguments.attempts is not None else {}
+    progress = None if arguments.json else (lambda said: print(f"  {said}", file=sys.stderr, flush=True))
+    told = voice.mimic(arguments.who, arguments.output, words=arguments.words, emotion=arguments.emotion,
+                       seed=arguments.seed, keep=arguments.keep, engine=arguments.engine, of=arguments.of,
+                       rounds=arguments.rounds, progress=progress, **how)
+    passed = told["status"] != line.NEEDS_REVIEW
+    if arguments.json:
+        print(json.dumps(told, indent=2, ensure_ascii=False))
+        return None if passed else 1
+    nearest = told["nearest"]
+    print(f"{told['output']}: {told['alike']:.2f} alike {told['like']}; the nearest of the model's own voices "
+          f"alone, {nearest['voice']}, is {nearest['alike']:.2f}")
+    widest = max(len(one["voice"]) for one in told["of"])
+    for one in told["of"]:
+        print(f"  {one['voice']:<{widest}}  {one['share']:>4.0%}")
+    takes = "1 take" if told["attempts"] == 1 else f"{told['attempts']} takes"
+    print(f"said in it: {told['sample']} (seed {told['seed']}, {takes}, {told['status']})")
+    if not passed:
+        print(f"no take passed; it was heard as: {told['heard']}")
+        if arguments.keep:
+            print("nothing was kept. Other --words may say it, or another --seed")
+        return 1
+    if told["alike"] <= nearest["alike"] and len(told["of"]) > 1:
+        print(f"over words it was not found with, the mix is no nearer than {nearest['voice']} alone, which the "
+              f"{told['engine']} adapter speaks by that name")
+    if told["kept"]:
+        kept = told["kept"]
+        print(f"{kept['persona']} now has a {kept['emotion']} voice that the {told['engine']} adapter speaks")
+        print(f"talk with it: media talk --voice {kept['persona']}")
+    return None
 
 
 def run_blend(arguments: argparse.Namespace) -> int | None:

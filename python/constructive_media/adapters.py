@@ -257,6 +257,13 @@ def builtins() -> Iterator[Adapter]:
         summary="Words said aloud on this machine by a model run through MLX, cloning a voice from a recording",
     )
     yield Adapter(
+        slot="speech",
+        name="kokoro",
+        factory=lazy("constructive_media.speech.kokoro:KokoroSpeech"),
+        license="MIT",
+        summary="Words said aloud on this machine by Kokoro, a small quick model with voices of its own",
+    )
+    yield Adapter(
         slot="denoise",
         name="ffmpeg",
         factory=lazy("constructive_media.denoise.ffmpeg:FfmpegDenoiser"),

@@ -40,7 +40,7 @@ Early, and built in the open one layer at a time.
 | Speech: voices kept by persona and emotion, a client for any server that speaks, and a line said again with another seed until a take of it passes the check | Here, tested with stand-ins for the models |
 | `.conv` scripts rendered to sound: every line said and checked, every sound put in its place, the whole mixed to one loudness, with the lines, the stems and a manifest kept beside it | Here, tested with stand-ins for the models |
 | [The stage](./docs/STAGE.md): a rendered script filmed as a video. A page follows the recording, as a deck, a document or a walkthrough, with the speakers, captions and clips drawn over it; a browser with no window is watched, and the pictures are laid under the sound | Here, tested, and filmed with a real browser |
-| [Voices](./docs/VOICES.md): a noisy recording measured and cleaned, a recording cut into a clip a voice can be cloned from, the clip sent to a server that clones or to a model run on a Mac with no server, a voice auditioned before it is used, and a voice blended from others and kept as one of its own | Here, tested with stand-ins for the models |
+| [Voices](./docs/VOICES.md): a noisy recording measured and cleaned, a recording cut into a clip a voice can be cloned from, the clip sent to a server that clones or to a model run on a Mac with no server, a voice auditioned before it is used, a voice blended from others and kept as one of its own, and a small quick model's own voices mixed until they lean towards a recording | Here, tested with stand-ins for the models |
 | [Libraries](./docs/LIBRARIES.md): voices, sound banks and faces in repositories of their own, each voice with its consent, added by address and kept at a commit | Here, tested |
 | [Starting a project](./docs/PROJECTS.md): `media init` makes a workspace and its decks from a repository of boilerplates, in the format `pgpm init` reads | Here, tested |
 | Pictures and video made from a description by a model on your own machine, every request and what it made kept on record apart from what was filmed | Here, tested with stand-ins for the models |
@@ -504,6 +504,17 @@ own ([docs/VOICES.md](./docs/VOICES.md#a-voice-between-two-voices)):
 ```sh
 media blend ada:0.35 grace:0.65 out/between.wav
 media blend ada:0.35 grace:0.65 voices/wren/neutral.wav --keep wren
+```
+
+A model that clones takes seconds over a sentence. For talking there is a
+small one that takes a tenth of a second and speaks in voices of its own, and
+they can be mixed until they lean towards a recording. It is the same sort of
+voice and not a clone
+([docs/VOICES.md](./docs/VOICES.md#a-quick-voice)):
+
+```sh
+media mimic ada.flac voices/little-ada.safetensors --keep "Little Ada"
+media talk --voice little-ada
 ```
 
 The models that listen, write and speak can hold a conversation between

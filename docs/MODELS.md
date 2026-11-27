@@ -87,6 +87,14 @@ The `http` adapter names no model: the server it reaches has its own. The
 under Apache-2.0. It is fetched by mlx-audio the first time a line is said,
 and it clones a voice from a clip of 15 to 28 seconds and the words said in it.
 
+The `kokoro` adapter loads `mlx-community/Kokoro-82M-bf16` when no other is
+named, a conversion for MLX of
+[Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M), published under
+Apache-2.0 with the voices that come with it. It is about a third of a
+gigabyte, it is fetched the first time a line is said, and it does not clone:
+it speaks in one of its own voices or in a mix of them. The text it is given
+is read by spaCy's `en_core_web_sm`, which is MIT and which you fetch.
+
 ## Pictures: a description to an image
 
 `generate/mflux.py`. The `mflux` adapter runs the

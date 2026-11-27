@@ -76,6 +76,20 @@ def _quietly() -> Iterator[None]:
         yield
 
 
+def extras(settings: Settings) -> dict[str, Any]:
+    """What `CONSTRUCTIVE_MEDIA_EXTRA_SPEECH` says to say a line with."""
+    extra = settings.extra("speech")
+    if not extra:
+        return {}
+    try:
+        given = json.loads(extra)
+    except ValueError as error:
+        raise SpeechError(f"CONSTRUCTIVE_MEDIA_EXTRA_SPEECH is not JSON: {error}") from None
+    if not isinstance(given, dict):
+        raise SpeechError('CONSTRUCTIVE_MEDIA_EXTRA_SPEECH should be a JSON object, such as {"temperature": 0.3}')
+    return given
+
+
 class MlxSpeech:
     """A speech model run in this process, on Apple silicon."""
 
@@ -84,16 +98,7 @@ class MlxSpeech:
     def __init__(self, model: str | None = None, *, settings: Settings | None = None) -> None:
         settings = settings or Settings.from_env()
         self.model = model or settings.model("speech") or DEFAULT_MODEL
-        self.options = dict(DEFAULTS)
-        extra = settings.extra("speech")
-        if extra:
-            try:
-                given = json.loads(extra)
-            except ValueError as error:
-                raise SpeechError(f"CONSTRUCTIVE_MEDIA_EXTRA_SPEECH is not JSON: {error}") from None
-            if not isinstance(given, dict):
-                raise SpeechError('CONSTRUCTIVE_MEDIA_EXTRA_SPEECH should be a JSON object, such as {"temperature": 0.3}')
-            self.options.update(given)
+        self.options = {**DEFAULTS, **extras(settings)}
         self._settings = settings
         self._loaded: Any = None
 
@@ -104,7 +109,7 @@ class MlxSpeech:
             try:
                 from mlx_audio.tts.utils import load_model
             except ImportError:
-                raise SpeechError("the mlx speech adapter needs mlx-audio, which runs on Apple silicon: "
+                raise SpeechError(f"the {self.name} speech adapter needs mlx-audio, which runs on Apple silicon: "
                                   "pip install mlx-audio") from None
             try:
                 with _quietly():
@@ -156,6 +161,13 @@ class MlxSpeech:
         silence = mx.zeros((REFERENCE_RATE,), dtype=mx.float32)
         return self._said(text, target, seed, {"ref_audio": silence}, embedding=forced)
 
+    def _generated(self, model: Any, text: str, asked: dict[str, Any]) -> Any:
+        """The model's answer to one line, a part at a time."""
+        options = dict(self.options)
+        language = options.pop("language", None)
+        return model.generate(text=text, lang_code=language or "auto", max_tokens=most_tokens(text),
+                              **options, **asked)
+
     def _heard(self, recording: Path) -> Any:
         import mlx.core as mx
 
@@ -164,8 +176,6 @@ class MlxSpeech:
     def _said(self, text: str, target: Path, seed: int | None, asked: dict[str, Any], *, embedding: Any = None) -> Path:
         import numpy as np
 
-        options = dict(self.options)
-        language = options.pop("language", None)
         with self.alone():
             import mlx.core as mx
 
@@ -179,8 +189,7 @@ class MlxSpeech:
                 model.extract_speaker_embedding = lambda *_, **__: embedding
             try:
                 parts = [np.asarray(part.audio, dtype=np.float32).reshape(-1)
-                         for part in model.generate(text=text, lang_code=language or "auto",
-                                                    max_tokens=most_tokens(text), **options, **asked)]
+                         for part in self._generated(model, text, asked)]
             except SpeechError:
                 raise
             except Exception as error:  # noqa: BLE001

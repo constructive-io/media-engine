@@ -43,6 +43,20 @@ least, so none is an extra and nothing in the engine needs any of them:
 - `diffusers`, `transformers` and `ftfy` (Apache-2.0), which the `diffusers`
   video adapter loads a model with, on `torch`.
 
+The `kokoro` speech adapter needs more, and one part of it is under a license
+the rule does not allow in the engine. It is installed by you as well, and
+nothing else in the engine uses any of it:
+
+- `misaki` (Apache-2.0), which turns English into the sounds the model is
+  handed, with `spacy` (MIT) and spaCy's `en_core_web_sm` (MIT).
+- `num2words` (LGPL), which misaki cannot be imported without. It is a
+  library you install and the engine calls nothing in it.
+- Not `phonemizer-fork` or `espeakng-loader`, which are GPL-3.0 and which
+  misaki would hand a word it does not know to. The adapter reads such a word
+  itself, and does not ask for them. `pip install "misaki[en]"` brings them:
+  install `misaki` plain, as [ADAPTERS.md](./ADAPTERS.md#a-small-quick-model)
+  has it, if you do not want them.
+
 Left out on purpose, each replaced by something that meets the rule:
 
 | Not used | Why | Instead |

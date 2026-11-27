@@ -85,6 +85,12 @@ Those numbers are from one desktop, with every model on it. Of the three, the
 hearing is usually the longest: a smaller Whisper
 (`CONSTRUCTIVE_MEDIA_MODEL_TRANSCRIPTION=small.en`) is the first thing to try.
 
+The saying is the other one to look at. A model that clones took 436
+thousandths of a second over that first sentence. The
+[`kokoro` adapter](./ADAPTERS.md#a-small-quick-model) runs a small model that
+took 159 on the same desktop, in a voice of its own and not a cloned one
+([a quick voice](./VOICES.md#a-quick-voice)).
+
 When it is served, `media talk` says a word and listens to it before it prints
 the address. A voice that cannot speak or a model that cannot listen is found
 out then, and the slow first use of each is not your first sentence. The page
