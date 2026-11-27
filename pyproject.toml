@@ -32,7 +32,7 @@ media = "constructive_media.cli:main"
 constructive-media = "constructive_media.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/constructive-io/constructive-media"
+Homepage = "https://github.com/constructive-io/media-engine"
 
 [tool.setuptools.dynamic]
 version = { attr = "constructive_media.__version__" }

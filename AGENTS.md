@@ -1,4 +1,4 @@
-# constructive-media — agent guide
+# media-engine — agent guide
 
 This is a [pgpm](https://www.npmjs.com/package/pgpm) workspace: PostgreSQL schemas are
 developed as versioned modules under `packages/`, each with a `pgpm.plan` and matching
@@ -57,11 +57,11 @@ copyleft licenses, and a `media-engine-plugins` skill for them, are in
 [media-engine-plugins](https://github.com/constructive-io/media-engine-plugins).
 
 Voices, banks of sounds and faces are never kept here. They live in libraries, which are
-repositories of their own ([docs/LIBRARIES.md](./docs/LIBRARIES.md)), started from
-[voice-boilerplates](https://github.com/constructive-io/voice-boilerplates). A project, and
+repositories of their own ([docs/LIBRARIES.md](./docs/LIBRARIES.md)), started with
+`media init library NAME`. A project, and
 every page to film in it (a deck, a walkthrough, an animation, a document), is started with
 `media init` ([docs/PROJECTS.md](./docs/PROJECTS.md)) from
-[media-boilerplates](https://github.com/constructive-io/media-boilerplates): no template is
+[media-engine-boilerplates](https://github.com/constructive-io/media-engine-boilerplates): no template is
 kept here, and `scaffold.py` runs nothing a template holds.
 
 ## The pgpm skill

@@ -417,7 +417,7 @@ class CommandTest(InFolder):
         self.assertEqual(listed[0]["goes_into"], "pnpm")
 
     def test_where_boilerplates_are_is_a_setting(self):
-        self.assertEqual(Settings.from_env({}).boilerplates, "constructive-io/media-boilerplates")
+        self.assertEqual(Settings.from_env({}).boilerplates, "constructive-io/media-engine-boilerplates")
         self.assertEqual(Settings.from_env({"CONSTRUCTIVE_MEDIA_BOILERPLATES": "owner/ours"}).boilerplates, "owner/ours")
         status, out, _ = run("--help")
         self.assertIn("init", out)

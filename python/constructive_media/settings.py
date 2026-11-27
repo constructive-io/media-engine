@@ -16,8 +16,8 @@ lives, or which adapter to use, asks for a `Settings`.
 | `CONSTRUCTIVE_MEDIA_URL_<SLOT>`       | Server that slot's adapter talks to    | none                       |
 | `CONSTRUCTIVE_MEDIA_KEY_<SLOT>`       | Key to send that server, if it asks    | none                       |
 | `CONSTRUCTIVE_MEDIA_EXTRA_<SLOT>`     | More to send it with each request, as a JSON object | none          |
-| `CONSTRUCTIVE_MEDIA_LIBRARY_INDEX`    | Where libraries are found by name: folders or git addresses, with commas between; `none` for nowhere | `constructive-io/media-libraries` |
-| `CONSTRUCTIVE_MEDIA_BOILERPLATES`     | Where `media init` finds what a project starts from: a folder or a git address | `constructive-io/media-boilerplates` |
+| `CONSTRUCTIVE_MEDIA_LIBRARY_INDEX`    | Where libraries are found by name: folders or git addresses, with commas between; `none` for nowhere | `constructive-io/media-engine-libraries` |
+| `CONSTRUCTIVE_MEDIA_BOILERPLATES`     | Where `media init` finds what a project starts from: a folder or a git address | `constructive-io/media-engine-boilerplates` |
 
 Without a database URL the standard `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`
 and `PGDATABASE` are used, and the database is called `media`.
@@ -41,9 +41,9 @@ EXTRA_PREFIX = ENV_PREFIX + "EXTRA_"
 DEFAULT_HOME = "~/.constructive-media"
 DEFAULT_DATABASE = "media"
 #: The index a library is looked for in by name, unless the environment says otherwise.
-DEFAULT_INDEX = "constructive-io/media-libraries"
+DEFAULT_INDEX = "constructive-io/media-engine-libraries"
 #: Where `media init` finds its templates when it is not told.
-DEFAULT_BOILERPLATES = "constructive-io/media-boilerplates"
+DEFAULT_BOILERPLATES = "constructive-io/media-engine-boilerplates"
 
 
 class SettingsError(ValueError):

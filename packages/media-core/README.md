@@ -5,17 +5,17 @@
 </p>
 
 <p align="center" width="100%">
-  <a href="https://github.com/constructive-io/constructive-media/actions/workflows/ci.yml">
-    <img height="20" src="https://github.com/constructive-io/constructive-media/actions/workflows/ci.yml/badge.svg" alt="CI status" />
+  <a href="https://github.com/constructive-io/media-engine/actions/workflows/ci.yml">
+    <img height="20" src="https://github.com/constructive-io/media-engine/actions/workflows/ci.yml/badge.svg" alt="CI status" />
   </a>
-  <a href="https://github.com/constructive-io/constructive-media/blob/main/LICENSE"><img height="20" src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT license" /></a>
+  <a href="https://github.com/constructive-io/media-engine/blob/main/LICENSE"><img height="20" src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT license" /></a>
 </p>
 
 <p align="center" width="100%">
   The shared spine of Constructive Media: personas, voices, assets, takes and episodes, and the record of what was derived from what.
 </p>
 
-Schema: `media`. Part of [constructive-media](https://github.com/constructive-io/constructive-media).
+Schema: `media`. Part of [media-engine](https://github.com/constructive-io/media-engine).
 
 ## Developing
 

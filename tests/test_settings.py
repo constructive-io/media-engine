@@ -92,7 +92,7 @@ class SettingsTest(unittest.TestCase):
         self.assertIsNone(settings.adapter("image"))
 
     def test_where_libraries_are_found_by_name(self):
-        self.assertEqual(Settings.from_env({}).indexes, ("constructive-io/media-libraries",))
+        self.assertEqual(Settings.from_env({}).indexes, ("constructive-io/media-engine-libraries",))
         chosen = Settings.from_env({"CONSTRUCTIVE_MEDIA_LIBRARY_INDEX": " ~/indexes/ours , owner/theirs,"})
         self.assertEqual(chosen.indexes, ("~/indexes/ours", "owner/theirs"))
         for nowhere in ("none", "OFF"):

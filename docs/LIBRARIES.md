@@ -157,7 +157,7 @@ Which indexes a machine reads is a setting, with commas between and the first
 to name a library believed:
 
 ```sh
-export CONSTRUCTIVE_MEDIA_LIBRARY_INDEX=constructive-io/media-libraries,~/indexes/ours
+export CONSTRUCTIVE_MEDIA_LIBRARY_INDEX=constructive-io/media-engine-libraries,~/indexes/ours
 export CONSTRUCTIVE_MEDIA_LIBRARY_INDEX=none      # read none: libraries are added by address only
 ```
 
@@ -220,9 +220,9 @@ Commit `media-libraries.json` with the project. Voices are then given with
 ## Write one
 
 Start from the template in
-[voice-boilerplates](https://github.com/constructive-io/voice-boilerplates),
-which has the layout above, a check that runs in CI, and a `.gitignore` that
-keeps recordings out. Then:
+[media-engine-boilerplates](https://github.com/constructive-io/media-engine-boilerplates),
+with `media init library NAME`. It has the layout above, a check that runs in
+CI, and a `.gitignore` that keeps recordings out. Then:
 
 1. Record, and put each voice in with `media library clip`, below.
 2. `media library check`, then `media library add .` and `media audition ada`.

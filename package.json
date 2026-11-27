@@ -5,7 +5,7 @@
   "private": true,
   "repository": {
     "type": "git",
-    "url": "https://github.com/constructive-io/constructive-media"
+    "url": "https://github.com/constructive-io/media-engine"
   },
   "license": "MIT",
   "engines": {

@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "author": "Dan Lynch <pyramation@gmail.com>",
   "description": "Shots, frames, transcripts, timelines and the editing decisions made about them",
-  "homepage": "https://github.com/constructive-io/constructive-media",
+  "homepage": "https://github.com/constructive-io/media-engine",
   "license": "MIT",
   "publishConfig": {
     "access": "restricted",
@@ -11,10 +11,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/constructive-io/constructive-media"
+    "url": "https://github.com/constructive-io/media-engine"
   },
   "bugs": {
-    "url": "https://github.com/constructive-io/constructive-media/issues"
+    "url": "https://github.com/constructive-io/media-engine/issues"
   },
   "scripts": {
     "lint": "eslint . --fix",

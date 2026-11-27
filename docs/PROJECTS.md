@@ -22,8 +22,15 @@ Each of these, run at the top of a pnpm workspace, puts a package in
 `packages/`: the first makes `packages/quarterly-review`. Run anywhere else, it
 makes `./quarterly-review` and says that there is no workspace around it.
 
+A library of voices is the one thing that is not a package. It is a repository
+of its own, made wherever you are ([LIBRARIES.md](./LIBRARIES.md)):
+
+```sh
+media init library my-voices          # voices to clone, banks of sounds, faces; nothing in it yet
+```
+
 The templates come from
-[media-boilerplates](https://github.com/constructive-io/media-boilerplates)
+[media-engine-boilerplates](https://github.com/constructive-io/media-engine-boilerplates)
 unless you say otherwise.
 
 ## What a template asks
@@ -94,9 +101,9 @@ The format is the one [pgpm](https://www.npmjs.com/package/pgpm) reads for
 `pgpm init`, so a machine without the engine starts the same project:
 
 ```sh
-pgpm init workspace --repo constructive-io/media-boilerplates --name harbour-talks
+pgpm init workspace --repo constructive-io/media-engine-boilerplates --name harbour-talks
 cd harbour-talks
-pgpm init --repo constructive-io/media-boilerplates --moduleName first-talk
+pgpm init --repo constructive-io/media-engine-boilerplates --moduleName first-talk
 ```
 
 Both write the same files in the same places. `media init` reads the format with

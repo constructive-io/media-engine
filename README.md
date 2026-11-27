@@ -1,18 +1,18 @@
-# constructive-media
+# media-engine
 
 <p align="center" width="100%">
   <img height="250" src="https://raw.githubusercontent.com/constructive-io/constructive/refs/heads/main/assets/outline-logo.svg" alt="Constructive" />
 </p>
 
 <p align="center" width="100%">
-  <a href="https://github.com/constructive-io/constructive-media/actions/workflows/ci.yml">
-    <img height="20" src="https://github.com/constructive-io/constructive-media/actions/workflows/ci.yml/badge.svg" alt="CI status" />
+  <a href="https://github.com/constructive-io/media-engine/actions/workflows/ci.yml">
+    <img height="20" src="https://github.com/constructive-io/media-engine/actions/workflows/ci.yml/badge.svg" alt="CI status" />
   </a>
-  <a href="https://github.com/constructive-io/constructive-media/blob/main/LICENSE"><img height="20" src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT license" /></a>
+  <a href="https://github.com/constructive-io/media-engine/blob/main/LICENSE"><img height="20" src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT license" /></a>
 </p>
 
 <p align="center" width="100%">
-  One engine for video, images, audio and voice, with Postgres as its memory.
+  Constructive Media: one engine for video, images, audio and voice, with Postgres as its memory.
 </p>
 
 Constructive Media treats everything it ingests or generates as data. Footage,
@@ -67,8 +67,8 @@ The engine ships no models, voices, footage or people. You bring your own.
 ## Installation
 
 ```sh
-git clone https://github.com/constructive-io/constructive-media
-cd constructive-media
+git clone https://github.com/constructive-io/media-engine
+cd media-engine
 pnpm install
 ```
 
@@ -384,7 +384,7 @@ media init deck quarterly-review       # another deck, in its packages/
 ```
 
 The templates are in
-[media-boilerplates](https://github.com/constructive-io/media-boilerplates), in
+[media-engine-boilerplates](https://github.com/constructive-io/media-engine-boilerplates), in
 the format `pgpm init` reads, and you can point it at your own. That is
 [docs/PROJECTS.md](./docs/PROJECTS.md).
 
@@ -432,14 +432,12 @@ engine knows by name, with its source and its license, is in
 - [media-engine-plugins](https://github.com/constructive-io/media-engine-plugins):
   adapters for tools under copyleft licenses, each a package of its own that
   you choose to install.
-- [media-boilerplates](https://github.com/constructive-io/media-boilerplates):
+- [media-engine-boilerplates](https://github.com/constructive-io/media-engine-boilerplates):
   what `media init` starts a project from: a pnpm workspace, and what goes in
   one. A narrated deck, a walkthrough, an animation, and a document that is
   read aloud, filmed as it scrolls, and printed: each a script and a page that
-  `media film` turns into a video.
-- [voice-boilerplates](https://github.com/constructive-io/voice-boilerplates):
-  a template for a library of voices, sounds and faces in a repository of your
-  own.
+  `media film` turns into a video. And the template for a library of voices,
+  sounds and faces in a repository of your own: `media init library NAME`.
 - [pgpm](https://www.npmjs.com/package/pgpm): the Postgres package manager the
   schema modules are built with.
 
@@ -507,7 +505,7 @@ setting it up, taking a `.conv` script to sound, taking footage to a cut, and wh
 do when something goes wrong. Install it where your agent looks with:
 
 ```sh
-npx skills add https://github.com/constructive-io/constructive-media --skill constructive-media
+npx skills add https://github.com/constructive-io/media-engine --skill constructive-media
 ```
 
 `pgpm init workspace` installed the `pgpm` skill at `.agents/skills/pgpm/` — a guide to
