@@ -235,10 +235,15 @@ recording. The clip is 15 to 28 seconds of one person in one mood:
 ```sh
 media clean recording.wav              # how noisy it is, and what is worth doing about it
 media clean recording.wav cleaned.wav  # do that; a recording that is clean enough is left alone
+media reference recording.wav          # of a long recording: where it could be cut, the likeliest first
 media reference recording.wav voices/ada/neutral.flac --from 12 --to 34 --listen
 media voice ada ada --reference voices/ada/neutral.flac --new
 media audition ada --out out/audition
 ```
+
+Without `--from` and `--to`, a recording too long to be a clip is cut at the
+first place `media reference` would have listed. Those places are found by
+loudness alone: listen that it is one person in one mood.
 
 End the clip in the quiet after a complete sentence (`--to`), and make its
 words exactly what is heard: a model goes on from where its clip stops, so a
@@ -260,6 +265,7 @@ media library check my-library              # is it a library, and what is wrong
 media library search weather voices         # look in the indexes for a library, by any words
 media library add owner/lighthouse-voices   # a GitHub repository, any git address, a folder, or a name an index lists
 media library voices lighthouse             # give its voices to the personas here
+media library clip ada recording.wav --by "Ada Marsh" --kind own   # in your own library: clean, cut, words, consent, README
 media library lock                          # write media-libraries.json beside your scripts
 media library install                       # on another machine: the same libraries at the same commits
 ```
@@ -268,7 +274,11 @@ Once added, `@include weather` in a script finds the library's bank, the
 bank's sounds are found in it, and its faces are drawn by `media film`. A script
 still names only personas and banks, so it renders anywhere the libraries are.
 Start a library from
-[voice-boilerplates](https://github.com/constructive-io/voice-boilerplates).
+[voice-boilerplates](https://github.com/constructive-io/voice-boilerplates),
+whose skills `voice-library` and `build-a-voice` go from a recording to a
+voice that passes its audition. `media library clip` never guesses `--by`
+(whose voice) or `--kind` (`own`, `permission`, `licensed`, `synthetic`): ask
+the person, and do not put in a voice whose owner has not said yes.
 
 ## Start a project
 

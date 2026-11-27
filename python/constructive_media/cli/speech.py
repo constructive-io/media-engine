@@ -88,7 +88,9 @@ def register(commands: Any) -> None:
                     "the sound and put right. A clip is best between 15 and 28 seconds, of one person "
                     "speaking one way, ending in the quiet after a calm sentence: a model goes on from where "
                     "its clip stops, so one that stops mid-word, or whose words say more than its sound, is "
-                    "heard at the start of every line. --tighten takes the middle out of long pauses.",
+                    "heard at the start of every line. --tighten takes the middle out of long pauses. A "
+                    "recording too long to be a clip is measured with the stretches of it that would make one, "
+                    "and cut at the likeliest of them when --from and --to do not say where.",
     )
     command.add_argument("recording", help="a recording of the voice")
     command.add_argument("output", nargs="?", help="the clip to write, such as voices/ada/neutral.flac")
@@ -262,12 +264,22 @@ def run_reference(arguments: argparse.Namespace) -> int | None:
             return 2
         measured = voice.measure(arguments.recording)
         stops, notes = voice.fit(measured)
+        cuts = voice.cuts(arguments.recording) if measured["seconds"] > voice.MOST_S else []
         if arguments.json:
-            print(json.dumps({**measured, "stops": stops, "notes": notes}, indent=2))
+            print(json.dumps({**measured, "stops": stops, "notes": notes, "cuts": cuts}, indent=2))
         else:
             print(_measured(measured))
             for said in (*stops, *notes):
                 print(f"  {said}")
+            if cuts:
+                print("where it could be cut, the likeliest first:")
+                for cut in cuts:
+                    print(f"  --from {cut['from']:g} --to {cut['to']:g}    {_cut(cut)}")
+                print("  found by loudness alone: hear that it is one person, in one mood, and stops at the end of "
+                      "a sentence")
+            elif measured["seconds"] > voice.MOST_S:
+                print(f"  nowhere in it do {voice.GOOD_S[0]:.0f} to {voice.GOOD_S[1]:.0f} seconds of talk begin "
+                      "after a quiet and end in one: choose --from and --to by ear")
             if not stops and not notes:
                 print("  fit to clone a voice from, by its length and shape. Whether it is one person, speaking "
                       "one way, in a quiet room, is for you to hear")
@@ -278,10 +290,13 @@ def run_reference(arguments: argparse.Namespace) -> int | None:
 
         listens = transcriber()
     told = voice.reference(arguments.recording, arguments.output, start=arguments.start, end=arguments.end,
-                           said=arguments.said, transcriber=listens, tighten=arguments.tighten)
+                           said=arguments.said, transcriber=listens, tighten=arguments.tighten, choose=True)
     if arguments.json:
         print(json.dumps(told, indent=2, ensure_ascii=False))
         return None
+    if told["chosen"]:
+        print(f"cut from {told['chosen']['from']:g} to {told['chosen']['to']:g}: {_cut(told['chosen'])}. "
+              "--from and --to choose another stretch")
     print(_measured(told["is"]))
     for said in told["notes"]:
         print(f"  {said}")
@@ -350,6 +365,12 @@ def _noise(told: dict[str, Any]) -> str:
     return (f"{told['seconds']:.1f} seconds, the voice at {told['voice']:g} dB and the quiet between its phrases "
             f"at {told['floor']:g} dB: {told['snr']:g} dB between them"
             + (f", with a hum at {told['hum']} Hz" if told["hum"] else ""))
+
+
+def _cut(cut: dict[str, Any]) -> str:
+    return (f"{cut['seconds']:.1f} seconds, {cut['talk']:.0f} of them talk, "
+            + (f"its longest pause {cut['pause']:.1f}, " if cut["pause"] >= 0.5 else "")
+            + f"ending in {cut['quiet']:.1f} of quiet")
 
 
 def _measured(measured: dict[str, Any]) -> str:

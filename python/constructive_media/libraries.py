@@ -311,6 +311,189 @@ def _text(value: Any) -> str | None:
     return value if isinstance(value, str) and value.strip() else None
 
 
+# Putting a voice in.
+
+#: A library's README keeps a table of its voices between these two lines, when it has them.
+TABLE = ("<!-- voices -->", "<!-- /voices -->")
+
+
+def clip(
+    folder: str | Path, persona: str, recording: str | Path, *, by: str, kind: str, on: str | None = None,
+    note: str | None = None, name: str | None = None, emotion: str = "neutral", start: float | None = None,
+    end: float | None = None, said: str | None = None, transcriber: Any = None, language: str = "en",
+    tighten: float | None = None, cleaning: bool = True, settings: Settings | None = None,
+) -> dict[str, Any]:
+    """Put a voice into the library in `folder`, from a recording of it.
+
+    The recording is cut into a clip, `voices/<persona>/<emotion>.flac`:
+    from `start` to `end`, or where `voice.cuts` thinks best when it is too
+    long to be one and neither is given. With `cleaning`, the stretch is
+    measured for noise first and cleaned when that is worth doing and does
+    the voice no harm. Its words are `said`, or what `transcriber` hears,
+    and are written beside it.
+
+    Then the voice is written into the manifest, in place of one for the
+    same persona and mood, with its consent: whose voice it is (`by`) and
+    by what right it is here (`kind`, one of `KINDS`). Neither has a
+    default and neither is guessed, since only the person who keeps the
+    library can say. The README's table of voices is written again when it
+    has one. The recording itself is neither copied nor kept.
+
+    A LibraryError when the folder is no library or the consent does not
+    say enough; a SpeechError when no clip can be cut. Then nothing is
+    changed.
+    """
+    from . import ffmpeg
+    from .audio import clean as cleaner
+    from .audio import voice
+
+    folder, recording = Path(folder).expanduser(), Path(recording).expanduser()
+    written = folder / MANIFEST
+    if not written.is_file():
+        raise LibraryError(f"{folder} is not a library: it has no {MANIFEST}")
+    try:
+        manifest = json.loads(written.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as error:
+        raise LibraryError(f"{written} cannot be read as JSON: {error}") from None
+    if not isinstance(manifest, dict) or not isinstance(manifest.get("voices", []), list):
+        raise LibraryError(f'{written} should hold an object with a list of "voices"')
+    for what, value in (("persona", persona), ("mood", emotion)):
+        if not _NAME.fullmatch(value):
+            raise LibraryError(f"a {what} is lower case letters and numbers, joined by hyphens: not `{value}`")
+    consent = _consent(by, kind, on, note)
+
+    notes: list[str] = []
+    cleaned = None
+    target = folder / "voices" / persona / f"{emotion}.flac"
+    with tempfile.TemporaryDirectory(prefix="clip-") as scratch:
+        source, chosen = recording, None
+        whole = voice.measure(recording)["seconds"]
+        if start is None and end is None and whole > voice.MOST_S:
+            chosen = next(iter(voice.cuts(recording, most=1)), None)
+            if chosen is None:
+                raise LibraryError(
+                    f"{recording} runs {whole:.1f} seconds, and nowhere in it do {voice.GOOD_S[0]:.0f} to "
+                    f"{voice.GOOD_S[1]:.0f} seconds of talk begin after a quiet and end in one. Say where to cut "
+                    "it with --from and --to")
+            start, end = chosen["from"], chosen["to"]
+        if start is not None and end is not None and end <= start:
+            raise LibraryError("--to must be later than --from")
+        if start is not None or end is not None:
+            source = Path(scratch) / "stretch.wav"
+            ffmpeg.run(ffmpeg.FFMPEG, "-hide_banner", "-loglevel", "error", "-y",
+                       *(("-ss", f"{start:g}") if start is not None else ()),
+                       *(("-to", f"{end:g}") if end is not None else ()),
+                       "-i", recording, "-vn", "-c:a", "pcm_s24le", source)
+        if cleaning:
+            try:
+                told = cleaner.clean(source, Path(scratch) / "cleaned.wav", settings=settings)
+            except Exception as error:   # no denoiser on this machine, or one that failed: the clip is cut all the same
+                notes.append(f"it was not cleaned: {error}")
+            else:
+                if told["output"] and told["damaged"]:
+                    notes.append(f"cleaning it took {told['voice_lost']:.1f} dB off the voice, so it was left as "
+                                 "it was recorded. Record it again somewhere quieter if the clip is heard to hiss")
+                elif told["output"]:
+                    source = Path(told["output"])
+                    cleaned = {"steps": told["steps"], "why": told["why"], "gained": told["gained"],
+                               "voice_lost": told["voice_lost"]}
+        made = voice.reference(source, Path(scratch) / target.name, said=said, transcriber=transcriber,
+                               language=language, tighten=tighten)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(made["output"], target)
+        words = target.with_suffix(".txt")
+        if made["said"]:
+            words.write_text(made["said"] + "\n", encoding="utf-8")
+        elif words.is_file():
+            words.unlink()             # the words of the clip that was here before are not the words of this one
+    notes.extend(made["notes"])
+    if not made["said"]:
+        notes.append(f"its words are not written down. Write exactly what is said in the clip in "
+                     f"{words.relative_to(folder)}: the library is not sound until they are")
+
+    reference = target.relative_to(folder).as_posix()
+    voices = manifest.setdefault("voices", [])
+    same = [one for one in voices if isinstance(one, dict) and one.get("persona") == persona
+            and (one.get("emotion") or "neutral") == emotion]
+    entry = {"persona": persona, "name": name or (same[0].get("name") if same else None) or by.strip(),
+             "emotion": emotion, "reference": reference,
+             **{key: same[0][key] for key in ("seed", "tags") if same and key in same[0]}, "consent": consent}
+    if same:
+        voices[voices.index(same[0])] = entry
+        for more in same[1:]:
+            voices.remove(more)
+    else:
+        voices.append(entry)
+    written.write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    checked = check(folder)
+    return {"library": manifest.get("library"), "persona": persona, "emotion": emotion, "clip": reference,
+            "words": words.relative_to(folder).as_posix() if made["said"] else None, "said": made["said"],
+            "heard": made["heard"], "recording": str(recording), "from": start, "to": end,
+            "chosen": chosen, "cleaned": cleaned, "is": made["is"], "notes": notes, "replaced": bool(same),
+            "consent": consent, "readme": tabled(folder), "problems": list(checked.problems)}
+
+
+def _consent(by: str, kind: str, on: str | None, note: str | None) -> dict[str, str]:
+    """Consent as a manifest writes it down, or a LibraryError that says what it lacks."""
+    if not isinstance(by, str) or not by.strip():
+        raise LibraryError("say whose voice it is, with --by. Nobody but the person who keeps the library can")
+    if kind not in KINDS:
+        raise LibraryError("say by what right the voice is here, with --kind:\n  "
+                           + "\n  ".join(f"{one}: {means}" for one, means in KINDS.items()))
+    if kind in ("licensed", "synthetic") and not (note or "").strip():
+        raise LibraryError(f"consent of the kind `{kind}` says more with --note: "
+                           + ("which license, and where the recording is from" if kind == "licensed"
+                              else "how the voice was made"))
+    consent = {"by": by.strip(), "kind": kind}
+    if on is not None:
+        try:
+            date.fromisoformat(on)
+        except ValueError:
+            raise LibraryError("the day consent was given, --on, is written like 2026-11-26") from None
+        consent["on"] = on
+    if (note or "").strip():
+        consent["note"] = note.strip()
+    return consent
+
+
+def table(folder: str | Path) -> str:
+    """The voices of the library in `folder` as a table for its README: who, in what mood, whose voice, by what right."""
+    try:
+        voices = json.loads((Path(folder) / MANIFEST).read_text(encoding="utf-8")).get("voices", [])
+    except (OSError, ValueError, AttributeError):
+        voices = []
+
+    def cell(value: Any) -> str:
+        return " ".join(str(value or "").split()).replace("|", "\\|")
+
+    rows = []
+    for one in voices if isinstance(voices, list) else []:
+        if not isinstance(one, dict):
+            continue
+        consent = one.get("consent") if isinstance(one.get("consent"), dict) else {}
+        right = ", ".join(str(part) for part in (consent.get("kind"), consent.get("on")) if part)
+        if consent.get("note"):
+            right += f": {consent['note']}"
+        rows.append(f"| `{cell(one.get('persona'))}` | {cell(one.get('emotion') or 'neutral')} | "
+                    f"{cell(consent.get('by') or one.get('name'))} | {cell(right)} |")
+    return "\n".join(["| Persona | Mood | Whose voice | By what right |", "| --- | --- | --- | --- |",
+                      *(rows or ["| *none yet* | | | |"])])
+
+
+def tabled(folder: str | Path) -> bool:
+    """Write the table of voices into the library's README, between the lines of `TABLE`. Whether there was a place for it."""
+    readme = Path(folder) / "README.md"
+    try:
+        text = readme.read_text(encoding="utf-8")
+    except OSError:
+        return False
+    first, last = text.find(TABLE[0]), text.find(TABLE[1])
+    if first < 0 or last < first:
+        return False
+    readme.write_text(text[:first + len(TABLE[0])] + "\n" + table(folder) + "\n" + text[last:], encoding="utf-8")
+    return True
+
+
 def _measured(clip: Path, who: str, problems: list[str], notes: list[str]) -> None:
     from . import ffmpeg
 

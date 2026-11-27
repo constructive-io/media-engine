@@ -44,13 +44,31 @@ What clones best, measured over many voices and models:
 `media reference` does the last two, and tells you about the rest:
 
 ```sh
-media reference recording.wav                            # measure it, and say what is wrong with it
+media reference recording.wav                            # measure it, and say what is wrong with it and where to cut it
+media reference recording.wav voices/ada/neutral.flac --listen          # cut it where that is likeliest
 media reference recording.wav voices/ada/neutral.flac --from 12.5 --to 34 --listen
 media reference recording.wav voices/ada/neutral.flac --from 12.5 --to 34 --tighten --listen
 ```
 
 Measuring says how long the recording is, how loud, whether it stops in the
-middle of a sound, and how long its longest pause is. `--to` is where to end
+middle of a sound, and how long its longest pause is. Of a recording longer
+than a clip can be, it also says where it could be cut, the likeliest first:
+
+```
+where it could be cut, the likeliest first:
+  --from 12.9 --to 37.8    24.9 seconds, 24 of them talk, its longest pause 0.5, ending in 1.0 of quiet
+  --from 41.2 --to 63.0    21.8 seconds, 20 of them talk, its longest pause 0.7, ending in 0.6 of quiet
+```
+
+Each is 15 to 28 seconds that begin where a phrase begins and end in a quiet
+long enough to be the end of a sentence, with the most talk and the shortest
+pauses it could find. They are found by loudness alone, so listen before you
+trust one: that it is one person, in one mood, and that the quiet it ends in
+does follow a whole sentence. Cutting with no `--from` and `--to` takes the
+first of them and says which it took. With `--listen`, words that were heard
+not to end a sentence are remarked on, when the listener writes full stops.
+
+`--to` is where to end
 it: in the quiet after a sentence, not at the last moment before the next.
 `--tighten` takes the middle out of every pause longer than 0.8 seconds
 (`--tighten 0.5` for another length, never under a quarter of a second, where
@@ -61,6 +79,10 @@ silence at either end, brings it to the loudness and peak above, and writes
 the clip. With `--listen` the finished clip is transcribed and its words are
 written beside it as `voices/ada/neutral.txt`; read them against the clip and
 put right what was misheard. `--said "…"` gives the words instead.
+
+To put the clip straight into a library, with whose voice it is and by what
+right, `media library clip` does all of this in one step: see
+[LIBRARIES.md](LIBRARIES.md#put-a-voice-in).
 
 Keep the recording the clip was cut from somewhere else. A clip is a few
 hundred kilobytes; a library of clips stays small enough to clone in a moment.

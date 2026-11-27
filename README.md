@@ -371,6 +371,7 @@ where every voice carries its consent:
 ```sh
 media library add owner/lighthouse-voices
 media library voices lighthouse
+media library clip ada recording.wav --by "Ada Marsh" --kind own    # in a library of your own: put a voice in
 ```
 
 That is [docs/LIBRARIES.md](./docs/LIBRARIES.md).

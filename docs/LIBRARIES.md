@@ -25,6 +25,7 @@ not change for it.
 ```sh
 media library add owner/lighthouse-voices  # a repository on GitHub, or any git address, or a folder
 media library voices lighthouse            # give its voices to the personas here
+media library clip ada recording.wav --by "Ada Marsh" --kind own   # in a library of your own: put a voice in
 media say scene.conv out/scene.flac        # `@include weather` is found in it
 media film out/scene.flac out/scene.mp4    # and so is Ada's face
 ```
@@ -223,11 +224,40 @@ Start from the template in
 which has the layout above, a check that runs in CI, and a `.gitignore` that
 keeps recordings out. Then:
 
-1. Record, and cut each clip with `media reference`.
-2. Write each voice down in `media-library.json`, with its consent.
-3. `media library check`, then `media library add .` and `media audition ada`.
-4. Commit the clips and their words. Keep the recordings they were cut from
+1. Record, and put each voice in with `media library clip`, below.
+2. `media library check`, then `media library add .` and `media audition ada`.
+3. Commit the clips and their words. Keep the recordings they were cut from
    somewhere else: a library of clips is small, and stays quick to clone.
+
+### Put a voice in
+
+```sh
+media library clip ada originals/ada.wav --by "Ada Marsh" --kind own --on 2026-01-31
+media library clip ada originals/ada-quiet.wav --by "Ada Marsh" --kind own --emotion whisper
+media library clip grace originals/grace.wav --by "Grace Tull" --kind permission --from 41 --to 63
+```
+
+Run in the library's folder (or with `--library FOLDER`), it takes a recording
+of one person and leaves a voice in the library:
+
+- the recording is cleaned when that helps and does the voice no harm
+  (`--no-clean` to leave it), as `media clean` would;
+- 15 to 28 seconds of it are cut where the most talk ends in the quiet after a
+  sentence, or where `--from` and `--to` say, and made a clip as
+  `media reference` would: `voices/ada/neutral.flac`;
+- the clip is listened to and its words are written beside it
+  (`--said "…"` gives them, `--no-listen` leaves them to you);
+- the voice is written into `media-library.json` with its consent, taking the
+  place of the same persona in the same mood;
+- the table of voices in `README.md` is written again, between the lines
+  `<!-- voices -->` and `<!-- /voices -->`, when the README has them;
+- the library is checked, and what is wrong with it is said.
+
+`--by` and `--kind` are never guessed: whose voice it is, and by what right it
+is here (`own`, `permission`, `licensed`, `synthetic`; the last two with a
+`--note` saying which licence or how it was made). `--on` is the day they
+said yes. Read the words against the clip before you commit: a word misheard
+there is said in every line the voice speaks.
 
 A library is private until you make it otherwise. Before one is made public,
 read every `consent` in it again, as a promise to strangers.

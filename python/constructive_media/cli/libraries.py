@@ -26,6 +26,38 @@ def register(commands: argparse._SubParsersAction) -> None:
     action.set_defaults(run=run_check)
 
     action = actions.add_parser(
+        "clip", help="put a voice into a library, from a recording of it",
+        description="Cut a recording into a clip a voice can be cloned from, write it into the library as "
+                    "voices/PERSONA/MOOD.flac with its words beside it, and name it in media-library.json with "
+                    "its consent. A recording too long to be a clip is cut where the most talk begins after a "
+                    "quiet and ends in one, unless --from and --to say where. A noisy stretch is cleaned first "
+                    "when that is worth doing and does the voice no harm. The words are heard by a transcriber, "
+                    "for you to read against the sound and put right. --by and --kind are asked for every time "
+                    "and never guessed: only the person who keeps the library can say whose voice this is and "
+                    "by what right it is here. The recording itself is not copied.")
+    action.add_argument("persona", help="who a script's character speaks as: lower case, with hyphens")
+    action.add_argument("recording", help="a recording of the voice")
+    action.add_argument("--by", required=True, metavar="NAME", help="whose voice it is")
+    action.add_argument("--kind", required=True, metavar="KIND",
+                        help="by what right it is here: own, permission, licensed or synthetic")
+    action.add_argument("--on", metavar="DAY", help="the day consent was given, as 2026-11-26")
+    action.add_argument("--note", metavar="TEXT",
+                        help="for licensed, which license and from where; for synthetic, how it was made")
+    action.add_argument("--name", metavar="NAME", help="what the voice is called, when that is not --by")
+    action.add_argument("--emotion", default="neutral", metavar="MOOD",
+                        help="the mood this clip is for (default: neutral). One clip for each mood")
+    action.add_argument("--from", dest="start", type=float, metavar="SECONDS", help="where the clip starts")
+    action.add_argument("--to", dest="end", type=float, metavar="SECONDS", help="where the clip ends")
+    action.add_argument("--said", metavar="TEXT", help="the words said in the clip, in place of having them heard")
+    action.add_argument("--no-listen", action="store_true", help="do not have a transcriber write down the words")
+    action.add_argument("--tighten", type=float, nargs="?", const=0.8, metavar="SECONDS",
+                        help="shorten every pause longer than this to this (0.8 when no number is given)")
+    action.add_argument("--no-clean", action="store_true", help="cut the recording as it is, however noisy")
+    action.add_argument("--library", default=".", metavar="FOLDER", help="the library's folder (default: this one)")
+    action.add_argument("--json", action="store_true", help="print what was done as JSON")
+    action.set_defaults(run=run_clip)
+
+    action = actions.add_parser(
         "add", help="add a library to this machine, from a folder or a git address",
         description="Add a library. A folder is used where it is; an address is cloned under the engine's home "
                     "and kept at the commit it was added at. `owner/name` is a repository on GitHub. Afterwards "
@@ -126,6 +158,59 @@ def run_check(arguments: argparse.Namespace) -> int | None:
         print(f"{count} problem{'' if count == 1 else 's'}: this is not a library yet", file=sys.stderr)
         return 1
     print(f"ok: {library.name}, {_holds(library)}")
+    return None
+
+
+def run_clip(arguments: argparse.Namespace) -> int | None:
+    import json
+
+    from .. import libraries
+
+    listens, deaf = None, None
+    if not arguments.said and not arguments.no_listen:
+        from ..transcription import transcriber
+
+        try:
+            listens = transcriber()
+        except Exception as error:       # nothing here can listen: the clip is cut, and its words are left to a person
+            deaf = str(error)
+    told = libraries.clip(
+        arguments.library, arguments.persona, arguments.recording, by=arguments.by, kind=arguments.kind,
+        on=arguments.on, note=arguments.note, name=arguments.name, emotion=arguments.emotion, start=arguments.start,
+        end=arguments.end, said=arguments.said, transcriber=listens, tighten=arguments.tighten,
+        cleaning=not arguments.no_clean)
+    if deaf:
+        told["notes"].append(f"nothing here could listen to it ({deaf})")
+    if arguments.json:
+        print(json.dumps(told, indent=2, ensure_ascii=False))
+        return 1 if told["problems"] else None
+    measured = told["is"]
+    print(f"{told['persona']}, {told['emotion']}: {told['clip']}" + (", in place of the one before" if told["replaced"] else ""))
+    where = (f", from {told['from']:g} to {told['to']:g} of {told['recording']}" if told["from"] is not None
+             and told["to"] is not None else f", of {told['recording']}")
+    print(f"  {measured['seconds']:.1f} seconds{where}"
+          + (", which is where the most talk begins after a quiet and ends in one" if told["chosen"] else ""))
+    if told["cleaned"]:
+        cleaned = told["cleaned"]
+        print(f"  cleaned first ({', '.join(cleaned['steps'])}): its noise is {cleaned['gained']:g} dB quieter and "
+              f"the voice lost {cleaned['voice_lost']:g}")
+    if told["words"]:
+        print(f"  its words{', as they were heard,' if told['heard'] else ''} are in {told['words']}"
+              + (": read them against the clip and put right what was misheard" if told["heard"] else ""))
+    consent = told["consent"]
+    print(f"  whose voice: {consent['by']}, {consent['kind']}" + (f", {consent['on']}" if "on" in consent else ""))
+    for note in told["notes"]:
+        print(f"  note: {note}")
+    print(f"written into {libraries.MANIFEST}" + (" and the table in README.md" if told["readme"] else ""))
+    for problem in told["problems"]:
+        print(problem)
+    if told["problems"]:
+        count = len(told["problems"])
+        print(f"{count} problem{'' if count == 1 else 's'}: this is not a library yet", file=sys.stderr)
+        return 1
+    mood = "" if told["emotion"] == "neutral" else f" --emotion {told['emotion']}"
+    print(f"hear it: media voice {told['persona']} {told['persona']} --reference "
+          f"{Path(arguments.library) / told['clip']}{mood} --new && media audition {told['persona']}")
     return None
 
 

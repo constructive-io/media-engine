@@ -212,6 +212,60 @@ class ReferenceTest(unittest.TestCase):
             voice.reference(self.holed(), self.folder / "ada.flac", said=SAID, tighten=0.1)
         self.assertIn("0.25 seconds or more", str(raised.exception))
 
+    def spoken(self, *parts, rate=24_000, name="spoken.wav"):
+        """Phrases and the quiets between them: a number is seconds of talk, and one in a list seconds of quiet."""
+        made = [np.zeros(int(part[0] * rate), dtype=np.float32) if isinstance(part, list)
+                else syllables(part, rate, seed=number + 1) for number, part in enumerate(parts)]
+        return pcm.write(self.folder / name, np.concatenate(made), rate, bits=16)
+
+    def test_where_a_long_recording_could_be_cut_is_found(self):
+        # A comma, two ends of sentences, a hole where somebody else spoke, and the quiet it ends in.
+        long = self.spoken(6, [0.3], 10, [0.8], 9, [0.6], 12, [4.0], 5, [1.0])
+        cuts = voice.cuts(long)
+        # The most talk that begins at a phrase and ends after a sentence; then the next that is mostly other talk.
+        self.assertEqual(len(cuts), 2, cuts)
+        for cut, (start, end, pause, quiet) in zip(cuts, ((0.0, 26.4, 0.8, 0.6), (17.0, 39.0, 0.6, 4.0))):
+            self.assertAlmostEqual(cut["from"], start, delta=0.1)
+            self.assertAlmostEqual(cut["to"], end, delta=0.1)
+            self.assertAlmostEqual(cut["pause"], pause, delta=0.1)
+            self.assertAlmostEqual(cut["quiet"], quiet, delta=0.1)
+            self.assertAlmostEqual(cut["seconds"], cut["to"] - cut["from"], delta=0.01)
+        self.assertAlmostEqual(cuts[0]["talk"], 25.3, delta=0.3)
+        self.assertEqual([cut["from"] for cut in voice.cuts(long, most=1)], [cuts[0]["from"]])
+        # Nothing that has the hole in the middle of it is offered, and a comma is not somewhere to stop.
+        self.assertFalse([cut for cut in cuts if cut["from"] > 20 or abs(cut["to"] - 6.3) < 0.5])
+
+    def test_a_long_recording_is_cut_where_that_is_likeliest_when_asked_to_choose(self):
+        long = self.spoken(6, [0.3], 10, [0.8], 9, [0.6], 12, [4.0], 5, [1.0])
+        with self.assertRaises(SpeechError):
+            voice.reference(long, self.folder / "ada.flac", said=SAID)
+        told = voice.reference(long, self.folder / "ada.flac", said=SAID, choose=True)
+        self.assertAlmostEqual(told["chosen"]["to"], 26.4, delta=0.1)
+        self.assertAlmostEqual(told["is"]["seconds"], 26.2, delta=0.4)
+        # Where to cut was said, so nothing is chosen; and a recording short enough is taken whole.
+        self.assertIsNone(voice.reference(long, self.folder / "ada.flac", start=17, end=26.4, choose=True)["chosen"])
+        self.assertIsNone(voice.reference(self.recording(20.0), self.folder / "ada.flac", choose=True)["chosen"])
+        # Talk with no quiet in it has nowhere to begin and nowhere to stop.
+        endless = self.recording(50.0, quiet=0.0, name="endless.wav")
+        self.assertEqual(voice.cuts(endless), [])
+        with self.assertRaises(SpeechError) as raised:
+            voice.reference(endless, self.folder / "no.flac", choose=True)
+        self.assertIn("nowhere in it", str(raised.exception))
+        self.assertFalse((self.folder / "no.flac").exists())
+
+    def test_words_heard_that_do_not_end_a_sentence_are_remarked_on(self):
+        half = "The tide tables are kept dry. They are in the drawer under the"
+        told = voice.reference(self.recording(20.0), self.folder / "ada.flac", transcriber=Heard(half))
+        self.assertEqual(len(told["notes"]), 1)
+        self.assertIn("do not end a sentence (“… the drawer under the”)", told["notes"][0])
+        self.assertEqual(voice.reference(self.recording(20.0), self.folder / "ada.flac",
+                                         transcriber=Heard(SAID))["notes"], [])
+        # A listener that writes no ends of sentences says nothing by leaving the last one out.
+        self.assertEqual(voice.reference(self.recording(20.0), self.folder / "ada.flac",
+                                         transcriber=Heard("the tide tables are kept in the drawer,"))["notes"], [])
+        # Words a person gave are theirs to end as they like.
+        self.assertEqual(voice.reference(self.recording(20.0), self.folder / "ada.flac", said=half)["notes"], [])
+
     def test_a_recording_that_stops_in_the_middle_of_a_sound_is_remarked_on(self):
         whole = syllables(20.0)
         stopped = pcm.write(self.folder / "stopped.wav", whole[:len(whole) - 2_000], 24_000, bits=16)
@@ -357,6 +411,20 @@ class CommandsTest(unittest.TestCase):
             status, out, _ = run("reference", str(long))
             self.assertEqual(status, 1)
             self.assertIn("cut 15 to 28 seconds of it", out)
+            self.assertIn("nowhere in it do 15 to 28 seconds of talk begin after a quiet", out)
+            hush = np.zeros(24_000, dtype=np.float32)
+            phrased = np.concatenate([syllables(12.0, 24_000), hush, syllables(12.0, 24_000, seed=2), hush[:12_000],
+                                      syllables(12.0, 24_000, seed=3), hush])
+            phrased = pcm.write(Path(folder) / "phrased.wav", phrased, 24_000, bits=16)
+            status, out, _ = run("reference", str(phrased))
+            self.assertEqual(status, 1)
+            self.assertIn("where it could be cut, the likeliest first:", out)
+            # After the end of one sentence, to the end of the last: a start after a breath is the lesser one.
+            self.assertRegex(out, r"likeliest first:\n  --from 12\.9\d? --to 37\.8\d?    24\.9 seconds, 24 of them talk, "
+                                  r"its longest pause 0\.5, ending in 1\.0 of quiet\n")
+            status, out, _ = run("reference", str(phrased), str(clip), "--said", SAID)
+            self.assertEqual(status, 0)
+            self.assertRegex(out, r"cut from 12\.9\d? to 37\.8\d?: 24\.9 seconds")
 
     def test_an_audition_needs_its_lines_to_be_there(self):
         status, _, err = run("audition", "ada", "--lines", "no-such-lines.txt")

@@ -5,6 +5,7 @@ the words said in that recording. How good the voice is depends on that one
 clip far more than on anything done later, so this module is about the clip:
 
     measure     how long a recording is, how loud, and what is wrong with it
+    cuts        where a long recording could be cut into a clip
     reference   cut a recording into a clip a model can clone from
     audition    have a voice say lines it has never seen, and count what passed
     say         one line in one voice, checked like any line of a script
@@ -56,6 +57,11 @@ PAUSE_S = 0.25
 LONG_PAUSE_S = 3.0
 #: What `tighten` brings a long pause down to when it is not told.
 TIGHT_S = 0.8
+#: A quiet this long is more often the end of a sentence than a breath in the middle of one.
+SENTENCE_S = 0.45
+#: How much of the quiet before its first word and after its last a chosen stretch keeps.
+LEAD_S = 0.1
+TAIL_S = 0.3
 #: A clip whose last moments are louder than a pause stops in the middle of a sound.
 LAST_S = 0.04
 
@@ -101,17 +107,74 @@ def cut_off(recording: str | Path) -> bool:
 
 def quiets(recording: str | Path) -> list[tuple[float, float]]:
     """Where a recording goes quiet for `PAUSE_S` or longer after it has begun: each as (from, to), in seconds."""
+    return [(start, end) for start, end in _quiets(recording) if start > 0.05]
+
+
+def _quiets(recording: str | Path) -> list[tuple[float, float]]:
+    """Every quiet of `PAUSE_S` or longer, the one a recording may begin with among them."""
     said = ffmpeg.run(ffmpeg.FFMPEG, "-hide_banner", "-nostats", "-i", recording, "-vn",
                       "-af", f"silencedetect=noise={PAUSE_DB}dB:d={PAUSE_S}", "-f", "null", "-").stderr
     starts = [float(one) for one in re.findall(r"silence_start: (-?[\d.]+)", said)]
     ends = [float(one) for one in re.findall(r"silence_end: ([\d.]+)", said)]
-    return [(start, end) for start, end in zip(starts, ends) if start > 0.05]
+    return [(max(0.0, start), end) for start, end in zip(starts, ends)]
 
 
 def pauses(recording: str | Path) -> list[float]:
     """How long each pause in a recording is, in seconds. The quiet it ends in is not one."""
     ends = pcm.seconds(Path(recording)) - 0.05
     return [end - start for start, end in quiets(recording) if end < ends]
+
+
+def cuts(recording: str | Path, *, most: int = 3) -> list[dict[str, Any]]:
+    """Where a long recording could be cut into a clip to clone from, the likeliest first.
+
+    A clip begins where a phrase begins and ends in the quiet after one. Of
+    every stretch of a good length that does both, these are the ones with
+    the most talk in them, no long pause, and the longest quiet to end in,
+    since a sentence ends in a longer quiet than a comma does. No two of
+    them share more than half of themselves.
+
+    Each says where it is, `from` and `to` in seconds, how long it is, how
+    much `talk` is in it, its longest `pause` and the `quiet` it ends in.
+    It is found by loudness alone. Whether it is one person, in one mood,
+    and stops at the end of a sentence is for whoever hears it to say.
+    """
+    from bisect import bisect_left, bisect_right
+
+    recording = Path(recording)
+    if not recording.is_file():
+        raise SpeechError(f"{recording}: no such file")
+    whole = pcm.seconds(recording)
+    found = _quiets(recording)
+    starts = [start for start, _ in found]
+    # Where a phrase begins, and how long the quiet before it is. The start of a recording is as good as a long one.
+    begins = [] if found and found[0][0] <= 0.05 else [(0.0, 1.0)]
+    begins += [(max(start, end - LEAD_S), end - start) for start, end in found if end < whole - 0.05]
+    finishes = [(start + min(end - start, TAIL_S), end - start) for start, end in found
+                if start > 0.05 and (end - start >= SENTENCE_S or end >= whole - 0.05)]
+    ends = [finish for finish, _ in finishes]
+    stretches = []
+    for begin, before in begins:
+        first, last = bisect_left(ends, begin + GOOD_S[0]), bisect_right(ends, begin + GOOD_S[1])
+        for finish, quiet in finishes[first:last]:
+            inside = [min(end, finish) - max(start, begin)
+                      for start, end in found[bisect_right(starts, begin):bisect_left(starts, finish - TAIL_S)]
+                      if end <= finish]
+            pause = max(inside, default=0.0)
+            talk = finish - begin - sum(inside)
+            worth = talk - 3 * max(0.0, pause - 1.0) + 2 * min(quiet, 1.5) + min(before, 1.0)
+            stretches.append((worth, begin, finish, talk, pause, quiet))
+    chosen: list[tuple[float, ...]] = []
+    for stretch in sorted(stretches, key=lambda one: (-one[0], one[1])):
+        _, begin, finish = stretch[:3]
+        if all(min(finish, other[2]) - max(begin, other[1]) < 0.5 * min(finish - begin, other[2] - other[1])
+               for other in chosen):
+            chosen.append(stretch)
+        if len(chosen) == most:
+            break
+    return [{"from": round(begin, 2), "to": round(finish, 2), "seconds": round(finish - begin, 2),
+             "talk": round(talk, 1), "pause": round(pause, 2), "quiet": round(quiet, 2)}
+            for _, begin, finish, talk, pause, quiet in chosen]
 
 
 def tightened(recording: str | Path, target: str | Path, seconds: float) -> float:
@@ -175,7 +238,7 @@ def fit(measured: dict[str, Any]) -> tuple[list[str], list[str]]:
 def reference(
     recording: str | Path, target: str | Path, *, start: float | None = None, end: float | None = None,
     said: str | None = None, transcriber: Transcriber | None = None, language: str = "en",
-    tighten: float | None = None,
+    tighten: float | None = None, choose: bool = False,
 ) -> dict[str, Any]:
     """Cut `recording` into a clip a voice can be cloned from, written as `target`.
 
@@ -190,6 +253,10 @@ def reference(
     shortened to that many: for a recording with a hole in it, where a
     passage was cut away or somebody else spoke.
 
+    With `choose`, a recording too long to be a clip, given with neither
+    `start` nor `end`, is cut where `cuts` thinks best, and `chosen` says
+    where that was.
+
     A SpeechError when the clip would be too long to clone from; then
     nothing is written.
     """
@@ -197,6 +264,14 @@ def reference(
     before = measure(recording)
     if start is not None and end is not None and end <= start:
         raise SpeechError("--to must be later than --from")
+    chosen = None
+    if choose and start is None and end is None and before["seconds"] > MOST_S:
+        chosen = next(iter(cuts(recording, most=1)), None)
+        if chosen is None:
+            raise SpeechError(f"{recording} runs {before['seconds']:.1f} seconds, and nowhere in it do "
+                              f"{GOOD_S[0]:.0f} to {GOOD_S[1]:.0f} seconds of talk begin after a quiet and end in "
+                              "one. Say where to cut it with --from and --to")
+        start, end = chosen["from"], chosen["to"]
     part = [*(("-ss", f"{start:g}") if start is not None else ()), *(("-to", f"{end:g}") if end is not None else ())]
     trim = (f"silenceremove=start_periods=1:start_threshold={QUIET_DB}dB:start_silence={EDGE_S}"
             ":detection=peak")
@@ -221,11 +296,17 @@ def reference(
     if said is None and transcriber is not None:
         heard = " ".join(segment.text.strip() for segment in transcriber.transcribe(target, language=language)).strip()
     words = (said if said is not None else heard or "").strip()
+    # Only of a listener that writes the ends of sentences at all: one that writes none says nothing by leaving one out.
+    ends = (".", "!", "?", "…")
+    if heard and said is None and any(end in heard for end in ends) and not heard.rstrip("\"'”’)").endswith(ends):
+        notes.append(f"its words, as they were heard, do not end a sentence (“… {' '.join(heard.split()[-4:])}”). A "
+                     "clip that stops part of the way through one is heard at the start of every line: move --to "
+                     "to the quiet after a sentence")
     written = None
     if words:
         written = target.with_suffix(".txt")
         written.write_text(words + "\n", encoding="utf-8")
-    return {"output": str(target), "from": before, "is": after, "notes": notes, "said": words or None,
+    return {"output": str(target), "from": before, "is": after, "chosen": chosen, "notes": notes, "said": words or None,
             "said_file": str(written) if written else None, "heard": heard is not None and said is None,
             "how": loudness["how"] if loudness else None}
 

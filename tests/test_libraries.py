@@ -202,6 +202,197 @@ class CheckTest(InFolder):
         self.assertIn("library", run("--help")[1])
 
 
+README = """# lighthouse
+
+Who is here:
+
+<!-- voices -->
+| Persona | Mood | Whose voice | By what right |
+| --- | --- | --- | --- |
+| *none yet* | | | |
+<!-- /voices -->
+
+And what follows the table is left as it was.
+"""
+
+
+class Hears:
+    """A stand-in for a transcriber that hears the same thing in everything."""
+
+    def transcribe(self, audio, *, language="en", prompt=None):
+        from constructive_media.transcription import Segment
+
+        return [Segment(0.0, 1.0, SAID)]
+
+
+@unittest.skipUnless(HAVE_FFMPEG and HAVE_NUMPY, "ffmpeg and numpy are needed")
+class ClipTest(InFolder):
+    """A voice is put into a library from a recording of it."""
+
+    def setUp(self):
+        super().setUp()
+        self.library = self.folder / "lighthouse"
+        self.library.mkdir()
+        (self.library / libraries.MANIFEST).write_text(json.dumps(
+            {"library": "lighthouse", "version": "0.1.0", "license": "CC-BY-4.0", "voices": []}), encoding="utf-8")
+        (self.library / "README.md").write_text(README, encoding="utf-8")
+
+    def recording(self, *parts, noise=None, name="recording.wav"):
+        """Phrases and the quiets between them: a number is seconds of talk, and one in a list seconds of quiet."""
+        import numpy as np
+
+        from constructive_media.audio import pcm
+
+        seeds = iter(range(1, 99))
+        talk = np.concatenate([np.zeros(int(part[0] * 48_000), dtype=np.float32) if isinstance(part, list)
+                               else syllables(part, 48_000, seed=next(seeds)) for part in parts])
+        if noise is not None:
+            talk = talk + noise(np.arange(len(talk)) / 48_000).astype(np.float32)
+        (self.folder / "originals").mkdir(exist_ok=True)
+        return pcm.write(self.folder / "originals" / name, talk, 48_000, bits=16)
+
+    def manifest(self):
+        return json.loads((self.library / libraries.MANIFEST).read_text(encoding="utf-8"))
+
+    def test_a_recording_becomes_a_clip_with_its_words_its_consent_and_a_row_in_the_readme(self):
+        from constructive_media.audio import pcm
+
+        told = libraries.clip(self.library, "ada", self.recording(9, [0.8], 9, [1.0]), by="Ada Marsh", kind="own",
+                              on="2026-01-31", transcriber=Hears())
+        clip = self.library / "voices/ada/neutral.flac"
+        self.assertEqual(pcm.shape(clip), (1, 24_000))
+        self.assertAlmostEqual(told["is"]["seconds"], 18.9, delta=0.4)
+        self.assertEqual((told["clip"], told["words"], told["heard"], told["replaced"], told["chosen"], told["cleaned"]),
+                         ("voices/ada/neutral.flac", "voices/ada/neutral.txt", True, False, None, None))
+        self.assertEqual(clip.with_suffix(".txt").read_text(), SAID + "\n")
+        self.assertEqual(self.manifest()["voices"], [
+            {"persona": "ada", "name": "Ada Marsh", "emotion": "neutral", "reference": "voices/ada/neutral.flac",
+             "consent": {"by": "Ada Marsh", "kind": "own", "on": "2026-01-31"}}])
+        self.assertEqual((told["problems"], told["notes"], told["readme"]), ([], [], True))
+        readme = (self.library / "README.md").read_text()
+        self.assertIn("<!-- voices -->\n| Persona | Mood | Whose voice | By what right |\n| --- | --- | --- | --- |\n"
+                      "| `ada` | neutral | Ada Marsh | own, 2026-01-31 |\n<!-- /voices -->", readme)
+        self.assertNotIn("none yet", readme)
+        self.assertTrue(readme.startswith("# lighthouse\n\nWho is here:\n"))
+        self.assertTrue(readme.endswith("And what follows the table is left as it was.\n"))
+        # Nothing of the recording but the clip is in the library, and the library is one.
+        self.assertEqual(sorted(path.name for path in self.library.rglob("*") if path.is_file()),
+                         ["README.md", "media-library.json", "neutral.flac", "neutral.txt"])
+        self.assertEqual(list(libraries.check(self.library).problems), [])
+
+    def test_a_long_recording_is_cut_where_the_most_talk_ends_in_a_quiet(self):
+        long = self.recording(6, [0.3], 10, [0.8], 9, [0.6], 12, [4.0], 5, [1.0])
+        told = libraries.clip(self.library, "ada", long, by="Ada Marsh", kind="own", said=SAID)
+        self.assertAlmostEqual(told["chosen"]["to"], 26.4, delta=0.1)
+        self.assertAlmostEqual(told["to"], 26.4, delta=0.1)
+        self.assertAlmostEqual(told["is"]["seconds"], 26.2, delta=0.4)
+        told = libraries.clip(self.library, "ada", long, by="Ada Marsh", kind="own", said=SAID, start=17, end=39)
+        self.assertEqual((told["chosen"], told["from"], told["to"], told["replaced"]), (None, 17, 39, True))
+        self.assertAlmostEqual(told["is"]["seconds"], 21.6, delta=0.4)
+        with self.assertRaises(LibraryError) as raised:
+            libraries.clip(self.library, "ben", self.recording(50, name="endless.wav"), by="Ben", kind="own")
+        self.assertIn("nowhere in it", str(raised.exception))
+        self.assertEqual([one["persona"] for one in self.manifest()["voices"]], ["ada"])
+
+    def test_another_mood_is_another_clip_and_the_same_mood_takes_the_place_of_the_one_before(self):
+        recording = self.recording(18, [1.0])
+        libraries.clip(self.library, "ada", recording, by="Ada Marsh", kind="own", said=SAID)
+        manifest = self.manifest()
+        manifest["voices"][0].update(seed=7, tags=["calm"], said="what was there before")
+        (self.library / libraries.MANIFEST).write_text(json.dumps(manifest), encoding="utf-8")
+        libraries.clip(self.library, "ada", recording, by="Ada Marsh", kind="permission", emotion="whisper",
+                       name="Ada, quietly", said=SAID)
+        told = libraries.clip(self.library, "ada", recording, by="Ada Marsh", kind="own")
+        voices = self.manifest()["voices"]
+        self.assertEqual([(one["persona"], one["emotion"], one["name"]) for one in voices],
+                         [("ada", "neutral", "Ada Marsh"), ("ada", "whisper", "Ada, quietly")])
+        self.assertEqual((voices[0]["seed"], voices[0]["tags"], "said" in voices[0]), (7, ["calm"], False))
+        # Its words went with the clip they were the words of, and the library says so until they are written again.
+        self.assertTrue(told["replaced"])
+        self.assertFalse((self.library / "voices/ada/neutral.txt").exists())
+        self.assertTrue((self.library / "voices/ada/whisper.txt").exists())
+        self.assertIn("its words are not written down. Write exactly what is said in the clip in "
+                      "voices/ada/neutral.txt", told["notes"][-1])
+        self.assertEqual(len(told["problems"]), 1)
+        self.assertIn("the words said in its clip are not written down", told["problems"][0])
+        self.assertIn("| `ada` | whisper | Ada Marsh | permission |", (self.library / "README.md").read_text())
+
+    def test_whose_voice_it_is_and_by_what_right_are_never_guessed(self):
+        recording = self.recording(18, [1.0])
+        for more, said in (({"by": " ", "kind": "own"}, "say whose voice it is, with --by"),
+                           ({"by": "Ada Marsh", "kind": "found"}, "by what right the voice is here, with --kind"),
+                           ({"by": "Ada Marsh", "kind": "licensed"}, "which license, and where the recording is from"),
+                           ({"by": "nobody", "kind": "synthetic", "note": " "}, "how the voice was made"),
+                           ({"by": "Ada Marsh", "kind": "own", "on": "last spring"}, "written like 2026-11-26")):
+            with self.assertRaises(LibraryError) as raised:
+                libraries.clip(self.library, "ada", recording, said=SAID, **more)
+            self.assertIn(said, str(raised.exception))
+        with self.assertRaises(LibraryError) as raised:
+            libraries.clip(self.library, "Ada Marsh", recording, by="Ada Marsh", kind="own")
+        self.assertIn("a persona is lower case", str(raised.exception))
+        with self.assertRaises(LibraryError) as raised:
+            libraries.clip(self.folder / "nowhere", "ada", recording, by="Ada Marsh", kind="own")
+        self.assertIn("is not a library", str(raised.exception))
+        # Nothing was written for any of them.
+        self.assertEqual(self.manifest()["voices"], [])
+        self.assertFalse((self.library / "voices").exists())
+        told = libraries.clip(self.library, "ada", recording, by="nobody", kind="synthetic", said=SAID,
+                              note="designed in a speech model, of no one")
+        self.assertEqual(told["consent"], {"by": "nobody", "kind": "synthetic",
+                                           "note": "designed in a speech model, of no one"})
+        self.assertIn("| `ada` | neutral | nobody | synthetic: designed in a speech model, of no one |",
+                      (self.library / "README.md").read_text())
+
+    def test_a_noisy_recording_is_cleaned_before_it_is_cut_when_that_does_the_voice_no_harm(self):
+        import numpy as np
+
+        def rumble(time):
+            return 0.02 * np.sin(2 * np.pi * 38 * time) + 1e-5 * np.random.default_rng(7).standard_normal(len(time))
+
+        noisy = self.recording(2, [0.8], 2, [0.8], 2, [0.8], noise=rumble)
+        told = libraries.clip(self.library, "ada", noisy, by="Ada Marsh", kind="own", said=SAID)
+        self.assertEqual(told["cleaned"]["steps"], ["highpass"])
+        self.assertGreater(told["cleaned"]["gained"], 15)
+        self.assertEqual(len(told["notes"]), 1)                # that it is short, and nothing about its noise
+        self.assertIn("too little of a voice to copy", told["notes"][0])
+        with mock.patch("constructive_media.audio.clean.DAMAGE_DB", -100.0):
+            told = libraries.clip(self.library, "ada", noisy, by="Ada Marsh", kind="own", said=SAID)
+        self.assertIsNone(told["cleaned"])
+        self.assertIn("so it was left as it was recorded", told["notes"][0])
+        self.assertEqual(libraries.clip(self.library, "ada", noisy, by="Ada Marsh", kind="own", said=SAID,
+                                        cleaning=False)["cleaned"], None)
+        (self.library / "README.md").unlink()
+        self.assertFalse(libraries.clip(self.library, "ada", self.recording(18, [1.0]), by="Ada Marsh", kind="own",
+                                        said=SAID)["readme"])
+
+    def test_the_command_puts_a_voice_in_and_says_what_it_did(self):
+        recording = self.recording(18, [1.0])
+        status, _, err = run("library", "clip", "ada", str(recording), "--library", str(self.library))
+        self.assertEqual(status, 2)
+        self.assertIn("--by, --kind", err)
+        status, out, err = run("library", "clip", "ada", str(recording), "--library", str(self.library),
+                               "--by", "Ada Marsh", "--kind", "own", "--on", "2026-01-31", "--said", SAID)
+        self.assertEqual((status, err), (0, ""))
+        self.assertIn("ada, neutral: voices/ada/neutral.flac\n", out)
+        self.assertIn("  its words are in voices/ada/neutral.txt\n", out)
+        self.assertIn("  whose voice: Ada Marsh, own, 2026-01-31\n", out)
+        self.assertIn("written into media-library.json and the table in README.md\n", out)
+        self.assertIn(f"hear it: media voice ada ada --reference {self.library / 'voices/ada/neutral.flac'} --new && "
+                      "media audition ada\n", out)
+        status, out, _ = run("library", "clip", "ada", str(recording), "--library", str(self.library), "--by",
+                             "Ada Marsh", "--kind", "own", "--emotion", "whisper", "--said", SAID)
+        self.assertIn("whisper.flac --emotion whisper --new && media audition ada\n", out)
+        status, out, err = run("library", "clip", "ada", str(recording), "--library", str(self.library),
+                               "--by", "Ada Marsh", "--kind", "own", "--no-listen", "--json")
+        self.assertEqual(status, 1)
+        told = json.loads(out)
+        self.assertEqual((told["replaced"], told["words"], len(told["problems"])), (True, None, 1))
+        status, _, err = run("library", "clip", "ada", str(recording), "--library", str(self.library),
+                             "--by", "Ada Marsh", "--kind", "found")
+        self.assertEqual(status, 1)
+        self.assertIn("by what right the voice is here", err)
+
+
 class AddedTest(InFolder):
     def test_a_folder_is_used_where_it_is(self):
         folder = write_library(self.folder / "library")
