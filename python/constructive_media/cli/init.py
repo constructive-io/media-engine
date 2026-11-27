@@ -10,8 +10,8 @@ from typing import Any
 
 #: What `media init` is told with a flag of its own; any other `--name value` answers a question of the template.
 _OWN = ("--repo", "--dir", "--template", "-t", "--from-branch", "--refresh", "--no-cache", "--list", "--cwd",
-        "--no-tty", "--bare", "--json", "--help", "-h")
-_TAKE_NO_VALUE = ("--refresh", "--no-cache", "--list", "--no-tty", "--bare", "--json", "--help", "-h")
+        "--no-tty", "--bare", "--no-skills", "--json", "--help", "-h")
+_TAKE_NO_VALUE = ("--refresh", "--no-cache", "--list", "--no-tty", "--bare", "--no-skills", "--json", "--help", "-h")
 
 
 def register(commands: argparse._SubParsersAction) -> None:
@@ -21,8 +21,8 @@ def register(commands: argparse._SubParsersAction) -> None:
                     "repository of boilerplates. `media init workspace NAME` makes a workspace, with a first deck "
                     "in it when the boilerplates say so. Inside a workspace, `media init deck NAME` adds another to "
                     "its packages. A template's questions are asked, or answered with a flag each: "
-                    "--title \"On tides\". Nothing in a template is run. The same boilerplates work with "
-                    "`pgpm init --repo`.",
+                    "--title \"On tides\". The agent skills a template names are copied into .agents/skills/. "
+                    "Nothing in a template is run. The same boilerplates work with `pgpm init --repo`.",
         epilog="Which boilerplates are read is --repo, or CONSTRUCTIVE_MEDIA_BOILERPLATES. `media init --list` says "
                "what templates they hold and what each asks.")
     command.add_argument("path", nargs="?", metavar="TEMPLATE",
@@ -40,6 +40,8 @@ def register(commands: argparse._SubParsersAction) -> None:
     command.add_argument("--no-tty", action="store_true",
                          help="ask nothing: take each question's default, and say which flags are missing")
     command.add_argument("--bare", action="store_true", help="a workspace alone, without what it would start with")
+    command.add_argument("--no-skills", action="store_true",
+                         help="leave out the agent skills the template names; they go in .agents/skills/ otherwise")
     command.add_argument("--list", action="store_true", help="say what templates the boilerplates hold")
     command.add_argument("--json", action="store_true", help="print what was made, or listed, as JSON")
     command.set_defaults(run=run_init, answers={})
@@ -109,6 +111,7 @@ def run_init(arguments: argparse.Namespace) -> int:
                 "template": one.name, "kind": one.kind, "aliases": list(one.aliases), "goes_into": one.requires,
                 "asks": [{"name": question.name, "message": question.message, "default": question.default,
                           "options": list(question.options)} for question in one.questions],
+                "skills": [{"source": source, "skills": list(names)} for source, names in one.skills],
             } for one in found], indent=2))
             return 0
         if not found:
@@ -127,19 +130,21 @@ def run_init(arguments: argparse.Namespace) -> int:
     ask = None if arguments.no_tty or scaffold.nobody_to_ask() else _ask
     name = arguments.path or arguments.template or "module"
     made = [scaffold.start(str(root), name, arguments.name, where=arguments.cwd, given=arguments.answers,
-                           variant=arguments.dir, settings=settings, ask=ask)]
+                           variant=arguments.dir, settings=settings, ask=ask, skills=not arguments.no_skills,
+                           refresh=arguments.refresh)]
     starts_with = None if arguments.bare or made[0].template.kind != "workspace" else scaffold.first(root)
     if starts_with is not None:
         # What a workspace starts with takes its defaults, and the answers given that it also asks for.
         asked = {question.name for question in scaffold.find(root, starts_with[0]).questions}
         passed = {key: value for key, value in arguments.answers.items() if key in asked}
         made.append(scaffold.start(str(root), starts_with[0], starts_with[1], where=made[0].folder, given=passed,
-                                   settings=settings))
+                                   settings=settings, skills=not arguments.no_skills, refresh=arguments.refresh))
 
     if arguments.json:
         print(json.dumps([{
             "folder": str(one.folder), "template": one.template.name, "kind": one.template.kind,
             "files": [path.relative_to(one.folder).as_posix() for path in one.files], "notes": list(one.notes),
+            "skills": list(one.skills),
         } for one in made], indent=2))
         return 0
     here = Path(arguments.cwd).expanduser().resolve()
@@ -151,6 +156,13 @@ def run_init(arguments: argparse.Namespace) -> int:
         print(f"{shown}: {len(one.files)} files, from {one.template.name}")
         for note in one.notes:
             print(f"  note: {note}", file=sys.stderr)
+    for top in dict.fromkeys(one.skills_in for one in made if one.skills_in):
+        names = list(dict.fromkeys(name for one in made if one.skills_in == top for name in one.skills))
+        try:
+            shown = (top / scaffold.SKILLS).relative_to(here).as_posix()
+        except ValueError:
+            shown = str(top / scaffold.SKILLS)
+        print(f"{shown}: {', '.join(names)}")
     said = made[0].said
     if said:
         print()

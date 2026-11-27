@@ -349,6 +349,113 @@ class FetchTest(InFolder):
         self.assertIn("could not be reached", str(raised.exception))
 
 
+@unittest.skipUnless(HAVE_GIT, "git is not installed")
+class SkillsTest(InFolder):
+    """The agent skills a template names, copied from the repository they are kept in."""
+
+    def setUp(self):
+        super().setUp()
+        self.tools = write(self.folder / "tide-tools", {
+            ".agents/skills/tide-tables/SKILL.md": "---\nname: tide-tables\n---\nRead a tide table.\n",
+            ".agents/skills/tide-tables/references/springs.md": "Springs and neaps.\n",
+            ".agents/skills/harbour-lights/SKILL.md": "---\nname: harbour-lights\n---\nRead the lights.\n",
+            "README.md": "Tools for the harbour office.\n",
+        })
+        os.symlink(self.folder / "home", self.tools / ".agents/skills/tide-tables/elsewhere")
+        git(self.tools, "init", "--quiet")
+        git(self.tools, "add", "--all")
+        git(self.tools, "commit", "--quiet", "--message", "skills")
+        self.source = f"file://{self.tools}"
+
+    def names(self, template, *skills):
+        said = json.loads((self.repo / "media" / template / ".boilerplate.json").read_text())
+        said["skills"] = list(skills)
+        write(self.repo / "media" / template, {".boilerplate.json": said})
+
+    def test_a_templates_skills_go_to_the_top_of_the_workspace(self):
+        self.names("workspace", {"source": self.source, "skills": ["tide-tables"]})
+        self.names("module", {"source": self.source, "skills": ["tide-tables", "harbour-lights"]})
+        top = self.start("workspace", "harbour-talks")
+        self.assertEqual((top.skills, top.skills_in), (("tide-tables",), top.folder))
+        skills = top.folder / ".agents/skills"
+        self.assertEqual(sorted(path.relative_to(skills).as_posix() for path in skills.rglob("*") if path.is_file()),
+                         ["tide-tables/SKILL.md", "tide-tables/references/springs.md"])
+        self.assertFalse((skills / "tide-tables/elsewhere").exists())                # a link is not followed
+        self.assertNotIn(skills / "tide-tables/SKILL.md", top.files)                 # a skill is no file of the template
+        # A deck inside it: its skills go beside the workspace's, not into the deck.
+        deck = self.start("deck", "first-talk", where=top.folder)
+        self.assertEqual((deck.skills, deck.skills_in), (("tide-tables", "harbour-lights"), top.folder))
+        self.assertTrue((skills / "harbour-lights/SKILL.md").is_file())
+        self.assertFalse((deck.folder / ".agents").exists())
+
+    def test_outside_a_workspace_they_go_into_what_was_made(self):
+        self.names("module", {"source": self.source, "skills": ["harbour-lights"]})
+        made = self.start("deck", "tides")
+        self.assertEqual(made.skills_in, made.folder)
+        self.assertTrue((made.folder / ".agents/skills/harbour-lights/SKILL.md").is_file())
+
+    def test_a_skill_there_already_is_brought_up_to_what_the_repository_has(self):
+        self.names("module", {"source": self.source, "skills": ["harbour-lights"]})
+        write(self.where / "tides", {".agents/skills/harbour-lights/SKILL.md": "old\n",
+                                     ".agents/skills/harbour-lights/mine.md": "a note of my own\n",
+                                     "pnpm-workspace.yaml": "packages:\n  - 'packages/*'\n"})
+        self.start("deck", "first", where=self.where / "tides")
+        skill = self.where / "tides/.agents/skills/harbour-lights"
+        self.assertIn("Read the lights.", (skill / "SKILL.md").read_text())
+        self.assertEqual((skill / "mine.md").read_text(), "a note of my own\n")
+
+    def test_a_skill_that_cannot_be_had_is_said_and_the_project_is_still_made(self):
+        self.names("module",
+                   {"source": self.source, "skills": ["tide-tables", "no-such-skill", "../README.md"]},
+                   {"source": f"file://{self.folder}/nowhere", "skills": ["soundings"]},
+                   {"source": "ext::sh -c id", "skills": ["soundings"]},
+                   {"source": "../tide-tools", "skills": ["tide-tables"]})
+        made = self.start("deck", "tides")
+        self.assertTrue((made.folder / "talk.conv").is_file())
+        self.assertEqual(made.skills, ("tide-tables",))
+        self.assertEqual(sorted(path.name for path in (made.folder / ".agents/skills").iterdir()), ["tide-tables"])
+        notes = "\n".join(made.notes)
+        self.assertIn("has no skill called `no-such-skill`", notes)
+        self.assertIn("has no skill called `../README.md`", notes)
+        self.assertIn(f"npx skills add file://{self.folder}/nowhere --skill soundings", notes)
+        self.assertIn("the skills of `ext::sh -c id` were left", notes)
+        self.assertIn("the skills of `../tide-tools` were left", notes)
+
+    def test_they_are_left_when_asked(self):
+        self.names("module", {"source": self.source, "skills": ["tide-tables"]})
+        made = scaffold.start(str(self.repo), "deck", "tides", where=self.where, settings=self.settings,
+                              sources=self.sources(), skills=False)
+        self.assertEqual((made.skills, made.skills_in), ((), None))
+        self.assertFalse((made.folder / ".agents").exists())
+
+    def test_what_is_wrong_with_how_skills_are_named_is_said(self):
+        for wrong in ({"source": self.source}, [{"skills": ["tide-tables"]}], [{"source": self.source, "skills": "all"}],
+                      [{"source": self.source, "skills": [7]}], ["tide-tables"]):
+            said = json.loads((self.repo / "media/module/.boilerplate.json").read_text())
+            said["skills"] = wrong
+            write(self.repo / "media/module", {".boilerplate.json": said})
+            with self.assertRaises(ScaffoldError) as raised:
+                scaffold.find(self.repo, "module")
+            self.assertIn('"skills" is a list', str(raised.exception))
+
+    def test_the_command_says_where_they_went_and_can_leave_them(self):
+        self.names("workspace", {"source": self.source, "skills": ["tide-tables"]})
+        self.names("module", {"source": self.source, "skills": ["tide-tables", "harbour-lights"]})
+        init = CommandTest.init
+        status, out, err = init(self, "workspace", "Harbour Talks")
+        self.assertEqual((status, err), (0, ""))
+        self.assertEqual(out.splitlines()[:3], [
+            "harbour-talks: 3 files, from media/workspace",
+            "harbour-talks/packages/first-talk: 3 files, from media/module",
+            "harbour-talks/.agents/skills: tide-tables, harbour-lights"])
+        status, out, _ = init(self, "workspace", "quiet", "--no-skills", "--json")
+        self.assertEqual((status, [one["skills"] for one in json.loads(out)]), (0, [[], []]))
+        self.assertFalse((self.where / "quiet/.agents").exists())
+        status, out, _ = init(self, "--list", "--json")
+        self.assertEqual([one["skills"] for one in json.loads(out) if one["template"] == "media/workspace"],
+                         [[{"source": self.source, "skills": ["tide-tables"]}]])
+
+
 class CommandTest(InFolder):
     def init(self, *arguments, where=None):
         git_says = {"user.name": "Ada Marsh", "user.email": "ada@example.com"}

@@ -78,7 +78,29 @@ until every question has an answer.
 | `--refresh` | fetches the boilerplates again. They are otherwise kept for a day under the engine's home |
 | `--cwd FOLDER` | where to start it |
 | `--bare` | a workspace alone, without what it would start with |
+| `--no-skills` | leaves out the agent skills the template names |
 | `--json` | what was made, or listed, as JSON |
+
+## The skills that come with it
+
+A template can name agent skills that belong with what it makes: how to write
+the script, how to film it, how the engine is driven. `media init` copies each
+into `.agents/skills/` at the top of the workspace, where an agent working in
+the project finds it, and says which:
+
+```
+harbour-talks: 14 files, from media/workspace
+harbour-talks/packages/first-talk: 9 files, from media/module
+harbour-talks/.agents/skills: constructive-media, conv, media-workspace, narrated-video
+```
+
+A skill is a folder of text in the repository it is kept in, `.agents/skills/NAME`.
+That repository is fetched as the boilerplates are and kept for a day; the
+folder's files are copied and nothing in them is run. Started again later, a
+skill that is there already is brought up to what its repository has. One that
+cannot be fetched is said, with the line that adds it afterwards, and the
+project is made all the same. `--no-skills` leaves them out. `pgpm init` reads
+the same list and does the same.
 
 ## What it will not do
 
@@ -86,9 +108,10 @@ until every question has an answer.
   workspace is made in a folder named for it, or in the folder you are in when
   that is empty and has the name already.
 - **Run anything from a template.** A template is files. Its blanks are filled
-  and it is copied; no script in it runs, and no skill or package is installed.
-  A link in a template is left out, since it could point at anything on your
-  machine.
+  and it is copied; no script in it runs and no package is installed. The
+  skills it names are copied as files, from `owner/name` on GitHub or a git
+  address and never from a path. A link, in a template or in a skill, is left
+  out, since it could point at anything on your machine.
 - **Follow an answer out of the project.** A blank in a file's name filled with
   `..` or a path is refused.
 - **Fetch what is not an address.** `--repo` takes a folder that starts `.`,
@@ -144,6 +167,9 @@ media/
   reserved".
 - `requiresWorkspace` (`pnpm`, `pgpm`, `lerna`, `npm` or `false`) says which
   kind of workspace a module goes into the `packages/` of.
+- `skills` names the agent skills that go with a template, as
+  `[{"source": "your-org/your-tools", "skills": ["tide-tables"]}]`: the
+  repository, and the folders of its `.agents/skills/` to copy.
 - `aliases` and `first` are read by `media init` alone: other names for a
   template, and what a new workspace starts with.
 

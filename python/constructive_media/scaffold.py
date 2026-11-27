@@ -22,8 +22,18 @@ other names to a template, as `aliases`. And it may say what a new workspace
 starts with, as `first`: a template and a name for what it makes. The other
 command reads neither, and makes the workspace alone.
 
-Nothing in a template is run. Its files are copied, its blanks filled, and
-its `.motd` printed.
+A template may name agent skills that belong with what it makes, as the other
+command reads them too:
+
+    "skills": [{"source": "harbour-office/tide-tools", "skills": ["tide-tables"]}]
+
+`source` is a repository, `owner/name` on GitHub or a git address, and each
+skill is the folder `.agents/skills/NAME` of it. They are copied into
+`.agents/skills/` at the top of the workspace, or of what was made when it is
+in no workspace. A skill that cannot be fetched is said and nothing stops.
+
+Nothing in a template is run. Its files are copied, its blanks filled, its
+skills copied, and its `.motd` printed.
 """
 
 from __future__ import annotations
@@ -48,6 +58,9 @@ _APART = {ROOT, TEMPLATE, ".boilerplate.js", ".git"}
 _BLANK = re.compile(r"____([A-Za-z_][A-Za-z0-9_]*)____")
 _SHORT = re.compile(r"[A-Za-z0-9][\w.-]*/(?!\.{1,2}$)[\w.-]+")     # owner/name, and never a path such as ../name
 _FETCHED = ("https://", "ssh://", "git@", "file://")
+#: Where an agent looks for skills, in a project and in the repository a skill comes from.
+SKILLS = Path(".agents") / "skills"
+_SKILL = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]*")
 #: The file that says a folder is a workspace, by the kind of workspace a template may ask for.
 _WORKSPACES = {
     "pgpm": ("pgpm.json", "pgpm.config.js"),
@@ -90,6 +103,7 @@ class Template:
     requires: str | None            # the kind of workspace it goes into, or None when it goes anywhere
     questions: tuple[Question, ...]
     aliases: tuple[str, ...] = ()
+    skills: tuple[tuple[str, tuple[str, ...]], ...] = ()    # the skills that go with it: a repository, and names
 
 
 @dataclass(frozen=True)
@@ -102,6 +116,8 @@ class Made:
     answers: Mapping[str, Any]
     said: str | None = None                             # the template's `.motd`, with its blanks filled
     notes: tuple[str, ...] = field(default_factory=tuple)
+    skills: tuple[str, ...] = ()                        # the skills put beside it, by name
+    skills_in: Path | None = None                       # the folder they were put in
 
 
 # Finding a boilerplate repository and the templates in it.
@@ -205,6 +221,12 @@ def _read(root: Path, folder: Path, aliases: Mapping[str, str]) -> Template:
             options=tuple(str(option) for option in options) if isinstance(options, list) else (),
             use_default=bool(one.get("useDefault")),
         ))
+    wanted = said.get("skills", [])
+    if not isinstance(wanted, list) or not all(
+            isinstance(one, dict) and isinstance(one.get("source"), str) and isinstance(one.get("skills"), list)
+            and all(isinstance(skill, str) for skill in one["skills"]) for one in wanted):
+        raise ScaffoldError(f'{folder / TEMPLATE}: "skills" is a list, each with a "source", the repository, '
+                            'and "skills", the names of the skills taken from it')
     needs = said.get("requiresWorkspace", "pgpm")
     name = folder.relative_to(root).as_posix()
     last = name.rsplit("/", 1)[-1]
@@ -213,6 +235,7 @@ def _read(root: Path, folder: Path, aliases: Mapping[str, str]) -> Template:
         requires=needs if isinstance(needs, str) and needs else None,
         questions=tuple(questions),
         aliases=tuple(sorted(other for other, to in aliases.items() if to in (name, last))),
+        skills=tuple((one["source"].strip(), tuple(one["skills"])) for one in wanted),
     )
 
 
@@ -530,16 +553,61 @@ def write(template: Template, into: str | Path, answers: Mapping[str, Any]) -> M
     return Made(into, template, tuple(written), dict(answers), said, tuple(notes))
 
 
+def install_skills(template: Template, into: str | Path, settings: Settings | None = None, *,
+                   refresh: bool = False) -> tuple[list[str], list[str]]:
+    """Copy the skills a template names into `.agents/skills/` of `into`: the names copied, and what went wrong.
+
+    A skill is the folder `.agents/skills/NAME` of the repository it is said to come from, which is fetched as
+    boilerplates are and kept for a day. Its files are copied and none is run; a link is not followed. One that is
+    there already is brought up to what the repository has. Nothing here stops a project being made: a skill that
+    cannot be had is said, with how to add it later.
+    """
+    from .indexes import fetched
+    from .libraries import LibraryError, kept_clone
+
+    settings = settings or Settings.from_env()
+    into = Path(into)
+    copied: list[str] = []
+    notes: list[str] = []
+    for source, names in template.skills:
+        if not fetched(source):
+            notes.append(f"the skills of `{source}` were left: a template says where skills come from as owner/name "
+                         "on GitHub, or an address that starts https://, ssh:// or git@")
+            continue
+        remote = f"https://github.com/{source}.git" if _SHORT.fullmatch(source) else source
+        try:
+            repository = kept_clone(source, remote, settings.home / "skills", refresh=refresh)
+        except LibraryError as error:
+            notes.append(f"the skills of {source} could not be fetched ({error}). Add them later with: "
+                         + "; ".join(f"npx skills add {source} --skill {name}" for name in names))
+            continue
+        for name in names:
+            folder = repository / SKILLS / name
+            if not _SKILL.fullmatch(name) or not folder.is_dir() or folder.is_symlink():
+                notes.append(f"{source} has no skill called `{name}`, so it was left")
+                continue
+            for path in _files(folder):
+                target = into / SKILLS / name / path.relative_to(folder)
+                target.parent.mkdir(parents=True, exist_ok=True)
+                if target.is_symlink():
+                    target.unlink()                     # written in its place, never through it
+                shutil.copyfile(path, target)
+            if name not in copied:
+                copied.append(name)
+    return copied, notes
+
+
 def start(repo: str, name: str, called: str | None = None, *, where: str | Path = ".",
           given: Mapping[str, Any] | None = None, variant: str | None = None, branch: str | None = None,
           refresh: bool = False, settings: Settings | None = None,
           ask: Callable[[Question, Any], Any] | None = None,
-          sources: Mapping[str, Callable[[], Any]] | None = None) -> Made:
+          sources: Mapping[str, Callable[[], Any]] | None = None, skills: bool = True) -> Made:
     """Start a project: the template `name` of the boilerplates at `repo`, written out and called `called`.
 
     A workspace is a folder of its own under `where`, or `where` itself when that is an empty folder of the same
     name. Anything else goes into `packages/` when `where` is the top of a workspace of the kind the template asks
-    for, and beside `where` otherwise.
+    for, and beside `where` otherwise. The skills the template names are put at the top of the workspace, or of
+    what was made when it is in no workspace; `skills=False` leaves them.
     """
     where = Path(where).expanduser().resolve()
     if not where.is_dir():
@@ -571,7 +639,15 @@ def start(repo: str, name: str, called: str | None = None, *, where: str | Path 
         given.setdefault("packageIdentifier", folder)
         answers = answer(template, given, where=where, ask=ask, sources=sources)
     made = write(template, into, answers)
-    return Made(made.folder, template, made.files, made.answers, made.said, (*notes, *made.notes))
+    copied: list[str] = []
+    top = None
+    if skills and template.skills:
+        above = None if is_workspace else workspace(into.parent)
+        top = above[0] if above else into
+        copied, more = install_skills(template, top, settings, refresh=refresh)
+        notes.extend(more)
+    return Made(made.folder, template, made.files, made.answers, made.said, (*notes, *made.notes),
+                tuple(copied), top if copied else None)
 
 
 _TEXTS = {

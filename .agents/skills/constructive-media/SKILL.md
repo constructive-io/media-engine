@@ -4,7 +4,7 @@ description: Constructive Media — one engine for video, images, audio and voic
 compatibility: Python 3.11+, PostgreSQL 17+ with pgvector, pgpm, ffmpeg, whisper.cpp; Chrome or Chromium for video of a page
 metadata:
   author: constructive-io
-  version: "0.5.0"
+  version: "0.5.1"
 ---
 
 # Constructive Media
@@ -294,7 +294,10 @@ takes the defaults. It never writes into a folder that has something in it and
 runs nothing a template holds. The templates are in
 [media-engine-boilerplates](https://github.com/constructive-io/media-engine-boilerplates),
 which has the skills for working in what is made (`media-workspace`,
-`narrated-video`, `narrated-document`); `--repo` reads others. The same templates work with `pgpm init --repo`. More in
+`narrated-video`, `narrated-document`). `media init` copies the skills a
+template names, this one among them, into `.agents/skills/` at the top of the
+workspace; `--no-skills` leaves them out. `--repo` reads other boilerplates.
+The same templates work with `pgpm init --repo`. More in
 [docs/PROJECTS.md](../../../docs/PROJECTS.md).
 
 ## Before you say it is done
