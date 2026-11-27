@@ -31,12 +31,13 @@ from ..speakers import SpeakerError
 from ..speech import SpeechError
 from ..stage import StageError
 from ..takes import TakeError
+from ..talk import TalkError
 from ..text import TextError
 from ..transcription import TranscriptionError
 from . import analyze, cut, edit, init, libraries, library, listen, measure, scripts, speech, stage, system, takes
-from . import generate, microphones
+from . import generate, microphones, talk
 
-GROUPS = (library, analyze, listen, measure, takes, microphones, edit, cut, scripts, speech, stage, generate, libraries, init, system)
+GROUPS = (library, analyze, listen, measure, takes, microphones, edit, cut, scripts, speech, talk, stage, generate, libraries, init, system)
 
 
 def parser() -> argparse.ArgumentParser:
@@ -63,7 +64,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         return arguments.run(arguments) or 0
     except (AdapterError, BrowserError, CleanError, ConvError, DatabaseError, DenoiseError, EditError, FfmpegError,
             GenerateError, LaughterError, LibraryError, ModelError, ScaffoldError, SettingsError, SpeakerError, SpeechError,
-            StageError, TakeError, TextError, TranscriptionError, UpkeepError) as error:
+            StageError, TakeError, TalkError, TextError, TranscriptionError, UpkeepError) as error:
         print(f"media: {error}", file=sys.stderr)
         return 1
     except ModuleNotFoundError as error:

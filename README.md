@@ -44,6 +44,7 @@ Early, and built in the open one layer at a time.
 | [Libraries](./docs/LIBRARIES.md): voices, sound banks and faces in repositories of their own, each voice with its consent, added by address and kept at a commit | Here, tested |
 | [Starting a project](./docs/PROJECTS.md): `media init` makes a workspace and its decks from a repository of boilerplates, in the format `pgpm init` reads | Here, tested |
 | Pictures and video made from a description by a model on your own machine, every request and what it made kept on record apart from what was filmed | Here, tested with stand-ins for the models |
+| [Talking with a model](./docs/TALK.md): a page on your own machine that hears you, answers with a text model and says the answer back a sentence at a time, and stops when it is spoken over | Here, tested with stand-ins for the models |
 | Engine: sounds made from a description, a voice re-spoken in another, a face re-timed to new speech | Being brought in |
 
 The roadmap is in [docs/ROADMAP.md](./docs/ROADMAP.md).
@@ -497,6 +498,17 @@ media audition ada
 On a Mac the speech can come from a model run in the engine's own process, with
 no server: `pip install mlx-audio` and `CONSTRUCTIVE_MEDIA_ADAPTER_SPEECH=mlx`
 ([docs/ADAPTERS.md](./docs/ADAPTERS.md#on-a-mac-with-no-server)).
+
+The models that listen, write and speak can hold a conversation between
+them. What you say is written down, answered and said back, a sentence at a
+time, and it stops when you speak over it:
+
+```sh
+media talk --voice ada     # prints an address on this machine; open it and speak
+media talk --measure       # how long each model takes, and the wait they add up to
+```
+
+It is in [docs/TALK.md](./docs/TALK.md).
 
 That is [docs/VOICES.md](./docs/VOICES.md). Voices, banks of sounds and faces
 that are meant to be shared live in a repository of their own, a library,

@@ -39,6 +39,13 @@ One more model is fetched with any of them: `ggml-silero-v6.2.0.bin`,
 format, from [ggml-org/whisper-vad](https://huggingface.co/ggml-org/whisper-vad).
 It finds where the speech is, so that only speech is transcribed.
 
+`media talk` listens to a microphone with the same model in another form:
+[Silero VAD](https://github.com/snakers4/silero-vad) (MIT) as an ONNX file of
+two megabytes, from [onnx-community/silero-vad](https://huggingface.co/onnx-community/silero-vad),
+run through ONNX Runtime (`talk/hearing.py`). It says when someone has started
+to speak and when they have stopped. Without NumPy and ONNX Runtime it is not
+fetched, and speech is told from a room by how loud it is: see [TALK.md](./TALK.md).
+
 ## Detection: objects and people in a frame
 
 `detection/onnx.py`. [D-FINE](https://github.com/Peterande/D-FINE) is published

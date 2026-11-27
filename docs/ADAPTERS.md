@@ -411,6 +411,17 @@ in place of `make`. `media generate` hands the request over and returns, and
 it made. One that can say what a request costs has `price`, and
 `media generate --max-usd` refuses a request priced above it.
 
+## Text
+
+A `text` adapter is asked one thing at a time: `write(prompt, *, limit, as_json)`
+gives back what a model wrote. One that can also answer as it goes has
+`reply(messages, *, limit)`, which is handed a conversation (each message a
+`role` and its `content`) and gives what is said next in pieces, each as it is
+written. [`media talk`](./TALK.md) says the first sentence aloud while the
+rest is still coming. The built-in `http` adapter reads a server's stream; an
+adapter with no `reply` is handed the conversation as one prompt, and its
+answer arrives whole.
+
 ## Denoise
 
 A denoiser is given a recording of a voice and writes it again with less of

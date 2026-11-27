@@ -29,8 +29,9 @@ model, the prompt and that the answer is to come whole.
 
 from __future__ import annotations
 
+import json
 import math
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
 from typing import Any
 
 from ..servers import Server
@@ -61,12 +62,53 @@ class ChatServer(_Server):
             raise TextError(f"the text model at {self.url} answered without a message in it") from None
         if not written.strip() and choice.get("finish_reason") == "length":
             # Not an answer that could not be read: every passage would go the same way.
-            raise TextError(
-                f"{self.model} used all {body.get('max_tokens', limit)} tokens it was allowed and answered nothing. "
-                "A model that thinks before it answers has to be told not to, in whatever way its server "
-                f"takes that, or allowed enough for both. Set {self._extra_variable} to "
-                '{"reasoning_effort": "none"} for a server that takes that, or to {"max_tokens": 2000}')
+            raise self._spent(body.get("max_tokens", limit))
         return written
+
+    def _spent(self, allowed: Any) -> TextError:
+        return TextError(
+            f"{self.model} used all {allowed} tokens it was allowed and answered nothing. "
+            "A model that thinks before it answers has to be told not to, in whatever way its server "
+            f"takes that, or allowed enough for both. Set {self._extra_variable} to "
+            '{"reasoning_effort": "none"} for a server that takes that, or to {"max_tokens": 2000}')
+
+    def reply(self, messages: Sequence[dict[str, str]], *, limit: int = 400) -> Iterator[str]:
+        """What the model says next in a conversation, in pieces, each as it is written.
+
+        The server is asked to send its answer as it goes. One that sends it
+        whole all the same is read whole, as a single piece.
+        """
+        body = {"max_tokens": limit, **self.extra, "model": self.model, "stream": True, "messages": list(messages)}
+        whole, streamed, pieces, ended = b"", False, 0, None
+        for line in self._lines(body):
+            if not line.startswith(b"data:"):
+                whole += b"" if streamed else line
+                continue
+            streamed = True
+            sent = line[5:].strip()
+            if sent == b"[DONE]":
+                break
+            try:
+                choice = json.loads(sent)["choices"][0]
+                piece, ended = (choice.get("delta") or {}).get("content"), choice.get("finish_reason") or ended
+            except (ValueError, KeyError, IndexError, TypeError, AttributeError):
+                continue
+            if piece:
+                pieces += 1
+                yield piece
+        if streamed:
+            if not pieces and ended == "length":
+                raise self._spent(body["max_tokens"])
+            return
+        try:
+            choice = json.loads(whole)["choices"][0]
+            written = choice["message"]["content"] or ""
+        except (ValueError, KeyError, IndexError, TypeError):
+            raise TextError(f"the text model at {self.url} answered without a message in it") from None
+        if not written.strip() and choice.get("finish_reason") == "length":
+            raise self._spent(body["max_tokens"])
+        if written:
+            yield written
 
 
 class EmbeddingServer(_Server):

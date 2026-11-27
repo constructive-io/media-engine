@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Talk</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --ground: #f6f5f1; --card: #ffffff; --ink: #1c1b19; --quiet: #6d6a64; --line: #dedbd3;
+    --mark: #2f6f5e; --mark-ink: #ffffff; --theirs: #ecebe6; --warn: #a2401f;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #171614; --card: #201f1c; --ink: #ecebe6; --quiet: #9a968e; --line: #34322e;
+      --mark: #7cc4ae; --mark-ink: #10231d; --theirs: #2a2925; --warn: #f0906c;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--ground); color: var(--ink);
+    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+    display: flex; justify-content: center;
+  }
+  main { width: 100%; max-width: 44rem; padding: 1rem; display: flex; flex-direction: column; gap: .75rem; height: 100%; }
+  header { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
+  h1 { font-size: 1.15rem; margin: 0; font-weight: 650; }
+  #state { color: var(--quiet); font-size: .9rem; display: flex; align-items: center; gap: .45rem; }
+  #state::before { content: ""; width: .6rem; height: .6rem; border-radius: 50%; background: var(--line); }
+  #state[data-is="listening"]::before { background: var(--mark); }
+  #state[data-is="thinking"]::before { background: var(--quiet); animation: wait 1s ease-in-out infinite; }
+  #state[data-is="speaking"]::before { background: var(--mark); animation: wait .6s ease-in-out infinite; }
+  @keyframes wait { 50% { opacity: .25; } }
+  @media (prefers-reduced-motion: reduce) { #state::before { animation: none !important; } }
+  #said {
+    flex: 1; min-height: 8rem; overflow-y: auto; background: var(--card); border: 1px solid var(--line);
+    border-radius: .75rem; padding: 1rem; display: flex; flex-direction: column; gap: .6rem;
+  }
+  #said:empty::before { content: "Say something, or type it below."; color: var(--quiet); margin: auto; }
+  #said p { margin: 0; padding: .5rem .75rem; border-radius: .75rem; max-width: 85%; overflow-wrap: anywhere; }
+  #said .you { align-self: flex-end; background: var(--mark); color: var(--mark-ink); }
+  #said .it { align-self: flex-start; background: var(--theirs); }
+  #said .trouble { align-self: stretch; max-width: none; color: var(--warn); border: 1px solid currentColor; background: none; }
+  form { display: flex; gap: .5rem; }
+  input, button { font: inherit; border-radius: .6rem; border: 1px solid var(--line); padding: .6rem .8rem; color: inherit; background: var(--card); }
+  input { flex: 1; min-width: 0; }
+  button { cursor: pointer; white-space: nowrap; }
+  button.main { background: var(--mark); color: var(--mark-ink); border-color: var(--mark); }
+  button[aria-pressed="true"] { background: var(--mark); color: var(--mark-ink); border-color: var(--mark); }
+  button:disabled { opacity: .5; cursor: default; }
+  :focus-visible { outline: 2px solid var(--mark); outline-offset: 2px; }
+  footer { color: var(--quiet); font-size: .8rem; display: flex; flex-wrap: wrap; justify-content: space-between; gap: .25rem 1rem; min-height: 1.2rem; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Talk</h1>
+    <div id="state" role="status" data-is="closed">connecting</div>
+  </header>
+  <div id="said" aria-live="polite"></div>
+  <form id="typed">
+    <button type="button" id="microphone" aria-pressed="false" disabled>Microphone</button>
+    <input id="words" autocomplete="off" placeholder="Type a turn" aria-label="Type a turn">
+    <button type="submit" class="main">Send</button>
+    <button type="button" id="hush" disabled>Stop</button>
+  </form>
+  <footer><span id="with"></span><span id="timing"></span></footer>
+</main>
+<script>
+"use strict";
+const state = document.getElementById("state");
+const said = document.getElementById("said");
+const words = document.getElementById("words");
+const microphone = document.getElementById("microphone");
+const hush = document.getElementById("hush");
+
+let sound = null;        // the AudioContext, made at the first press: a browser plays nothing before one
+let playing = null;      // the sentence being played
+let waiting = [];        // the sentences after it
+let decoded = Promise.resolve();
+let answer = 0;          // which answer is being played; sound from one that was hushed is dropped
+let listening = null;    // the microphone, while it is open
+let last = null;         // the bubble the answer is being written in
+let doing = "closed";    // what the engine last said it was doing
+let label = "connecting";
+
+function show(is, text) {
+  if (is) { doing = is; label = text || is; }
+  // A sentence goes on being heard here after the engine has finished with it.
+  const sounding = doing === "listening" && (playing || waiting.length);
+  state.dataset.is = sounding ? "speaking" : doing;
+  state.textContent = sounding ? "speaking" : label;
+  hush.disabled = !sounding && doing !== "thinking" && doing !== "speaking";
+}
+
+function add(who, text) {
+  const line = document.createElement("p");
+  line.className = who;
+  line.textContent = text;
+  said.append(line);
+  said.scrollTop = said.scrollHeight;
+  return line;
+}
+
+function audio() {
+  if (!sound) sound = new AudioContext();
+  if (sound.state === "suspended") sound.resume();
+  return sound;
+}
+
+function next() {
+  if (playing || !waiting.length) return;
+  playing = audio().createBufferSource();
+  playing.buffer = waiting.shift();
+  playing.connect(sound.destination);
+  playing.onended = () => { playing = null; next(); show(); };
+  playing.start();
+}
+
+function quiet() {
+  answer += 1;
+  waiting = [];
+  if (playing) {
+    playing.onended = null;
+    try { playing.stop(); } catch (error) { /* it had already ended */ }
+    playing = null;
+  }
+  show();
+}
+
+function play(wav) {
+  const mine = answer;
+  // One after another, in the order they came, however long each takes to open.
+  decoded = decoded
+    .then(() => audio().decodeAudioData(wav))
+    .then((buffer) => { if (mine === answer) { waiting.push(buffer); next(); show(); } })
+    .catch(() => {});
+}
+
+const socket = new WebSocket(`ws://${location.host}/talk`);
+socket.binaryType = "arraybuffer";
+socket.onclose = () => { show("closed", "closed: start `media talk` again and reload"); stop(); };
+socket.onmessage = (event) => {
+  if (typeof event.data !== "string") { play(event.data); return; }
+  const told = JSON.parse(event.data);
+  if (told.type === "ready") {
+    microphone.disabled = !told.hears || !navigator.mediaDevices;
+    if (!told.hears) microphone.title = "Nothing is set to write down what is said, so turns are typed";
+    document.getElementById("with").textContent =
+      ["transcription", "text", "speech"].filter((slot) => told[slot]).map((slot) => told[slot]).join(" · ");
+  } else if (told.type === "state") {
+    show(told.value);
+  } else if (told.type === "heard") {
+    add("you", told.text);
+    last = null;
+  } else if (told.type === "said") {
+    if (last) last.textContent += " " + told.text; else last = add("it", told.text);
+    said.scrollTop = said.scrollHeight;
+  } else if (told.type === "hush") {
+    quiet();
+  } else if (told.type === "trouble") {
+    add("trouble", told.text);
+  } else if (told.type === "timing") {
+    const parts = [];
+    if (told.heard_ms != null) parts.push(`written down in ${told.heard_ms} ms`);
+    if (told.first_word_ms != null) parts.push(`first word ${told.first_word_ms} ms`);
+    if (told.first_sound_ms != null) parts.push(`first sound ${told.first_sound_ms} ms`);
+    document.getElementById("timing").textContent = parts.join(" · ");
+  }
+};
+
+document.getElementById("typed").addEventListener("submit", (event) => {
+  event.preventDefault();
+  const text = words.value.trim();
+  if (!text || socket.readyState !== WebSocket.OPEN) return;
+  audio();
+  quiet();
+  socket.send(JSON.stringify({ type: "text", text }));
+  words.value = "";
+});
+
+hush.addEventListener("click", () => {
+  quiet();
+  if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type: "hush" }));
+});
+
+function stop() {
+  if (!listening) return;
+  listening.node.disconnect();
+  listening.from.disconnect();
+  listening.stream.getTracks().forEach((track) => track.stop());
+  listening = null;
+  microphone.setAttribute("aria-pressed", "false");
+  microphone.textContent = "Microphone";
+}
+
+microphone.addEventListener("click", async () => {
+  if (listening) { stop(); return; }
+  try {
+    const context = audio();
+    // The browser takes the answer back out of what the microphone hears, so it does not answer itself.
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+    });
+    await context.audioWorklet.addModule("microphone.js");
+    const from = context.createMediaStreamSource(stream);
+    const node = new AudioWorkletNode(context, "microphone");
+    node.port.onmessage = (event) => { if (socket.readyState === WebSocket.OPEN) socket.send(event.data); };
+    from.connect(node);
+    listening = { stream, from, node };
+    microphone.setAttribute("aria-pressed", "true");
+    microphone.textContent = "Microphone on";
+  } catch (error) {
+    add("trouble", `The microphone could not be opened: ${error.message || error.name}`);
+  }
+});
+</script>
+</body>
+</html>

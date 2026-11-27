@@ -10,12 +10,16 @@ Neither is asked for facts. A writer is asked for an opinion of words the
 engine already holds, and what comes back is read as an opinion: a number
 that is out of range is brought into it, and a reply that cannot be read is
 counted and left out, not guessed at.
+
+A writer may also be talked with: `reply` hands one a conversation and gives
+back what it says next, in pieces as they are written, so that the first
+sentence can be said aloud while the second is still being thought of.
 """
 
 from __future__ import annotations
 
 import json
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
 from typing import Any, Protocol, runtime_checkable
 
 from .. import adapters
@@ -28,7 +32,11 @@ class TextError(RuntimeError):
 
 @runtime_checkable
 class Writer(Protocol):
-    """Something that reads a prompt and writes an answer."""
+    """Something that reads a prompt and writes an answer.
+
+    One that can hold a conversation, answering as it goes, also has
+    `reply(messages, *, limit)`: see `reply` below.
+    """
 
     name: str
     #: What is recorded beside whatever it judged, so opinions can be told apart.
@@ -41,6 +49,32 @@ class Writer(Protocol):
         nothing else. It may still not, and `read` allows for that.
         """
         ...
+
+
+def reply(writer: Writer, messages: Sequence[dict[str, str]], *, limit: int = 400) -> Iterator[str]:
+    """What a writer says next in a conversation, in pieces, each as it is written.
+
+    `messages` is the conversation so far, oldest first: each has a `role`,
+    which is `system`, `user` or `assistant`, and its `content`. A writer
+    that can answer as it goes has `reply(messages, *, limit)` and is asked
+    that way. One that cannot is handed the conversation as one prompt, and
+    its answer comes whole, as a single piece.
+    """
+    piecewise = getattr(writer, "reply", None)
+    if piecewise is not None:
+        yield from piecewise(messages, limit=limit)
+        return
+    written = writer.write(as_prompt(messages), limit=limit)
+    if written:
+        yield written
+
+
+def as_prompt(messages: Sequence[dict[str, str]]) -> str:
+    """A conversation as one prompt, for a writer that is only ever asked one thing."""
+    told = [message["content"] for message in messages if message["role"] == "system"]
+    said = [f"{'They' if message['role'] == 'user' else 'You'} said: {message['content']}"
+            for message in messages if message["role"] != "system"]
+    return "\n\n".join([*told, "\n".join(said), "What you say next, and nothing else:"])
 
 
 @runtime_checkable

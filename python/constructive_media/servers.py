@@ -15,9 +15,11 @@ shown, in a message or anywhere else.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import urllib.error
 import urllib.request
+from collections.abc import Iterator
 from typing import Any
 from urllib.parse import urlsplit
 
@@ -68,16 +70,18 @@ class Server:
     #: What the extra setting looks like, for the message that asks for one.
     extra_example = '{"seed": 7}'
 
-    def _send(self, body: dict[str, Any]) -> bytes:
-        """What the server answered to `body`, as it came."""
+    def _request(self, body: dict[str, Any]) -> urllib.request.Request:
         headers = {"Content-Type": "application/json"}
         if self._key:
             headers["Authorization"] = f"Bearer {self._key}"
-        request = urllib.request.Request(  # noqa: S310 - the scheme was checked when this was made
+        return urllib.request.Request(  # noqa: S310 - the scheme was checked when this was made
             f"{self.url}/{self.path}", data=json.dumps(body).encode(), headers=headers)
+
+    @contextlib.contextmanager
+    def _reached(self) -> Iterator[None]:
+        """Whatever goes wrong in reaching the server, said as this kind of model's error."""
         try:
-            with urllib.request.urlopen(request, timeout=self.timeout_s) as answer:  # noqa: S310
-                return answer.read()
+            yield
         except urllib.error.HTTPError as error:
             with error:
                 said = " ".join(error.read(600).decode("utf-8", "replace").split())[:300]
@@ -86,6 +90,16 @@ class Server:
         except (urllib.error.URLError, TimeoutError, OSError) as error:
             raise self.error(f"the {self.serves} model at {self.url} did not answer: "
                              f"{getattr(error, 'reason', None) or error}") from None
+
+    def _send(self, body: dict[str, Any]) -> bytes:
+        """What the server answered to `body`, as it came."""
+        with self._reached(), urllib.request.urlopen(self._request(body), timeout=self.timeout_s) as answer:  # noqa: S310
+            return answer.read()
+
+    def _lines(self, body: dict[str, Any]) -> Iterator[bytes]:
+        """What the server answers to `body`, a line at a time, as each comes."""
+        with self._reached(), urllib.request.urlopen(self._request(body), timeout=self.timeout_s) as answer:  # noqa: S310
+            yield from answer
 
     def _ask(self, body: dict[str, Any]) -> Any:
         """What the server answered to `body`, read as JSON."""

@@ -1,10 +1,10 @@
 ---
 name: constructive-media
-description: Constructive Media — one engine for video, images, audio and voice, driven by the `media` command line with its state in PostgreSQL. Use when asked to "render a .conv", "turn a script into audio", "make a voiced scene", "say this script", "say this in a voice", "give a persona a voice", "clone a voice", "audition a voice", "make a narrated deck", "film a deck", "turn a script into a video", "make a walkthrough video", "narrate a document", "add a voice library", "set up the media engine", "ingest footage", "transcribe recordings", "find the best takes", "make a cut", "render a cut", "generate an image", "generate a video", "make a picture from a prompt", or to choose a model, an adapter or a plugin for the engine.
+description: Constructive Media — one engine for video, images, audio and voice, driven by the `media` command line with its state in PostgreSQL. Use when asked to "render a .conv", "turn a script into audio", "make a voiced scene", "say this script", "say this in a voice", "give a persona a voice", "clone a voice", "audition a voice", "make a narrated deck", "film a deck", "turn a script into a video", "make a walkthrough video", "narrate a document", "add a voice library", "set up the media engine", "ingest footage", "transcribe recordings", "find the best takes", "make a cut", "render a cut", "generate an image", "generate a video", "make a picture from a prompt", "talk to a model", "have a voice conversation", "measure the voice latency", or to choose a model, an adapter or a plugin for the engine.
 compatibility: Python 3.11+, PostgreSQL 17+ with pgvector, pgpm, ffmpeg, whisper.cpp; Chrome or Chromium for video of a page
 metadata:
   author: constructive-io
-  version: "0.9.0"
+  version: "0.10.0"
 ---
 
 # Constructive Media
@@ -32,6 +32,8 @@ goes in, and a mixed recording comes out.
 - **Pictures and video from a description:** asking a model for one, and
   keeping what it made apart from what was filmed. See
   [Pictures and video from a description](#pictures-and-video-from-a-description).
+- **Talking with a model:** a page that hears, answers and speaks, and how
+  long it makes someone wait. See [Talk with a model](#talk-with-a-model).
 - **Setting up:** the database, the speech server, the settings, an adapter or
   a plugin.
 
@@ -315,6 +317,35 @@ media synthetic talk-over        # the clips of a cut that nobody filmed; status
   `media synthetic` on it.
 - A request handed to a service (an adapter from a plugin) prints `asked`;
   `media collect` brings in what the service made.
+
+## Talk with a model
+
+```sh
+media talk --measure         # serve nothing: time hearing, answering and saying, and the wait they add up to
+media talk --voice ada       # serve the page on this machine; prints its address and runs until stopped
+media talk --typed           # no microphone and no transcription: turns are typed, and answered aloud
+```
+
+- **It runs until it is stopped.** Start it in the background, read the
+  address it prints (port 8850 unless `--port` says; `--port 0` for a free
+  one), give the address to the person, and stop it when they are done. Never
+  wait on it in the foreground.
+- **Measure first.** `--measure` proves all three models work and says what
+  the wait is, with nothing served; status 1 and the reason when one fails.
+  Report the wait it prints. Over two seconds, try a smaller transcription
+  model or a smaller text model before anything else.
+- **It needs the `text` slot**: `CONSTRUCTIVE_MEDIA_URL_TEXT` and
+  `CONSTRUCTIVE_MEDIA_MODEL_TEXT`, a server that speaks the usual chat API. A
+  model that thinks before it answers spends the wait thinking; a small one
+  that does not is right here.
+- **You cannot hear it.** You can type a turn at it from a program (a
+  WebSocket at `/talk`, described in [docs/TALK.md](../../../docs/TALK.md#from-a-program))
+  and read what came back; say that is what you checked, and that nobody
+  listened.
+- **This machine only.** It listens on `127.0.0.1` and answers only its own
+  page. Do not put it behind a proxy or open the port to a network: it is a
+  microphone and a model with no login.
+- **Nothing is kept.** No turn is written to the database or to a file.
 
 ## Start a project
 

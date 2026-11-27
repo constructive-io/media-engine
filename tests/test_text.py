@@ -181,6 +181,83 @@ class ChatServerTest(Served):
         slow = ChatServer(settings=self.settings(), timeout_s=0.2)
         self.refused(lambda: slow.write("Well?"), "did not answer")
 
+    def streams(self, *sent):
+        """Answer as a server does that sends its answer as it goes: one event for each thing sent."""
+        self.server.answer = (200, b"".join(
+            b"data: " + (one if isinstance(one, bytes) else json.dumps(one).encode()) + b"\n\n" for one in sent))
+
+    def test_a_conversation_is_answered_in_pieces_as_they_are_written(self):
+        self.streams({"choices": [{"delta": {"role": "assistant", "content": ""}}]},
+                     {"choices": [{"delta": {"content": "The tide "}}]},
+                     {"choices": [{"delta": {"content": None, "reasoning_content": "is it?"}}]},
+                     b": a comment, as a server may send to keep the line open",
+                     {"choices": [{"delta": {"content": "is going out."}}]},
+                     {"choices": [{"delta": {}, "finish_reason": "stop"}]},
+                     {"choices": [], "usage": {"completion_tokens": 6}},
+                     b"[DONE]",
+                     {"choices": [{"delta": {"content": "never read"}}]})
+        messages = [{"role": "system", "content": "You know the tides."}, {"role": "user", "content": "What is the tide doing?"}]
+        reader = ChatServer(settings=self.settings(CONSTRUCTIVE_MEDIA_EXTRA_TEXT='{"reasoning_effort": "none", "stream": false}'))
+        self.assertEqual(list(reader.reply(messages, limit=90)), ["The tide ", "is going out."])
+        ((path, _, sent),) = self.server.asked
+        self.assertEqual(path, "/v1/chat/completions")
+        self.assertEqual(sent, {"model": "made-up-reader", "messages": messages, "stream": True, "max_tokens": 90,
+                                "reasoning_effort": "none"})
+        # Through the slot, a writer that can answer as it goes is asked to.
+        self.assertEqual(list(text.reply(reader, messages)), ["The tide ", "is going out."])
+        self.assertEqual(self.server.asked[1][2]["max_tokens"], 400)
+
+    def test_a_server_that_answers_whole_all_the_same_is_read_whole(self):
+        self.says("The tide is going out.")
+        reader = ChatServer(settings=self.settings())
+        self.assertEqual(list(reader.reply([{"role": "user", "content": "Well?"}])), ["The tide is going out."])
+        self.says(None)
+        self.assertEqual(list(reader.reply([{"role": "user", "content": "Well?"}])), [])
+        self.streams({"choices": [{"delta": {}, "finish_reason": "stop"}]}, b"[DONE]")
+        self.assertEqual(list(reader.reply([{"role": "user", "content": "Well?"}])), [])
+
+    def test_a_conversation_that_cannot_be_answered_says_why(self):
+        reader = ChatServer(settings=self.settings())
+        ask = lambda: list(reader.reply([{"role": "user", "content": "Well?"}], limit=40))  # noqa: E731
+        self.server.answer = (503, {"error": "the model is still loading"})
+        self.refused(ask, f"the text model at {self.url} refused with 503", "still loading")
+        self.server.answer = (200, b"<html>not what was asked for</html>")
+        self.refused(ask, "answered without a message in it")
+        self.server.answer = (200, {"choices": []})
+        self.refused(ask, "answered without a message in it")
+        self.server.answer = (200, {"choices": [{"message": {"content": ""}, "finish_reason": "length"}]})
+        self.refused(ask, "made-up-reader used all 40 tokens it was allowed and answered nothing")
+        self.streams({"choices": [{"delta": {"reasoning_content": "Let me think"}}]},
+                     {"choices": [{"delta": {}, "finish_reason": "length"}]}, b"[DONE]")
+        self.assertNotIn("Let me think", self.refused(ask, "used all 40 tokens it was allowed and answered nothing",
+                                                      "CONSTRUCTIVE_MEDIA_EXTRA_TEXT"))
+
+    def test_an_answer_that_is_no_longer_wanted_is_let_go(self):
+        self.streams({"choices": [{"delta": {"content": "One. "}}]}, {"choices": [{"delta": {"content": "Two."}}]}, b"[DONE]")
+        pieces = ChatServer(settings=self.settings()).reply([{"role": "user", "content": "Count"}])
+        self.assertEqual(next(pieces), "One. ")
+        pieces.close()
+        self.assertEqual(list(pieces), [])
+
+    def test_a_writer_that_only_writes_is_handed_the_conversation_as_one_prompt(self):
+        class Writes:
+            name, model = "stand-in", "made-up-reader"
+
+            def write(self, prompt, *, limit=200, as_json=False):
+                self.asked = (prompt, limit)
+                return "At six."
+
+        writer = Writes()
+        self.assertEqual(list(text.reply(writer, [
+            {"role": "system", "content": "You know the tides."}, {"role": "user", "content": "What is the tide doing?"},
+            {"role": "assistant", "content": "Going out."}, {"role": "user", "content": "When does it turn?"}], limit=60)),
+            ["At six."])
+        self.assertEqual(writer.asked, (
+            "You know the tides.\n\nThey said: What is the tide doing?\nYou said: Going out.\nThey said: When does it turn?"
+            "\n\nWhat you say next, and nothing else:", 60))
+        writer.write = lambda prompt, *, limit=200, as_json=False: ""
+        self.assertEqual(list(text.reply(writer, [{"role": "user", "content": "Well?"}])), [])
+
     def test_nothing_is_sent_anywhere_it_was_not_told_to_go(self):
         nothing = Settings.from_env({})
         self.refused(lambda: ChatServer(settings=nothing), "nothing says where the text model is",
