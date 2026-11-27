@@ -27,7 +27,7 @@ from typing import Any
 from . import db, ffmpeg
 from .ingest import AUDIO_EXTENSIONS, IMAGE_EXTENSIONS, quick_hash
 
-KINDS = ("proxy", "render", "snippet", "stem", "still", "export")
+KINDS = ("proxy", "render", "snippet", "stem", "still", "export", "generated")
 
 
 @dataclass(frozen=True)

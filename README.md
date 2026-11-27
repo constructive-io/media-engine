@@ -43,7 +43,8 @@ Early, and built in the open one layer at a time.
 | [Voices](./docs/VOICES.md): a noisy recording measured and cleaned, a recording cut into a clip a voice can be cloned from, the clip sent to a server that clones or to a model run on a Mac with no server, and a voice auditioned before it is used | Here, tested with stand-ins for the models |
 | [Libraries](./docs/LIBRARIES.md): voices, sound banks and faces in repositories of their own, each voice with its consent, added by address and kept at a commit | Here, tested |
 | [Starting a project](./docs/PROJECTS.md): `media init` makes a workspace and its decks from a repository of boilerplates, in the format `pgpm init` reads | Here, tested |
-| Engine: generation of images, video and sounds | Being brought in |
+| Pictures and video made from a description by a model on your own machine, every request and what it made kept on record apart from what was filmed | Here, tested with stand-ins for the models |
+| Engine: sounds made from a description, a voice re-spoken in another, a face re-timed to new speech | Being brought in |
 
 The roadmap is in [docs/ROADMAP.md](./docs/ROADMAP.md).
 
@@ -157,6 +158,10 @@ media render talk-over --mix         # or through its worn microphones, mixed to
 media export talk-over --to handover/ --preview --renders  # the cut for an editing program, with something to watch beside it
 media lineage out.mp4                # what a derived file was made from
 media outputs                        # every derived file on record, and what is lying about that is not
+media generate image "a harbour at dawn, fog over the water"  # a picture from a description, on record as generated
+media generate video "fog lifting off the harbour" --seconds 2  # or a piece of video
+media generations                    # every request, how it came out and where the file is
+media synthetic talk-over            # the clips of a cut that nobody filmed
 media persona "Ada Field" --new --kind character --bio "Keeps the light."  # who somebody is
 media personas                       # everybody, and the voices each has
 media conv scene.conv                # check a .conv script: every problem, its line and how to mend it
@@ -389,6 +394,23 @@ file on record with what it was made from, the ones whose file is gone
 included, and then the pictures and sound in the work folder that nothing on
 record accounts for. Those are what to look at before clearing a folder out.
 It deletes nothing.
+
+`media generate` hands a description to a model and keeps what it makes apart
+from what was filmed. `image` is filled by [mflux](https://github.com/filipstrand/mflux)
+running FLUX.2 klein and `video` by Wan through diffusers, both on your own
+machine and both installed by you; [docs/ADAPTERS.md](./docs/ADAPTERS.md#pictures-and-video)
+says how, and how long each takes. Every request is a row, with its words,
+model, settings and seed, whether it worked or not, and `media generations`
+lists them, or adds them up with `--spend`. The same request is made once:
+asked again, the command prints the file it has, and `--again` makes another
+with a seed of its own. `--from` starts from a picture, `--max-usd` refuses a
+request its maker prices above that, and `--dry-run` makes nothing. An adapter
+for a service that takes minutes is handed the request and `media collect`
+brings in what it made. What is made is a derived file of the kind
+`generated`, so `media lineage` answers for it, and `media synthetic` lists
+the clips of a cut whose picture or sound a model made. It fails when there
+are any: the question to ask before a cut is shown as a record of what
+happened.
 
 `media persona` records who somebody is: a real person or an invented
 character, and a few words about them. `media personas` lists everybody with

@@ -22,6 +22,7 @@ from ..db import DatabaseError
 from ..denoise import DenoiseError
 from ..edit import EditError
 from ..ffmpeg import FfmpegError
+from ..generate import GenerateError
 from ..libraries import LibraryError
 from ..models import ModelError
 from ..scaffold import ScaffoldError
@@ -33,9 +34,9 @@ from ..takes import TakeError
 from ..text import TextError
 from ..transcription import TranscriptionError
 from . import analyze, cut, edit, init, libraries, library, listen, measure, scripts, speech, stage, system, takes
-from . import microphones
+from . import generate, microphones
 
-GROUPS = (library, analyze, listen, measure, takes, microphones, edit, cut, scripts, speech, stage, libraries, init, system)
+GROUPS = (library, analyze, listen, measure, takes, microphones, edit, cut, scripts, speech, stage, generate, libraries, init, system)
 
 
 def parser() -> argparse.ArgumentParser:
@@ -61,7 +62,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         return arguments.run(arguments) or 0
     except (AdapterError, BrowserError, CleanError, ConvError, DatabaseError, DenoiseError, EditError, FfmpegError,
-            LaughterError, LibraryError, ModelError, ScaffoldError, SettingsError, SpeakerError, SpeechError,
+            GenerateError, LaughterError, LibraryError, ModelError, ScaffoldError, SettingsError, SpeakerError, SpeechError,
             StageError, TakeError, TextError, TranscriptionError, UpkeepError) as error:
         print(f"media: {error}", file=sys.stderr)
         return 1

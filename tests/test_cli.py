@@ -46,6 +46,7 @@ class CommandLineTest(unittest.TestCase):
                         "timeline", "note", "keep", "cut", "prefer", "pairs", "decisions", "script", "render", "relink", "export",
                         "conv", "persona", "personas", "voices", "voice", "say", "reference", "clean", "audition", "library",
                         "film", "still", "stage", "print", "init",
+                        "generate", "generations", "collect", "synthetic",
                         "status", "adapters"):
             self.assertIn(command, out)
 

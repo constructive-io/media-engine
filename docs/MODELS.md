@@ -80,6 +80,33 @@ The `http` adapter names no model: the server it reaches has its own. The
 under Apache-2.0. It is fetched by mlx-audio the first time a line is said,
 and it clones a voice from a clip of 15 to 28 seconds and the words said in it.
 
+## Pictures: a description to an image
+
+`generate/mflux.py`. The `mflux` adapter runs the
+[mflux](https://github.com/filipstrand/mflux) programs, which run image models
+on Apple silicon. It asks for `flux2-klein-4b` when no other model is named:
+[FLUX.2 klein 4B](https://huggingface.co/black-forest-labs/FLUX.2-klein-4B),
+published under Apache-2.0, which mflux fetches the first time a picture is
+made. It makes a picture in four passes, and it can start from a picture as
+well as from words.
+
+`CONSTRUCTIVE_MEDIA_MODEL_IMAGE` takes anything else mflux can run: a name it
+knows, a repository or a folder. Some of those, the larger FLUX models among
+them, are published under terms that do not allow commercial use. None is
+named here, and which one runs is yours to choose and to check.
+
+## Video: a description to moving pictures
+
+`generate/diffusers.py`. The `diffusers` adapter loads
+`Wan-AI/Wan2.1-T2V-1.3B-Diffusers` when no other model is named:
+[Wan 2.1 T2V 1.3B](https://huggingface.co/Wan-AI/Wan2.1-T2V-1.3B-Diffusers),
+published under Apache-2.0, in the layout
+[diffusers](https://github.com/huggingface/diffusers) reads. It is the
+smallest of the Wan models: 832x480 at 16 frames a second, from words alone.
+diffusers fetches it the first time a piece is made.
+`CONSTRUCTIVE_MEDIA_MODEL_VIDEO` takes a folder or another repository that
+holds a Wan model of the same kind.
+
 ## Models you bring
 
 Three slots reach a model through a server you run or rent, and know no model
@@ -105,6 +132,6 @@ is reached through a plugin, never from this repository; see
 
 ## Slots with no model yet
 
-`voice_conversion`, `image`, `video` and `lip_sync` have no built-in adapter.
-Nothing here makes a sound from a description either: a `.conv` sound given as
+`voice_conversion` and `lip_sync` have no built-in adapter. Nothing here makes
+a sound from a description either: a `.conv` sound given as
 a `prompt:` needs a `file:` until there is a slot for it.

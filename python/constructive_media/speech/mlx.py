@@ -31,7 +31,6 @@ with, in place of the defaults here: `{"temperature": 0.3, "top_p": 0.8,
 from __future__ import annotations
 
 import contextlib
-import fcntl
 import json
 import math
 import os
@@ -40,6 +39,7 @@ from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
+from .. import gpu
 from ..audio import pcm
 from ..settings import Settings
 from . import SpeechError, Voice
@@ -94,7 +94,7 @@ class MlxSpeech:
             if not isinstance(given, dict):
                 raise SpeechError('CONSTRUCTIVE_MEDIA_EXTRA_SPEECH should be a JSON object, such as {"temperature": 0.3}')
             self.options.update(given)
-        self._lock = settings.home / "locks" / "mlx.lock"
+        self._settings = settings
         self._loaded: Any = None
 
     # The model.
@@ -116,13 +116,8 @@ class MlxSpeech:
     @contextlib.contextmanager
     def alone(self) -> Iterator[None]:
         """Hold the lock that keeps two models off the graphics processor at once."""
-        self._lock.parent.mkdir(parents=True, exist_ok=True)
-        with open(self._lock, "w") as held:
-            fcntl.flock(held, fcntl.LOCK_EX)
-            try:
-                yield
-            finally:
-                fcntl.flock(held, fcntl.LOCK_UN)
+        with gpu.alone(self._settings):
+            yield
 
     # Saying.
 

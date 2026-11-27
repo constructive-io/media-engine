@@ -35,6 +35,7 @@ lands tested, with nothing in it that breaks [the licensing rule](./LICENSING.md
 | 28 | Handing over and keeping house: `media export --preview --renders` makes one folder to send, `media flags` lists what is flagged inside a cut and what cutting it would save, `media outputs` lists every derived file on record and the files in the work folder that nothing accounts for, and `media persona` and `media personas` say who everybody is | Done. No model |
 | 29 | Takes by hand: `media take` makes or mends a take and stores an offset a person gives, `media overlap` shows the sentences two recordings share and the offset each implies, and `media pull` cuts one moment from every recording to listen to | Done. No model |
 | 30 | What a cut is heard through: `media relink` stores a cut again with its sound moved to the same moment in another recording of its take, and `media render --mix` puts a take's worn microphones under each stretch, mixed to follow whoever is speaking, with the others turned down and never off | Done. No model |
+| 31 | Pictures and video from a description: `media generate` asks whatever fills the `image` or the `video` slot, every request is a row with its words, model, settings and seed, the same request is made once, and what is made is on record as `generated` so `media synthetic` can list the clips of a cut that nobody filmed. `media generations` lists the requests and what they came to, and `media collect` brings in what a service made later | Done, and tested with stand-ins for the models. `mflux` (FLUX.2 klein 4B) fills `image` and `diffusers` (Wan 2.1 T2V 1.3B) fills `video`; both are installed by you: see [LICENSING.md](./LICENSING.md) |
 
 ## Left for later, and why
 
@@ -43,6 +44,13 @@ lands tested, with nothing in it that breaks [the licensing rule](./LICENSING.md
   can already hand over what a blend is made of (`embed` and `say_as`); the
   command that blends, scores and keeps one is not written. A clip is made
   from a recording of one voice until then.
+- **Sounds from a description, video that starts from a picture, and models
+  on a service.** `media generate` makes pictures and video from words with
+  what runs on one machine under terms within the rule. A sound made from a
+  description needs a slot of its own. Larger and closed models, and the
+  services that run them, are adapters in
+  [media-engine-plugins](https://github.com/constructive-io/media-engine-plugins);
+  the engine already hands a request over and collects it later.
 - **A denoiser that is a model.** `media clean` uses ffmpeg's own, which is worth
   about ten decibels on a steady hiss. A model does better on noise that
   changes, and is an adapter in the `denoise` slot when one is added.

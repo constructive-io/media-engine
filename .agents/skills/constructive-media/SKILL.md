@@ -1,10 +1,10 @@
 ---
 name: constructive-media
-description: Constructive Media — one engine for video, images, audio and voice, driven by the `media` command line with its state in PostgreSQL. Use when asked to "render a .conv", "turn a script into audio", "make a voiced scene", "say this script", "say this in a voice", "give a persona a voice", "clone a voice", "audition a voice", "make a narrated deck", "film a deck", "turn a script into a video", "make a walkthrough video", "narrate a document", "add a voice library", "set up the media engine", "ingest footage", "transcribe recordings", "find the best takes", "make a cut", "render a cut", or to choose a model, an adapter or a plugin for the engine.
+description: Constructive Media — one engine for video, images, audio and voice, driven by the `media` command line with its state in PostgreSQL. Use when asked to "render a .conv", "turn a script into audio", "make a voiced scene", "say this script", "say this in a voice", "give a persona a voice", "clone a voice", "audition a voice", "make a narrated deck", "film a deck", "turn a script into a video", "make a walkthrough video", "narrate a document", "add a voice library", "set up the media engine", "ingest footage", "transcribe recordings", "find the best takes", "make a cut", "render a cut", "generate an image", "generate a video", "make a picture from a prompt", or to choose a model, an adapter or a plugin for the engine.
 compatibility: Python 3.11+, PostgreSQL 17+ with pgvector, pgpm, ffmpeg, whisper.cpp; Chrome or Chromium for video of a page
 metadata:
   author: constructive-io
-  version: "0.8.0"
+  version: "0.9.0"
 ---
 
 # Constructive Media
@@ -29,6 +29,9 @@ goes in, and a mixed recording comes out.
 - **Footage to a cut:** ingesting recordings, transcribing them, telling voices
   apart, ranking what is worth using, assembling and rendering a cut. See
   [references/footage.md](references/footage.md).
+- **Pictures and video from a description:** asking a model for one, and
+  keeping what it made apart from what was filmed. See
+  [Pictures and video from a description](#pictures-and-video-from-a-description).
 - **Setting up:** the database, the speech server, the settings, an adapter or
   a plugin.
 
@@ -279,6 +282,39 @@ whose skills `voice-library` and `build-a-voice` go from a recording to a
 voice that passes its audition. `media library clip` never guesses `--by`
 (whose voice) or `--kind` (`own`, `permission`, `licensed`, `synthetic`): ask
 the person, and do not put in a voice whose owner has not said yes.
+
+## Pictures and video from a description
+
+```sh
+media generate image "a harbour at dawn, fog over the water"       # 1344x768, about twenty seconds
+media generate image "the same harbour at night" --from harbour.png --size 1024x1024
+media generate video "fog lifting off the harbour" --seconds 2    # 832x480, minutes: say so before you start
+media generations                # every request, how it came out and where the file is
+media synthetic talk-over        # the clips of a cut that nobody filmed; status 1 when there are any
+```
+
+- **Neither model is installed by the engine.** Pictures need the `mflux`
+  programs (`uv tool install mflux`, Apple silicon); video needs
+  `pip install torch diffusers transformers ftfy`. Where mflux is not on the
+  path: `CONSTRUCTIVE_MEDIA_EXTRA_IMAGE='{"program": "/path/to/mflux-generate-flux2"}'`.
+  `media adapters` shows what fills `image` and `video`; all of it is in
+  [docs/ADAPTERS.md](../../../docs/ADAPTERS.md#pictures-and-video).
+- **The same request is made once.** Run again, the command prints `had` and
+  the file. `--again` makes another with a new seed; `--seed N` makes one you
+  can make again. `--dry-run` says where it would go and makes nothing.
+- **Sides are multiples of 16.** The command says the nearest size that works.
+- **One at a time.** A model holds a lock every `media` on the machine shares;
+  do not start a second in the background to save time.
+- **Look at it.** Read the picture, or pull a frame from the video with
+  `ffmpeg -ss 1 -i FILE -frames:v 1 frame.png`, before saying it is right.
+  Models draw hands, lettering and faces badly; ask again rather than use one
+  that is wrong.
+- **It is on record as generated, never as footage.** Do not `media ingest` a
+  made file to use it: it is already an asset, and `media lineage FILE` says
+  what made it. Before a cut is called a record of what happened, run
+  `media synthetic` on it.
+- A request handed to a service (an adapter from a plugin) prints `asked`;
+  `media collect` brings in what the service made.
 
 ## Start a project
 

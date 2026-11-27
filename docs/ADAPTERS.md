@@ -21,8 +21,8 @@ that does the job.
 | `speech` | text to speech | `http`, `mlx` |
 | `denoise` | a voice with the noise under it taken off | `ffmpeg` |
 | `voice_conversion` | one voice re-spoken in another | |
-| `image` | image generation | |
-| `video` | video generation | |
+| `image` | a picture made from a description | `mflux` |
+| `video` | a piece of video made from a description | `diffusers` |
 | `lip_sync` | a face re-timed to new speech | |
 | `effects` | audio effects | `ffmpeg` |
 | `text` | text generation and judgement | `http` |
@@ -98,6 +98,7 @@ What an adapter must do is set by its slot:
 | `detection` | `constructive_media.detection.Detector` | `detect(images, confidence)` returns the detections for each image, boxes as shares of the frame |
 | `speaker` | `constructive_media.speakers.Embedder` | `embed(sounds)` returns one row of numbers for each stretch of sound, at unit length, close together for one voice |
 | `effects` | `constructive_media.effects.EffectBackend` | `apply(source, target, effects)` writes the audio with the effects applied, and answers a WAV file of floats with one, so a track that passes full scale on its way into a mix is not clipped. It may also say how long its effects ring, with `ring(effects)`, and a mix leaves that much room |
+| `image`, `video` | `constructive_media.generate.Maker` | `make(request, target)` writes the picture or the piece of video a request describes to `target`. Its `name` and `model` go on record beside what it made. It may say what a request costs, with `price(request)`. One that asks a service and is answered later has `submit(request)`, `poll(job)` and `fetch(job, target)` in place of `make` (`constructive_media.generate.Later`), and `media collect` brings in what it made |
 
 ## Transcription
 
@@ -349,6 +350,66 @@ Any other model that runs in the engine's own process is an adapter too, built
 in when everything it needs is within [the rule](./LICENSING.md) and a plugin
 when it is not. It is handed the voice's clip and the words said in it, and
 can be chosen per voice, by the voice's `engine`.
+
+## Pictures and video
+
+`media generate image` and `media generate video` hand a description to
+whatever fills the `image` or the `video` slot. Both built-in adapters run a
+model on your own machine. Neither is among the engine's extras, for the
+reason mlx-audio is not: each brings packages outside
+[the rule](./LICENSING.md#dependencies) with it. You install them yourself,
+knowing that.
+
+`mflux` runs the [mflux](https://github.com/filipstrand/mflux) programs (MIT),
+which run image models on Apple silicon through MLX:
+
+```sh
+pip install mflux        # or: uv tool install mflux
+media generate image "a harbour at dawn, fog over the water"
+media generate image "the same harbour at night" --from harbour.png --size 1024x1024
+```
+
+It is run as a program, `mflux-generate-flux2`, and
+`mflux-generate-flux2-edit` for a request that starts from a picture; nothing
+in the engine imports it. A picture is 1344x768 and four passes unless you
+say, which takes FLUX.2 klein 4B about eighteen seconds on an Apple M4 Max;
+eight passes take twenty-seven and are a little richer.
+`CONSTRUCTIVE_MEDIA_EXTRA_IMAGE` is a JSON object of what to make a picture
+with: `program` (where the program is, when it is not on the path), `steps`,
+`quantize`, `guidance`, and `base_model` for a model given as a repository or
+a folder.
+
+`diffusers` loads a Wan model in the engine's own process with
+[diffusers](https://github.com/huggingface/diffusers) (Apache-2.0) on PyTorch
+(BSD-3-Clause), and writes what it makes with ffmpeg:
+
+```sh
+pip install torch diffusers transformers ftfy
+media generate video "fog lifting off a harbour at dawn" --seconds 2
+```
+
+A piece is 832x480, two seconds at 16 frames a second and fifteen passes
+unless you say. On an Apple M4 Max that piece took four and a half minutes,
+and one second took under two.
+`CONSTRUCTIVE_MEDIA_EXTRA_VIDEO` is a JSON object of `steps`, `fps`,
+`guidance` and `negative`, the words for what to keep out. It runs on
+`CONSTRUCTIVE_MEDIA_DEVICE`, or the best the machine has.
+
+Both hold the lock every `media` on a machine shares while a model runs: two
+models on one graphics processor at once can stop a machine dead.
+
+What an adapter does not decide is the record. Every request is a row, with
+its words, model, settings and seed, whether it worked or not, and
+`media generations` lists them. The same request is made once: asked again,
+`media generate` prints the file it has, and `--again` makes another. What is
+made is a derived file of the kind `generated`, so `media lineage` answers
+for it, and `media synthetic` lists the clips of a cut that nobody filmed.
+
+An adapter for a service that takes minutes has `submit`, `poll` and `fetch`
+in place of `make`. `media generate` hands the request over and returns, and
+`media collect` asks every service whether it has finished and brings in what
+it made. One that can say what a request costs has `price`, and
+`media generate --max-usd` refuses a request priced above it.
 
 ## Denoise
 

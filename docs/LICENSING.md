@@ -29,11 +29,19 @@ anything outside the rule or anything that declares no license at all.
 | `torch`, `torchvision` | BSD-3-Clause | The second detector | `[torchvision]` |
 | `onnx` | Apache-2.0 | Building a small model in the tests | `[test]` |
 
-One thing the engine can use is installed by you and never by the engine:
-`mlx-audio` (MIT), which the `mlx` speech adapter runs a model through on
-Apple silicon. It brings `tqdm` (MPL-2.0 and MIT) and `certifi` (MPL-2.0)
-with it, which are outside the rule, so it is not an extra and nothing in the
-engine needs it.
+Three things the engine can use are installed by you and never by the engine.
+Each is under a license the rule allows and brings packages with it that are
+outside the rule, `tqdm` (MPL-2.0 and MIT) and `certifi` (MPL-2.0) at the
+least, so none is an extra and nothing in the engine needs any of them:
+
+- `mlx-audio` (MIT), which the `mlx` speech adapter runs a model through on
+  Apple silicon.
+- `mflux` (MIT), whose programs the `mflux` image adapter runs. It is run as
+  a program and never imported, and is best installed apart
+  (`uv tool install mflux`): it also brings OpenCV's wheels, which bundle
+  LGPL builds of the FFmpeg libraries.
+- `diffusers`, `transformers` and `ftfy` (Apache-2.0), which the `diffusers`
+  video adapter loads a model with, on `torch`.
 
 Left out on purpose, each replaced by something that meets the rule:
 

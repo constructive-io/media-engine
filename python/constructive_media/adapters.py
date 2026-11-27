@@ -222,6 +222,20 @@ def builtins() -> Iterator[Adapter]:
         summary="Who is speaking, with CAM++ and other ONNX speaker models, far faster than real time",
     )
     yield Adapter(
+        slot="image",
+        name="mflux",
+        factory=lazy("constructive_media.generate.mflux:Mflux"),
+        license="MIT",
+        summary="Pictures from a description with FLUX.2, run by the mflux program on Apple silicon",
+    )
+    yield Adapter(
+        slot="video",
+        name="diffusers",
+        factory=lazy("constructive_media.generate.diffusers:DiffusersVideo"),
+        license="MIT",
+        summary="Video from a description with Wan, run through diffusers",
+    )
+    yield Adapter(
         slot="effects",
         name="ffmpeg",
         factory=lazy("constructive_media.effects.ffmpeg:FfmpegEffects"),

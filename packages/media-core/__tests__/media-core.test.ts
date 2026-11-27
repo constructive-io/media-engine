@@ -75,6 +75,26 @@ describe('media.assets', () => {
   });
 });
 
+describe('media.derivations', () => {
+  it('knows a file a model made from the files cut from recordings, and no kind it was not told', async () => {
+    const { rows } = await pg.query(
+      `INSERT INTO media.assets (medium, path, content_hash)
+       VALUES ('image', 'work/generated/example.png', 'hash-made') RETURNING id`
+    );
+    const made = async (kind: string) =>
+      pg.query(`INSERT INTO media.derivations (output_id, kind, tool) VALUES ($1, $2, 'media generate')`, [
+        rows[0].id,
+        kind
+      ]);
+    await made('generated');
+    await pg.query('SAVEPOINT before_dreamt');
+    await expect(made('dreamt')).rejects.toThrow(/check constraint/);
+    await pg.query('ROLLBACK TO SAVEPOINT before_dreamt');
+    const kinds = await pg.query(`SELECT kind FROM media.derivations WHERE output_id = $1`, [rows[0].id]);
+    expect(kinds.rows.map((r: { kind: string }) => r.kind)).toEqual(['generated']);
+  });
+});
+
 describe('media.takes', () => {
   const asset = async (name: string): Promise<string> => {
     const { rows } = await pg.query(
