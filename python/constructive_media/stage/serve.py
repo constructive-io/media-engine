@@ -60,12 +60,14 @@ class Stage:
     def address(self) -> str:
         return f"http://127.0.0.1:{self._server.server_address[1]}"
 
-    def url(self, page: str | None = None, *, capture: bool = False, size: tuple[int, int] | None = None) -> str:
+    def url(self, page: str | None = None, *, capture: bool = False, still: bool = False,
+            size: tuple[int, int] | None = None) -> str:
         """Where the page is, with what it is to follow.
 
         `page` is an address of a page served somewhere else; without it the
         page is this server's own. With `capture` the page is to run against
-        the clock for a film, silently.
+        the clock for a film, silently; with `still` it is to be held at one
+        moment at a time, for a picture of each.
         """
         asks: dict[str, str] = {}
         if self.staged is not None:
@@ -73,6 +75,8 @@ class Stage:
             asks["timeline"] = self.address + timeline if page else timeline
         if capture:
             asks["capture"] = "1"
+        if still:
+            asks["still"] = "1"
         if size:
             asks["size"] = f"{size[0]}x{size[1]}"
         base = page or f"{self.address}/{quote(self.index) if self.index != 'index.html' else ''}"

@@ -11,7 +11,7 @@ with no window, as a separate program. Nothing of it is part of this package.
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Protocol, runtime_checkable
@@ -62,6 +62,16 @@ class Browser(Protocol):
         The page says when it starts and when it is done by setting
         `window.__stage`: see docs/STAGE.md. `seconds` is how long it is
         expected to run, to know when to stop waiting for it.
+        """
+        ...
+
+    def stills(self, url: str, moments: Sequence[tuple[float, Path]], *, size: tuple[int, int],
+               tell: Callable[[str], None] | None = None) -> list[str]:
+        """Open `url` at `size`, hold it at each moment in turn, and write a picture of each to the file beside it.
+
+        The page is held by `window.__stage.at(seconds)`, which answers when
+        it has been drawn there: see docs/STAGE.md. What comes back is the
+        errors the page raised.
         """
         ...
 

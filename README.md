@@ -341,6 +341,7 @@ the page is the built-in one, or any HTML of your own:
 ```sh
 media film out/scene.flac out/scene.mp4                 # the speakers and what they say
 media film out/talk.flac  out/talk.mp4 --page examples/talk  # a deck that follows the talk
+media still out/talk.flac out/stills --page examples/talk    # pictures of it at moments of the talk, in seconds
 media stage out/talk.flac --page examples/talk          # the same in your browser, to scrub through
 ```
 

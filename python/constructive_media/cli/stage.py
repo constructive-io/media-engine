@@ -30,6 +30,27 @@ def register(commands: Any) -> None:
     command.set_defaults(run=run_film)
 
     command = commands.add_parser(
+        "still", help="take pictures of the page at chosen moments of a render, without filming it",
+        description="Put the page at a moment of the render and take a picture of it there, for as many "
+                    "moments as are asked for. It takes a second or two where a film takes as long as the "
+                    "render, so it is how a page that moves is looked at while it is being made. With no "
+                    "moments there is one picture for every beat of the script, as it is left.",
+    )
+    command.add_argument("manifest", help="the manifest `media say` wrote, or the sound it is beside")
+    command.add_argument("folder", help="the folder to write the pictures in, such as out/stills")
+    command.add_argument("--at", nargs="+", metavar="MOMENT", action="extend",
+                         help="seconds into the render (48.5), a slide of the script (land), one of its steps "
+                              "(land:1), or so long after one (land:1+2.5). Default: the end of every beat")
+    _page(command)
+    command.add_argument("--url", metavar="ADDRESS",
+                         help="a page served somewhere else, which keeps the contract in docs/STAGE.md")
+    command.add_argument("--size", default="1920x1080", metavar="WxH", help="how big a picture is (default: 1920x1080)")
+    command.add_argument("--sheet", action="store_true",
+                         help="also lay the pictures four to a sheet, as sheet_01.jpg and on, to look at many at once")
+    command.add_argument("--json", action="store_true", help="print what was made as JSON")
+    command.set_defaults(run=run_still)
+
+    command = commands.add_parser(
         "stage", help="watch the page that follows a render, in your own browser",
         description="Serve a page with a render's timeline and sound, and say where it is. Open the address "
                     "to watch it with the sound: space plays and stops, the arrows go from slide to slide. "
@@ -87,6 +108,31 @@ def run_film(arguments: argparse.Namespace) -> int | None:
           f"{report['frames']} pictures, {report['bytes'] / 1_000_000:.1f} MB: {arguments.output}")
     if report["notes"]:
         print(f"{len(report['notes'])} to look at, above")
+    return None
+
+
+def run_still(arguments: argparse.Namespace) -> int | None:
+    from .. import libraries
+    from ..stage import film
+
+    size = _size(arguments.size)
+    if size is None:
+        return 2
+    report = film.stills(arguments.manifest, arguments.folder, at=arguments.at, page=arguments.page,
+                         url=arguments.url, size=size, faces=arguments.faces, more_faces=libraries.faces(),
+                         sheets=arguments.sheet)
+    if arguments.json:
+        import json
+
+        print(json.dumps(report, indent=2))
+        return None
+    for still in report["stills"]:
+        print(f"  {still['t']:7.2f}s  {still['beat']:<18} {still['file']}")
+    for note in report["notes"]:
+        print(f"  the page raised: {note}")
+    for laid in report["sheets"]:
+        print(f"  {laid}")
+    print(f"{len(report['stills'])} pictures: {arguments.folder}")
     return None
 
 

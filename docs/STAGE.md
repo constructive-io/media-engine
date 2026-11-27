@@ -9,12 +9,15 @@ watched while it does, and the pictures are laid under the sound.
 media say  talk.conv out/talk.flac           # the sound, and out/talk.manifest.json
 media film out/talk.flac out/talk.mp4        # a video of the built-in page
 media film out/talk.flac out/talk.mp4 --page deck  # a video of your own page
+media still out/talk.flac out/stills --page deck   # pictures of the page at moments of the talk, in seconds
 media stage out/talk.flac --page deck        # the same page in your browser, with the sound, to scrub through
 media print deck out/talk.pdf                # the page as a PDF
 ```
 
 The film is as long as the sound, to the frame. Filming is in real time: a
-recording of a minute takes a minute to film.
+recording of a minute takes a minute to film. [A still](#looking-before-filming)
+does not, so a page is looked at with those while it is being made, and filmed
+when it is right.
 
 A film at 1920 by 1080 is written at up to 8 Mbit a second, which keeps small
 text sharp: a minute of slides comes to thirty megabytes or so. `--bitrate 1M`
@@ -166,6 +169,43 @@ window.stage.seek(12.5)   // go there
 window.stage.timeline     // everything below
 ```
 
+### Looking before filming
+
+```sh
+media still out/talk.flac out/stills --page deck                 # every beat of the script, as it is left
+media still out/talk.flac out/stills --page deck --at pricing:2+0.4 close 48.5 --sheet
+```
+
+`media still` puts the page at a moment of the recording and takes a picture
+of it there. Twenty pictures take about ten seconds, where a film takes as
+long as the recording, so this is how a page that moves is fitted to its
+script: change the page, take the stills, look at them.
+
+A moment is seconds into the recording (`48.5`), a slide of the script
+(`pricing`), one of its steps (`pricing:2`), or so long after one
+(`pricing:2+0.4`). With no `--at` there is one picture for every beat, taken
+just before the script leaves it, and one at the end. A picture is named for
+its place, its moment and its beat: `003_034.31s_pricing-2.png`. `--sheet`
+also lays them four to a picture, `sheet_01.jpg` and on, which is the quick
+way to look at a whole talk. `--json` prints what was made. The folder holds
+the pictures of the last asking: the ones an earlier asking wrote are removed,
+and nothing else in it is touched.
+
+What a still shows:
+
+- What the page [draws from the script's clock](#a-page-that-draws-its-own) is
+  exactly what the film has at that moment. This is the reason to draw from
+  that clock and no other.
+- What arrives by [`data-enter`](#how-a-thing-arrives) is as far along as it
+  would be: half way across, half a second into a wipe that takes one.
+- A slide that is going is gone: a still is of one beat, not of two crossing.
+- Anything else the page leaves to the browser to move, a CSS animation or a
+  timer, is shown where it ends up. A film is the only picture of those.
+
+A still is the same picture whenever it is taken and whatever was taken before
+it. It has no sound, so `window.stage.level()` is the recording's loudness at
+that moment, as it is in a film.
+
 ### Faces
 
 A picture named for a persona, `faces/ada.png`, in the page's folder or the
@@ -225,3 +265,9 @@ tool. It keeps this contract and nothing more:
 
 `notes` are things worth telling whoever is filming, such as a slide the
 script names and the page lacks. They are printed, and the film is still made.
+
+`media still … --url` asks a little more of such a page. It is opened with
+`still=1` in place of `capture=1`, starts no clock, and sets
+`window.__stage = { seconds, still: true, notes: [], at }`, where `at(seconds)`
+puts the page at that moment and returns a promise that settles once it is
+painted there. A picture is taken each time it settles.

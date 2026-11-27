@@ -26,7 +26,7 @@ import sys
 import tempfile
 import time
 from collections import deque
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Sequence
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
@@ -133,6 +133,39 @@ class Chrome:
             tab.send("Page.stopScreencast")
         assert start is not None
         return Filmed(start, frames, notes)
+
+    def stills(self, url: str, moments: Sequence[tuple[float, Path]], *, size: tuple[int, int],
+               tell: Callable[[str], None] | None = None) -> list[str]:
+        notes: list[str] = []
+        with self._tab(size) as tab:
+            tab.call("Runtime.enable")
+            tab.call("Page.navigate", {"url": url})
+            deadline = time.monotonic() + READY_S
+            while True:
+                state = _value({"result": tab.call("Runtime.evaluate", {"expression": _STATE, "returnByValue": True})})
+                if state and state.get("error"):
+                    raise BrowserError(f"the page could not start: {state['error']}")
+                if state and state.get("still"):
+                    break
+                if time.monotonic() > deadline:
+                    raise BrowserError("the page never said it could be held still: it must load stage.js, or set "
+                                       "window.__stage itself")
+                time.sleep(0.05)
+            for at, file in moments:
+                tab.call("Runtime.evaluate", {"expression": f"window.__stage.at({float(at):.4f})",
+                                              "awaitPromise": True, "returnByValue": True})
+                picture = tab.call("Page.captureScreenshot", {"format": "png"})
+                file = Path(file)
+                file.parent.mkdir(parents=True, exist_ok=True)
+                file.write_bytes(base64.b64decode(picture["data"]))
+                if tell:
+                    tell(f"  {file.name}")
+            state = _value({"result": tab.call("Runtime.evaluate", {"expression": _STATE, "returnByValue": True})}) or {}
+            notes += [str(note) for note in state.get("notes") or []]
+            while (message := tab.read(0.0)) is not None:
+                if message.get("method") == "Runtime.exceptionThrown":
+                    notes.append(_thrown(message["params"]))
+        return list(dict.fromkeys(notes))
 
     def print(self, url: str, target: Path) -> Path:
         target = Path(target)

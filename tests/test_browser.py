@@ -21,7 +21,7 @@ import base64, json, os, sys
 log = open(os.environ["STAND_IN_LOG"], "a")
 mode = os.environ.get("STAND_IN_MODE", "films")
 print(json.dumps({"argv": sys.argv[1:]}), file=log, flush=True)
-asked, held = 0, b""
+asked, held, at = 0, b"", ""
 
 def say(message):
     os.write(4, json.dumps(message).encode() + b"\0")
@@ -51,6 +51,11 @@ while True:
             continue
         elif method == "Page.printToPDF":
             result = {"data": base64.b64encode(b"%PDF-1.4 a stand-in").decode()}
+        elif method == "Page.captureScreenshot":
+            result = {"data": base64.b64encode(b"a picture at " + at.encode()).decode()}
+        elif method == "Runtime.evaluate" and "__stage.at(" in message["params"]["expression"]:
+            at = message["params"]["expression"].split("(")[1].rstrip(")")
+            result = {"result": {"type": "number", "value": float(at)}}
         elif method == "Runtime.evaluate" and "__stage" in message["params"]["expression"]:
             asked += 1
             state = None
@@ -62,6 +67,8 @@ while True:
                 if asked == 2:
                     say({"method": "Runtime.exceptionThrown", "sessionId": session, "params": {"exceptionDetails": {
                         "text": "Uncaught", "exception": {"description": "TypeError: no deck\n    at page.js:1"}}}})
+            elif mode == "stills":
+                state = {"seconds": 3.0, "still": asked >= 2, "notes": ["the page has no slide called `coda`"]}
             elif mode == "fails":
                 state = {"error": "the timeline could not be read: 404"}
             result = {"result": {"type": "string", "value": json.dumps(state)}}
@@ -116,6 +123,34 @@ class StandInTest(unittest.TestCase):
     def test_a_page_is_printed(self):
         printed = self.use().print("http://127.0.0.1:1/", self.folder / "out" / "page.pdf")
         self.assertEqual(printed.read_bytes(), b"%PDF-1.4 a stand-in")
+
+    def test_a_page_is_held_at_each_moment_and_a_picture_taken_there(self):
+        wanted = [(0.7, self.folder / "stills" / "one.png"), (2.25, self.folder / "stills" / "two.png")]
+        told = []
+        notes = self.use("stills").stills("http://127.0.0.1:1/?still=1", wanted, size=(640, 360), tell=told.append)
+        self.assertEqual([file.read_bytes() for _, file in wanted], [b"a picture at 0.7000", b"a picture at 2.2500"])
+        self.assertEqual(notes, ["the page has no slide called `coda`"])
+        self.assertEqual(told, ["  one.png", "  two.png"])
+        sent = self.sent()
+        self.assertIn("--window-size=640,360", sent[0]["argv"])
+        methods = [message["method"] for message in sent[1:]]
+        self.assertNotIn("Page.startScreencast", methods)                # nothing is filmed
+        self.assertEqual(methods.count("Page.captureScreenshot"), 2)
+        self.assertEqual(methods[-1], "Browser.close")
+        # A picture is asked for only after the page has said it is at the moment.
+        put = [number for number, message in enumerate(sent[1:])
+               if message["method"] == "Runtime.evaluate" and "__stage.at(" in message["params"]["expression"]]
+        taken = [number for number, method in enumerate(methods) if method == "Page.captureScreenshot"]
+        self.assertEqual([after - before for before, after in zip(put, taken)], [1, 1])
+        self.assertTrue(all(sent[1:][number]["params"]["awaitPromise"] for number in put))
+
+    def test_a_page_that_cannot_be_held_still_is_an_error(self):
+        with mock.patch.object(chrome, "READY_S", 0.4):
+            with self.assertRaisesRegex(BrowserError, "never said it could be held still"):
+                self.use("films").stills("http://127.0.0.1:1/", [(0.0, self.folder / "one.png")], size=(640, 360))
+        self.assertFalse((self.folder / "one.png").exists())
+        with self.assertRaisesRegex(BrowserError, "could not be read: 404"):
+            self.use("fails").stills("http://127.0.0.1:1/", [(0.0, self.folder / "one.png")], size=(640, 360))
 
     def test_a_page_that_never_starts_is_an_error(self):
         with mock.patch.object(chrome, "READY_S", 0.4):
@@ -260,6 +295,47 @@ class RealBrowserTest(unittest.TestCase):
             red, green, blue = self.colour(at)
             self.assertGreater(blue, 140, f"at {at}")      # the first slide, whole, in the first picture
             self.assertLess(green, 60, f"at {at}")         # and nothing of the slide that is last on the page
+
+    def test_a_still_is_the_picture_a_film_has_at_that_moment(self):
+        (self.folder / "deck" / "index.html").write_text(MOVING.replace("--stage-time: 0.2s", "--stage-time: 1s"))
+        report = film.stills(make_render(self.folder / "out"), self.folder / "stills", page=self.folder / "deck",
+                             size=(320, 180), at=[0.7, "title:1+1", "title:1+0.3", "title:1+1.2", "title:1+0.5"],
+                             sheets=True)
+        self.assertEqual(report["notes"], [])
+        self.assertEqual([Path(still["file"]).name for still in report["stills"]],
+                         ["001_000.70s_title-0.png", "002_002.50s_title-1.png", "003_001.80s_title-1.png",
+                          "004_002.70s_title-1.png", "005_002.00s_title-1.png"])
+        first, built, soon, later, half = (Path(still["file"]) for still in report["stills"])
+        made = ffmpeg.probe(first)
+        self.assertEqual((made.width, made.height), (320, 180))
+        build, who, late = "32:32:64:74", "32:32:224:29", "32:32:224:119"
+
+        def is_like(picture, where, wanted):
+            seen = tuple(ffmpeg.run("ffmpeg", "-hide_banner", "-loglevel", "error", "-i", picture, "-frames:v", "1",
+                                    "-vf", f"crop={where},scale=1:1", "-f", "rawvideo", "-pix_fmt", "rgb24", "-",
+                                    binary=True).stdout[:3])
+            for got, want in zip(seen, wanted):
+                self.assertAlmostEqual(got, want, delta=70, msg=f"{picture.name} at {where}: {seen} is not {wanted}")
+
+        red, green, blue = (200, 0, 0), (0, 160, 0), (0, 0, 200)
+        is_like(first, build, red)           # the build is off until its step, at 1.5 seconds
+        is_like(built, build, green)
+        is_like(first, who, blue)            # whoever spoke last: Ada, then Grace
+        is_like(later, who, green)
+        is_like(soon, late, red)             # `stage.since('title', 1)` is 0.3 seconds, and then 1.2
+        is_like(later, late, blue)
+        # A wipe that takes a second is half way across half a second after its step: not there, and not done.
+        is_like(half, "8:32:8:74", green)
+        is_like(half, "8:32:144:74", red)
+        # Going back is the same picture as never having been further.
+        again = film.stills(make_render(self.folder / "out"), self.folder / "again", page=self.folder / "deck",
+                            size=(320, 180), at=[2.7, 0.7])
+        is_like(Path(again["stills"][1]["file"]), build, red)
+        is_like(Path(again["stills"][1]["file"]), late, red)
+        # And the sheet holds them four to a picture, each at half its size.
+        self.assertEqual([Path(laid).name for laid in report["sheets"]], ["sheet_01.jpg", "sheet_02.jpg"])
+        laid = ffmpeg.probe(report["sheets"][0])
+        self.assertEqual((laid.width, laid.height), (320, 180))
 
     def test_a_page_is_printed(self):
         with serve.Stage(page=self.folder / "deck") as stage:

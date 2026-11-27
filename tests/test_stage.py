@@ -1,6 +1,7 @@
 """The stage: a render as a timeline, the page served, and frames laid on the clock."""
 
 import json
+import shutil
 import tempfile
 import unittest
 import urllib.error
@@ -34,6 +35,15 @@ class StandIn:
             self.page = answer.read().decode()
         times = (99.9, 100.5, 101.0, 100.0 + seconds + 1)   # the last is after the end, and left out
         return Filmed(100.0, [Frame(at, file) for at, file in zip(times, self.pictures)], self.notes)
+
+    def stills(self, url, moments, *, size, tell=None):
+        self.asked = {"url": url, "size": size, "moments": [at for at, _ in moments]}
+        with urllib.request.urlopen(url) as answer:
+            self.page = answer.read().decode()
+        for (_, file), picture in zip(moments, self.pictures * len(moments)):
+            Path(file).parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(picture, file)
+        return self.notes
 
 
 @needs_ffmpeg
@@ -211,6 +221,8 @@ class ServeTest(unittest.TestCase):
             self.assertEqual(stage.url(), f"{stage.address}/?timeline=/_stage/timeline.json")
             self.assertEqual(stage.url(capture=True, size=(1280, 720)),
                              f"{stage.address}/?timeline=/_stage/timeline.json&capture=1&size=1280x720")
+            self.assertEqual(stage.url(still=True, size=(1280, 720)),
+                             f"{stage.address}/?timeline=/_stage/timeline.json&still=1&size=1280x720")
             # A page served somewhere else is told where this server is.
             self.assertEqual(stage.url("http://localhost:3000/deck?theme=dark", capture=True),
                              f"http://localhost:3000/deck?theme=dark&timeline={stage.address}/_stage/timeline.json"
@@ -250,6 +262,60 @@ class FilmTest(unittest.TestCase):
         # Nothing is left beside the film.
         self.assertEqual(sorted(path.name for path in (self.folder / "out").iterdir()),
                          ["scene.lines", "scene.manifest.json", "scene.mp4", "scene.wav"])
+
+    def test_a_moment_is_seconds_or_a_mark_of_the_script_or_so_long_after_one(self):
+        made = {"seconds": 10.0, "slides": [{"t": 0.0, "id": "title", "step": 0}, {"t": 2.0, "id": "title", "step": 2},
+                                           {"t": 6.0, "id": "the-end", "step": 0}]}
+        self.assertEqual(film.moments(made, ["1.5", 9, "title", "title:1", "title:2+1.25", "the-end+3"]),
+                         [(1.5, "title-0"), (9.0, "the-end-0"), (0.0, "title-0"), (2.0, "title-2"),
+                          (3.25, "title-2"), (9.0, "the-end-0")])
+        # A name may have a hyphen and a number in it, so there is no "so long before".
+        self.assertEqual(film.moments({"seconds": 4.0, "slides": [{"t": 1.0, "id": "part-2", "step": 0}]}, ["part-2"]),
+                         [(1.0, "part-2-0")])
+        # With none asked for: every beat as it is left, and the end.
+        self.assertEqual(film.moments(made), [(1.95, "title-0"), (5.95, "title-2"), (9.95, "the-end-0")])
+        self.assertEqual(film.moments({"seconds": 4.0, "slides": []}), [(3.95, "start")])
+        with self.assertRaisesRegex(StageError, "`coda` is not a moment.*Its slides: title, the-end"):
+            film.moments(made, ["coda"])
+        with self.assertRaisesRegex(StageError, "`title:3` is not a moment"):
+            film.moments(made, ["title:3"])
+        with self.assertRaisesRegex(StageError, "11.00 seconds in, and the recording is 10.00 seconds long"):
+            film.moments(made, ["the-end+5"])
+        with self.assertRaisesRegex(StageError, "seconds in"):
+            film.moments(made, ["-1"])
+
+    def test_pictures_are_taken_at_moments_and_named_for_them(self):
+        manifest = make_render(self.folder / "out")
+        stills = self.folder / "out" / "stills"
+        stills.mkdir()
+        (stills / "007_001.00s_title-0.png").write_bytes(b"from the last asking")
+        (stills / "sheet_03.jpg").write_bytes(b"from the last asking")
+        (stills / "notes.txt").write_text("mine")
+        browser = StandIn(self.pictures, notes=["the page has no slide called `coda`"])
+        report = film.stills(manifest, stills, at=["title:1+0.5", "0.25"], size=(320, 180), browser=browser,
+                             sheets=True)
+        self.assertEqual(sorted(path.name for path in stills.iterdir()),
+                         ["001_002.00s_title-1.png", "002_000.25s_title-0.png", "notes.txt", "sheet_01.jpg"])
+        self.assertEqual([(still["t"], still["beat"], Path(still["file"]).name) for still in report["stills"]],
+                         [(2.0, "title-1", "001_002.00s_title-1.png"), (0.25, "title-0", "002_000.25s_title-0.png")])
+        self.assertEqual(report["notes"], ["the page has no slide called `coda`"])
+        self.assertEqual((report["seconds"], report["size"], report["page"]), (3.0, [320, 180], "built in"))
+        self.assertEqual(browser.asked["moments"], [2.0, 0.25])
+        # The browser was sent to the page to hold it, not to film it.
+        self.assertIn("still=1", browser.asked["url"])
+        self.assertNotIn("capture=1", browser.asked["url"])
+        self.assertIn("size=320x180", browser.asked["url"])
+        laid = ffmpeg.probe(report["sheets"][0])
+        self.assertEqual((laid.width, laid.height), (320, 180))
+        # With no moments, a picture for each beat; and without `sheets`, no sheet.
+        report = film.stills(manifest, stills, size=(320, 180), browser=StandIn(self.pictures))
+        self.assertEqual([Path(still["file"]).name for still in report["stills"]],
+                         ["001_001.45s_title-0.png", "002_002.95s_title-1.png"])
+        self.assertEqual(report["sheets"], [])
+        self.assertEqual(sorted(path.name for path in stills.iterdir()),
+                         ["001_001.45s_title-0.png", "002_002.95s_title-1.png", "notes.txt"])
+        with self.assertRaisesRegex(StageError, "not both"):
+            film.stills(manifest, stills, page=self.folder, url="http://localhost:3000/", browser=browser)
 
     def test_a_page_s_own_faces_are_used_and_what_was_made_can_be_kept(self):
         manifest = make_render(self.folder / "out")

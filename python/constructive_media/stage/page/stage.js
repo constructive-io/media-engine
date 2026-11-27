@@ -31,7 +31,9 @@
  *
  * With `&capture` the page is being filmed: no sound is played, the clock is
  * the wall clock, and `window.__stage` says when it started and when it is
- * done. Without a timeline the page is a deck to step through with the keys.
+ * done. With `&still` it is held at one moment at a time, for a picture of
+ * each: `window.__stage.at(seconds)` puts it there. Without a timeline the
+ * page is a deck to step through with the keys.
  *
  * Other scripts can listen:
  *
@@ -45,7 +47,8 @@
   'use strict';
 
   var params = new URLSearchParams(location.search);
-  var CAPTURE = params.has('capture');
+  var STILL = params.has('still');
+  var CAPTURE = STILL || params.has('capture');
   var WIDGETS = ['faces', 'lower-third', 'waveform', 'captions'];
   var LINGER = 0.12;      // a line holds this long after its last word
   var CAPTION = 84;       // letters in one caption
@@ -193,6 +196,13 @@
       return found;
     }
 
+    // Whoever is speaking at `t`, or spoke last before it.
+    function spokeAt(t) {
+      var found = null;
+      for (var i = 0; i < timeline.lines.length; i++) if (timeline.lines[i].t <= t + 1e-3) found = timeline.lines[i];
+      return found;
+    }
+
     function clipAt(t) {
       for (var i = 0; i < timeline.clips.length; i++) {
         var clip = timeline.clips[i];
@@ -228,7 +238,7 @@
     // ---- the page made to match
 
     var cast = [], faces = {}, firstLine = {}, chunks = {};
-    var now = { slide: undefined, step: undefined, line: undefined, clip: undefined, show: '' };
+    var now = { slide: undefined, step: undefined, line: undefined, spoke: undefined, clip: undefined, show: '' };
 
     function person(line) { return line.name || words(line.speaker.toLowerCase()); }
 
@@ -295,7 +305,9 @@
 
       var key = show.join(' ');
       var lineKey = line ? line.line : null;
-      if (key !== now.show || lineKey !== now.line) {
+      var spoke = timeline ? spokeAt(t) : null;
+      var spokeKey = spoke ? spoke.line : null;
+      if (key !== now.show || lineKey !== now.line || spokeKey !== now.spoke) {
         changed = true;
         WIDGETS.forEach(function (widget) { root.classList.toggle('stage-show-' + widget, shows(show, widget)); });
         root.classList.toggle('stage-talking', show.indexOf('faces:talking') >= 0);
@@ -304,14 +316,14 @@
         });
         root.classList.toggle('stage-speaking', !!line);
         // Whoever is speaking, and through the quiet after them: whoever spoke last.
-        if (line) body.dataset.stageSpeaker = line.persona || '';
+        body.dataset.stageSpeaker = spoke ? spoke.persona || '' : '';
         var third = !!line && shows(show, 'lower-third')
           && (show.indexOf('lower-third:always') >= 0 || firstLine[line.persona] === line.line);
         thirdBox.classList.toggle('is-shown', third);
         if (third) { thirdName.textContent = person(line); thirdTitle.textContent = line.title || ''; }
         waveBox.classList.toggle('is-shown', !!line && !third);
         if (line) waveName.textContent = person(line);
-        now.show = key; now.line = lineKey;
+        now.show = key; now.line = lineKey; now.spoke = spokeKey;
       }
 
       var clipKey = clip ? clip.t : null;
@@ -439,6 +451,54 @@
       });
     }
 
+    // What is arriving is put as far along as it would be by `t`: counted from the mark that started it.
+    // What is going is gone.
+    function arrive(t) {
+      if (!document.getAnimations) return;
+      document.getAnimations().forEach(function (moving) {
+        var part = moving.effect && moving.effect.target, begun = null;
+        var slide = part && part.closest ? part.closest('[data-slide]') : null;
+        if (slide && slide.classList.contains('is-current')) {
+          var step = part.closest('[data-step]');
+          begun = stage.when(slide.dataset.slide, step ? parseInt(step.dataset.step, 10) || 0 : 0);
+        }
+        try {
+          if (begun === null || t < begun) moving.finish();
+          else { moving.pause(); moving.currentTime = (t - begun) * 1000; }
+        } catch (error) { /* one that never ends is left as it is */ }
+      });
+    }
+
+    function cleared() {
+      // A moment is reached from nothing, so that what has arrived by it does not depend on what was looked at before.
+      root.classList.add('stage-holding');
+      slides.forEach(function (slide) {
+        slide.classList.remove('is-current', 'is-past');
+        slide.querySelectorAll('[data-step]').forEach(function (step) { step.classList.remove('is-shown', 'is-now'); });
+      });
+      now.slide = undefined; now.step = undefined;
+      void body.offsetHeight;
+      root.classList.remove('stage-holding');
+    }
+
+    function stilled() {
+      // No sound and no clock: the page is put at a moment, and waits there to be looked at.
+      apply(0);
+      settled().then(function () { return frames(3); }).then(function () {
+        root.classList.remove('stage-starting');
+        window.__stage = { seconds: timeline.seconds, still: true, notes: [] };
+        window.__stage.at = function (seconds) {
+          var t = Math.max(0, Math.min(Number(seconds) || 0, timeline.seconds));
+          cleared();
+          apply(t);
+          return frames(2).then(function () { arrive(t); return frames(2); }).then(function () {
+            window.__stage.notes = notes.map(function (id) { return 'the page has no slide called `' + id + '`'; });
+            return t;
+          });
+        };
+      });
+    }
+
     function played() {
       var sound = new Audio(new URL(timeline.sound, base).href);
       sound.preload = 'auto';
@@ -532,7 +592,7 @@
       timeline = stage.timeline = read;
       root.classList.add('stage-following');
       meet();
-      if (CAPTURE) filmed(); else played();
+      if (STILL) stilled(); else if (CAPTURE) filmed(); else played();
     }).catch(function (error) {
       window.__stage = { error: String(error && error.message || error) };
       console.error(error);

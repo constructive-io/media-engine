@@ -9,13 +9,20 @@ was painted until the next one, the clips are put over them where they play,
 and the sound goes under it all.
 
 The film is as long as the sound, to the frame.
+
+    report = film.stills("out/scene.manifest.json", "out/stills", page="deck", at=["land:1+2", "48.5"])
+
+Filming takes as long as the recording. A still does not: the page is put at
+a moment and a picture is taken of it there, which is how a page that moves
+is looked at while it is being made.
 """
 
 from __future__ import annotations
 
+import re
 import shutil
 import tempfile
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -81,6 +88,131 @@ def film(manifest: str | Path, target: str | Path, *, page: str | Path | None = 
         "encoder": encoder, "bitrate": rate, "bytes": target.stat().st_size, "notes": filmed.notes,
         "page": url or str(page or "built in"),
     }
+
+
+#: How long before a beat ends its picture is taken, when no moments are asked for.
+BEFORE_S = 0.05
+_MOMENT = re.compile(r"(?P<slide>[^:+\s]+?)(?::(?P<step>\d+))?(?P<after>\+\d+(?:\.\d+)?)?")
+
+
+def moments(made: Mapping[str, Any], asked: Sequence[str | float] | None = None) -> list[tuple[float, str]]:
+    """The moments to take a picture at, each with the beat it falls in: seconds, and `slide-step`.
+
+    A moment is asked for as seconds into the recording (`48.5`), as a mark
+    of the script (`land`, `land:1`), or as so long after a mark (`land:1+2`).
+    With none asked for there is one for every beat, as it is left: just
+    before the next `[slide …]`, and at the end.
+    """
+    seconds = float(made["seconds"])
+    slides = sorted(made.get("slides") or [], key=lambda mark: float(mark["t"]))
+
+    def beat(at: float) -> str:
+        on = [mark for mark in slides if float(mark["t"]) <= at + 1e-6]
+        return f"{on[-1]['id']}-{on[-1]['step']}" if on else "start"
+
+    if not asked:
+        ends = [float(mark["t"]) for mark in slides[1:]] + [seconds]
+        times = sorted({round(max(0.0, end - BEFORE_S), 3) for end in ends})
+        return [(at, beat(at)) for at in times]
+    found: list[tuple[float, str]] = []
+    for one in asked:
+        written = str(one).strip()
+        try:
+            at = float(written)
+        except ValueError:
+            match = _MOMENT.fullmatch(written)
+            step = int(match["step"] or 0) if match else 0
+            marks = [mark for mark in slides if match and mark["id"] == match["slide"] and int(mark["step"]) >= step]
+            if not marks:
+                names = ", ".join(dict.fromkeys(str(mark["id"]) for mark in slides)) or "none"
+                raise StageError(f"`{written}` is not a moment of this recording: give seconds, or a slide of the "
+                                 f"script as `NAME`, `NAME:STEP` or `NAME:STEP+SECONDS`. Its slides: {names}") from None
+            at = float(marks[0]["t"]) + float(match["after"] or 0)
+        if not 0 <= at <= seconds:
+            raise StageError(f"`{written}` is {at:.2f} seconds in, and the recording is {seconds:.2f} seconds long")
+        found.append((at, beat(at)))
+    return found
+
+
+def stills(manifest: str | Path, folder: str | Path, *, at: Sequence[str | float] | None = None,
+           page: str | Path | None = None, url: str | None = None, size: tuple[int, int] = SIZE,
+           faces: str | Path | None = None, more_faces: Mapping[str, str | Path] | None = None,
+           sheets: bool = False, browser: Browser | None = None, settings: Settings | None = None,
+           tell: Callable[[str], None] | None = None) -> dict[str, Any]:
+    """Write a picture of the page at each of the moments `at` into `folder`, without filming it.
+
+    The page, the faces and the size are as `film` takes them, and `at` is as
+    `moments` reads it. A picture is named for its place in the order asked,
+    its moment and its beat: `003_034.31s_land-1.png`. What is drawn from the
+    script's clock is exactly as a film has it. What arrives by `data-enter`
+    is as far along as it would be; anything else a page leaves to the
+    browser to move is shown where it ends up.
+
+    The folder holds the pictures of the last asking: the ones an earlier
+    asking wrote there are removed, and nothing else in it is touched. With
+    `sheets` the pictures are also laid four to a sheet, at half their size,
+    as `sheet_01.jpg` and on, for looking at many at once.
+    """
+    if page is not None and url is not None:
+        raise StageError("a picture is of one page: give a folder or an address, not both")
+    report = timeline.read(manifest)
+    folder = Path(folder)
+    if faces is None and page is not None:
+        beside = (Path(page) if Path(page).is_dir() else Path(page).parent) / "faces"
+        faces = beside if beside.is_dir() else None
+    scratch = Path(tempfile.mkdtemp(prefix="stage-"))
+    try:
+        made = timeline.build(report, scratch / "stage", size=size, fps=FPS, faces=faces, more_faces=more_faces)
+        asked = moments(made, at)
+        wanted = [(when, folder / f"{number:03d}_{when:06.2f}s_{_named(beat)}.png")
+                  for number, (when, beat) in enumerate(asked, start=1)]
+        watcher = browser or browser_slot.browser(settings=settings)
+        if folder.is_dir():
+            for earlier in folder.iterdir():
+                if _OURS.fullmatch(earlier.name) and earlier.is_file():
+                    earlier.unlink()
+        with serve.Stage(scratch / "stage", page=page) as stage:
+            notes = watcher.stills(stage.url(url, still=True, size=size), wanted, size=size, tell=tell)
+        laid = sheet([file for _, file in wanted], folder, size=size) if sheets else []
+    finally:
+        shutil.rmtree(scratch, ignore_errors=True)
+    return {
+        "folder": str(folder.resolve()), "seconds": made["seconds"], "size": list(size), "notes": notes,
+        "sheets": [str(file.resolve()) for file in laid],
+        "stills": [{"t": when, "beat": beat, "file": str(file.resolve())}
+                   for (when, beat), (_, file) in zip(asked, wanted)],
+        "page": url or str(page or "built in"),
+    }
+
+
+#: How many pictures go on a sheet, across and down.
+SHEET = (2, 2)
+_OURS = re.compile(r"\d{3}_\d+\.\d\ds_[A-Za-z0-9._-]+\.png|sheet_\d\d\.jpg")
+
+
+def sheet(pictures: Sequence[str | Path], folder: str | Path, *, size: tuple[int, int] = SIZE) -> list[Path]:
+    """Lay `pictures` four to a sheet, in order, each at half of `size`: `sheet_01.jpg` and on, in `folder`."""
+    across, down = SHEET
+    each = across * down
+    width, height = size[0] // across // 2 * 2, size[1] // down // 2 * 2
+    folder = Path(folder)
+    folder.mkdir(parents=True, exist_ok=True)
+    laid: list[Path] = []
+    for number, first in enumerate(range(0, len(pictures), each), start=1):
+        group = pictures[first:first + each]
+        inputs = [part for picture in group for part in ("-i", picture)]
+        sized = "".join(f"[{place}:v]scale={width}:{height},setsar=1[p{place}];" for place in range(len(group)))
+        joined = "".join(f"[p{place}]" for place in range(len(group)))
+        target = folder / f"sheet_{number:02d}.jpg"
+        ffmpeg.run("ffmpeg", "-hide_banner", "-loglevel", "error", "-y", *inputs, "-filter_complex",
+                   f"{sized}{joined}concat=n={len(group)}:v=1:a=0,tile={across}x{down}", "-frames:v", "1",
+                   "-q:v", "3", target)
+        laid.append(target)
+    return laid
+
+
+def _named(beat: str) -> str:
+    return re.sub(r"[^A-Za-z0-9._-]+", "-", beat).strip("-") or "beat"
 
 
 def assemble(filmed: Filmed, made: dict[str, Any], staged: str | Path, target: str | Path, *,

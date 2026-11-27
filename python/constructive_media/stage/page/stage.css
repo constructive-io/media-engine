@@ -63,6 +63,8 @@
 }
 /* Until the first moment is on the page nothing fades: a film does not open on the slides it is putting away. */
 .stage-starting [data-slide] { transition: none !important; }
+/* While a page held still is being put back to nothing, nothing moves at all. */
+.stage-holding *, .stage-holding *::before, .stage-holding *::after { transition: none !important; }
 :where(.stage-deck, .stage-walkthrough) [data-slide] :where(h1) { font-size: 2.4em; line-height: 1.08; margin: 0 0 0.4em; }
 :where(.stage-deck, .stage-walkthrough) [data-slide] :where(h2) { font-size: 1.6em; line-height: 1.12; margin: 0 0 0.5em; }
 :where(.stage-deck, .stage-walkthrough) [data-slide] :where(p, li) { margin: 0 0 0.5em; }

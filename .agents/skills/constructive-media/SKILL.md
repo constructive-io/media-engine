@@ -191,10 +191,11 @@ All of it is in [docs/STAGE.md](../../../docs/STAGE.md).
 
 There is a deck in [`examples/talk`](../../../examples/talk).
 
-**3. Film it.**
+**3. Look at it, then film it.**
 
 ```sh
 media say   examples/talk/talk.conv out/talk.flac
+media still out/talk.flac out/stills --page examples/talk --sheet  # a picture of every beat, in seconds; --at pricing:2+0.4 for one moment
 media film  out/talk.flac out/talk.mp4 --page examples/talk  # 1920x1080 at 30 a second, unless --size and --fps say; --bitrate 1M for a file a third the size
 media stage out/talk.flac --page examples/talk              # the same page in your browser, to scrub through
 media print examples/talk out/talk.pdf                      # the page as a PDF
@@ -205,10 +206,16 @@ a waveform. Filming is in real time, a minute for a minute, and needs a Chrome
 or Chromium that is already installed
 (`CONSTRUCTIVE_MEDIA_MODEL_BROWSER` names one that is not found by itself).
 
-**4. Look at it.** `media film` prints anything the page complained of. A slide
-the script names and the page does not have is one of those. Pull a frame out
-with `ffmpeg -ss 12 -i out/talk.mp4 -frames:v 1 frame.png` and look at it
-before saying the video is right.
+**4. Look at it.** Read the pictures `media still` wrote (`out/stills/sheet_01.jpg`
+and on, four beats to a sheet) after every change to the page, and fit the page
+to the script that way: it takes seconds, and a film takes as long as the talk.
+A still shows what the page draws from `window.stage` exactly as the film will;
+a CSS animation or a timer of the page's own it shows only finished, which is
+one more reason to draw from the script's clock. Both commands print anything
+the page complained of. A slide the script names and the page does not have is
+one of those. After filming, pull a frame out with
+`ffmpeg -ss 12 -i out/talk.mp4 -frames:v 1 frame.png` and look at it before
+saying the video is right.
 
 ## Voices and libraries
 
