@@ -33,6 +33,7 @@ lands tested, with nothing in it that breaks [the licensing rule](./LICENSING.md
 | 26 | Keeping transcripts right: a term carries what it is misheard as and `media mend` rewrites those in the lines and their words, with what was heard kept beside each and every change recorded, so all of it can be put back; `media relisten` transcribes the weakest recordings again and replaces a transcript only where the new one is surer and found no less | Done. No model of its own: mending is a rewrite, and listening again uses the `transcription` slot |
 | 27 | Who spoke, from whose microphone heard it: `media wear` says who wore which recording of a take, and `media microphones` gives each line to the wearer of the one that heard it loudest against its own loud level, leaves what is unclear or named by a person alone, and checks each microphone against the voices `media diarize` found | Done. No model |
 | 28 | Handing over and keeping house: `media export --preview --renders` makes one folder to send, `media flags` lists what is flagged inside a cut and what cutting it would save, `media outputs` lists every derived file on record and the files in the work folder that nothing accounts for, and `media persona` and `media personas` say who everybody is | Done. No model |
+| 29 | Takes by hand: `media take` makes or mends a take and stores an offset a person gives, `media overlap` shows the sentences two recordings share and the offset each implies, and `media pull` cuts one moment from every recording to listen to | Done. No model |
 
 ## Left for later, and why
 

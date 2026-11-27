@@ -26,12 +26,25 @@ media group                          # recordings that rolled together become a 
 media match                          # a recorder with no clock finds its camera by what was said
 media sync                           # place every recording on its take's timeline, and prove it
 media takes                          # each take and how much of it is placed
+media overlap interview desk         # the sentences two recordings share, and the offset each one implies
+media pull interview --at 1:20       # the same moment cut from every recording, to hear whether they are in step
+media take interview --offset desk -31.25  # say an offset outright; sync builds on it and never moves it
 media diarize                        # tell the voices in each recording apart
 media speakers                       # each recording's voices, and a clip of each to listen to
 media name interview voice1 "Ottoline Varga" --new  # say whose voice it is
 media wear interview collar "Ottoline Varga"  # say who wore a microphone
 media microphones interview          # give each line to whoever's microphone heard it loudest
 ```
+
+When `media sync` cannot place a recording, look before guessing:
+`media overlap TAKE RECORDING` prints the offset the shared sentences imply
+and the command that would store it, and `media pull TAKE --at TIME` cuts
+that moment from every recording to listen to. `media take NAME` makes or
+mends a take by hand: `--primary RECORDING[:ROLE[:LABEL]]`, `--add` the same
+way, `--offset RECORDING SECONDS` (seconds to add to the recording's time to
+reach the primary's), `--forget` to let `media sync` place it afresh,
+`--remove`, and `--dry-run` to see the take as it would be. One call is all
+or nothing.
 
 When each person wore a microphone, `media wear TAKE RECORDING WHO` says who
 wore which (the recording is a regular expression that must match one of the

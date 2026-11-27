@@ -22,6 +22,11 @@ The pieces, in the order they are used:
 - `sync`    each recording is placed on the take's timeline, and the placing
             is checked by content
 - `align`, `check`, `loudness`   the measurements those rest on
+- `hand`    all of that said outright by a person: a take made or mended by
+            hand, and an offset `sync` leaves alone
+- `overlap` the sentences two recordings both say, with both times: the
+            evidence for an offset, to read
+- `pull`    one moment cut from every recording, to listen to
 """
 
 from __future__ import annotations

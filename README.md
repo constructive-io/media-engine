@@ -120,6 +120,9 @@ media group                          # recordings that rolled together become a 
 media match                          # a recorder with no clock finds its camera by what was said
 media sync                           # place every recording on its take's timeline, and prove it
 media takes                          # each take and how much of it is placed
+media overlap interview desk         # the sentences two recordings share, and the offset each one implies
+media pull interview --at 1:20       # the same moment cut from every recording, to hear whether they are in step
+media take interview --offset desk -31.25  # say an offset outright; sync builds on it and never moves it
 media diarize                        # tell the voices in each recording apart
 media speakers                       # each recording's voices, and a clip of each to listen to
 media name interview voice1 "Ottoline Varga" --new  # say whose voice it is
@@ -184,6 +187,19 @@ the sound rises and falls, then from the devices' clocks once those are shown
 to agree. Every answer is checked against what is actually said at the same
 moment in both, and one that fails the check is not stored. `media sync --check`
 runs that check on what is stored and changes nothing.
+
+Sometimes there is nothing to go on: a recorder whose clock was never set, a
+camera that heard only music. A person who was in the room still knows which
+files belong together, so `media take` makes a take by hand or mends one:
+which recordings are in it, what each is to it, which is the primary, and how
+far each is from the primary. An offset said there is stored as `manual`, and
+`media sync` builds on it and never moves it. Two commands give the evidence
+to say it on. `media overlap` shows the sentences a recording shares with
+the take's primary, the time each says them and the offset each sentence
+implies, beside the offset the take has stored; it reads transcripts and
+changes nothing. `media pull` cuts the same stretch of take time out of every
+recording: if the offsets are right, every file says the same words from the
+same instant, and each file is recorded with the offset it was cut under.
 
 `media diarize` listens to what was transcribed and finds how many voices there
 are and which lines each one spoke. It does not know who anyone is. It calls
