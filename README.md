@@ -123,6 +123,8 @@ media takes                          # each take and how much of it is placed
 media diarize                        # tell the voices in each recording apart
 media speakers                       # each recording's voices, and a clip of each to listen to
 media name interview voice1 "Ottoline Varga" --new  # say whose voice it is
+media wear interview collar "Ottoline Varga"  # say who wore a microphone
+media microphones interview          # give each line to whoever's microphone heard it loudest
 media loudness                       # how loud each shot is against the minute around it
 media coordination                   # whether the lit part of each shot moves with the rest of it
 media audible                        # how well each line can be heard: the noise under it, and distortion
@@ -186,6 +188,15 @@ say who it is with `media name`, once, and every line that voice spoke carries t
 name. A voice already named in one recording is suggested when it is heard in
 another, and never applied without you. An hour and three quarters of talk is
 gone over in about fifteen seconds.
+
+Where everyone at a table wears a microphone there is a second way, and it
+needs no model. `media wear` says who wore which recording of a take, and
+`media microphones` gives each line to the wearer of the microphone that heard
+it loudest, each measured against its own loud level so that a recorder turned
+up high does not win everything. A line no microphone leads clearly is left
+without a name, and a line a person named is never changed. The two ways
+check each other: each microphone's lines are counted by the voices
+`media diarize` found, and one that carries more than one voice is said to.
 
 `media passages` reads a take as one conversation, however many microphones
 heard it, and cuts it where the talking stops. `media score` flags the fillers,

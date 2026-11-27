@@ -33,8 +33,9 @@ from ..takes import TakeError
 from ..text import TextError
 from ..transcription import TranscriptionError
 from . import analyze, cut, edit, init, libraries, library, listen, measure, scripts, speech, stage, system, takes
+from . import microphones
 
-GROUPS = (library, analyze, listen, measure, takes, edit, cut, scripts, speech, stage, libraries, init, system)
+GROUPS = (library, analyze, listen, measure, takes, microphones, edit, cut, scripts, speech, stage, libraries, init, system)
 
 
 def parser() -> argparse.ArgumentParser:

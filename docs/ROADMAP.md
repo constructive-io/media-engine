@@ -31,6 +31,7 @@ lands tested, with nothing in it that breaks [the licensing rule](./LICENSING.md
 | 24 | [Starting a project](./PROJECTS.md): `media init` reads a repository of boilerplates in the format `pgpm init` reads, with the standard library alone, and makes a pnpm workspace and the decks in it. The templates are in [media-engine-boilerplates](https://github.com/constructive-io/media-engine-boilerplates), and both tools write the same files from them | Done |
 | 25 | Measures of the sound and the movement: how loud each shot is against the minute around it, how well each transcribed line can be heard, where people laugh (candidates a person confirms), and whether the lit part of a shot moves with the rest of it; each becomes a score a recipe can weigh, and the cleanest recording measured is the one a cut is heard through | Done. No model: each is arithmetic on the sound or the pictures |
 | 26 | Keeping transcripts right: a term carries what it is misheard as and `media mend` rewrites those in the lines and their words, with what was heard kept beside each and every change recorded, so all of it can be put back; `media relisten` transcribes the weakest recordings again and replaces a transcript only where the new one is surer and found no less | Done. No model of its own: mending is a rewrite, and listening again uses the `transcription` slot |
+| 27 | Who spoke, from whose microphone heard it: `media wear` says who wore which recording of a take, and `media microphones` gives each line to the wearer of the one that heard it loudest against its own loud level, leaves what is unclear or named by a person alone, and checks each microphone against the voices `media diarize` found | Done. No model |
 
 ## Left for later, and why
 
@@ -46,9 +47,6 @@ lands tested, with nothing in it that breaks [the licensing rule](./LICENSING.md
 - **Telling voices apart by pitch.** It was the first way tried and the voice
   model replaced it: two people of similar pitch are one voice to it. The
   `median_f0` column stays for anything that wants to record a pitch.
-- **Saying who spoke from whose microphone was loudest.** It needs to know
-  who wore which microphone, and it belongs with the audio layer, where the
-  microphones of a take are mixed. It comes in with that layer.
 
 - **Cutting fillers out of the middle of a passage.** A stored style can ask
   for it and assembly does not do it yet: it trims quiet from a passage's

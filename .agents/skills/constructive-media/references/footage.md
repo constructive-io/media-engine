@@ -29,7 +29,18 @@ media takes                          # each take and how much of it is placed
 media diarize                        # tell the voices in each recording apart
 media speakers                       # each recording's voices, and a clip of each to listen to
 media name interview voice1 "Ottoline Varga" --new  # say whose voice it is
+media wear interview collar "Ottoline Varga"  # say who wore a microphone
+media microphones interview          # give each line to whoever's microphone heard it loudest
 ```
+
+When each person wore a microphone, `media wear TAKE RECORDING WHO` says who
+wore which (the recording is a regular expression that must match one of the
+take's recordings; `--new` adds the person), and `media microphones TAKE`
+gives each line to the wearer of the microphone that heard it loudest. Look
+first with `--dry-run`; `--clips` cuts a short clip of what each microphone
+won. It leaves unclear lines unnamed, never changes a line a person named,
+and says when a microphone seems to carry more than one of the voices
+`media diarize` found. Run it again after `media name` or `media wear`.
 
 A wrong name in a transcript is mended, not transcribed again: record what
 the term is misheard as with `media vocabulary TERM --heard-as WORDS`, look
