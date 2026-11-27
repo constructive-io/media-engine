@@ -41,7 +41,7 @@ from .values import did_you_mean, similarity
 
 __all__ = [
     "Bank", "ConvError", "Files", "Finder", "Key", "Memory", "Missing", "Plugin", "Problem", "REVERBS",
-    "Scene", "WIDGETS", "defaults", "did_you_mean", "effects", "in_order", "load", "parse", "read",
+    "Scene", "WIDGETS", "bank_folders", "defaults", "did_you_mean", "effects", "in_order", "load", "parse", "read",
     "report", "similarity", "slides", "speakers", "video",
 ]
 
@@ -56,6 +56,11 @@ def load(path: str | os.PathLike[str], *, banks: Sequence[str | os.PathLike[str]
     file that includes it, then from the working directory.
     """
     source = os.path.realpath(path)
-    folders = list(banks) or [os.path.join(os.path.dirname(source), "banks"), "banks"]
     return parse(read(source), source=source, strict=strict, plugins=plugins,
-                 banks=Files(folders, roots=[os.getcwd()]))
+                 banks=Files(bank_folders(source, banks), roots=[os.getcwd()]))
+
+
+def bank_folders(path: str | os.PathLike[str], banks: Sequence[str | os.PathLike[str]] = ()) -> list[str]:
+    """Where `@include NAME` looks for a script's banks: the folders given, or the two it looks in without any."""
+    return [os.fspath(folder) for folder in banks] or [
+        os.path.join(os.path.dirname(os.path.realpath(path)), "banks"), "banks"]

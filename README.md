@@ -34,8 +34,11 @@ Early, and built in the open one layer at a time.
 | The mix: clips on named tracks, brought to a level, looped, faded, ducked under speech and put through effects, written with a stem for each track | Here, tested |
 | The check on a spoken line: what was heard against what was meant, a voice's reference recording leaking into the line, a stutter, a line cut off, a click at the start | Here, tested |
 | Speech: voices kept by persona and emotion, a client for any server that speaks, and a line said again with another seed until a take of it passes the check | Here, tested with stand-ins for the models |
-| Engine: generation | Being brought in |
 | `.conv` scripts rendered to sound: every line said and checked, every sound put in its place, the whole mixed to one loudness, with the lines, the stems and a manifest kept beside it | Here, tested with stand-ins for the models |
+| [The stage](./docs/STAGE.md): a rendered script filmed as a video. A page follows the recording, as a deck, a document or a walkthrough, with the speakers, captions and clips drawn over it; a browser with no window is watched, and the pictures are laid under the sound | Here, tested, and filmed with a real browser |
+| [Voices](./docs/VOICES.md): a recording cut into a clip a voice can be cloned from, the clip sent to a server that clones, and a voice auditioned before it is used | Here, tested with stand-ins for the models |
+| [Libraries](./docs/LIBRARIES.md): voices, sound banks and faces in repositories of their own, each voice with its consent, added by address and kept at a commit | Here, tested |
+| Engine: generation of images, video and sounds | Being brought in |
 
 The roadmap is in [docs/ROADMAP.md](./docs/ROADMAP.md).
 
@@ -330,6 +333,41 @@ report = scenes.render("scene.conv", "out/scene.flac", stems=True)   # the manif
 scenes.record(report)                                                # the render, its lines and what to listen to
 ```
 
+A rendered script is filmed by a page that follows it. A script's
+`[slide …]`, `[speakers …]` and `[video …]` marks say what is on the screen;
+the page is the built-in one, or any HTML of your own:
+
+```sh
+me film out/scene.flac out/scene.mp4                    # the speakers and what they say
+me film out/talk.flac  out/talk.mp4 --page examples/talk   # a deck that follows the talk
+me stage out/talk.flac --page examples/talk             # the same in your browser, to scrub through
+```
+
+Decks, documents that scroll with the voice, and walkthroughs with a pointer
+are in [docs/STAGE.md](./docs/STAGE.md). It needs a Chrome or Chromium that is
+already installed.
+
+A voice can be one the speech server has, or one cloned from a short clip of
+a voice you have the right to use:
+
+```sh
+me reference recording.wav voices/ada/neutral.flac --from 12.5 --to 34 --listen
+me voice ada ada --reference voices/ada/neutral.flac --new
+me say --voice ada "The lantern is lit at dusk." out/line.wav
+me audition ada
+```
+
+That is [docs/VOICES.md](./docs/VOICES.md). Voices, banks of sounds and faces
+that are meant to be shared live in a repository of their own, a library,
+where every voice carries its consent:
+
+```sh
+me library add owner/lighthouse-voices
+me library voices lighthouse
+```
+
+That is [docs/LIBRARIES.md](./docs/LIBRARIES.md).
+
 Settings are environment variables that start with `CONSTRUCTIVE_MEDIA_`; they
 are listed in [`settings.py`](./python/constructive_media/settings.py).
 
@@ -374,6 +412,15 @@ engine knows by name, with its source and its license, is in
 - [media-engine-plugins](https://github.com/constructive-io/media-engine-plugins):
   adapters for tools under copyleft licenses, each a package of its own that
   you choose to install.
+- [voice-boilerplates](https://github.com/constructive-io/voice-boilerplates):
+  a template for a library of voices, sounds and faces in a repository of your
+  own.
+- [video-boilerplates](https://github.com/constructive-io/video-boilerplates):
+  templates for a narrated deck, a walkthrough and a scene, each a script and
+  a page that `me film` turns into a video.
+- [document-boilerplates](https://github.com/constructive-io/document-boilerplates):
+  a template for a document that is read aloud, filmed as it scrolls, and
+  printed.
 - [pgpm](https://www.npmjs.com/package/pgpm): the Postgres package manager the
   schema modules are built with.
 

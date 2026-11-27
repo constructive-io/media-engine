@@ -25,8 +25,9 @@ def register(commands: Any) -> None:
 
 
 def run_conv(arguments: argparse.Namespace) -> int:
-    from .. import conv
+    from .. import conv, libraries
 
+    shared = libraries.banks()
     if arguments.json and len(arguments.scripts) > 1:
         print("me: --json prints one script", file=sys.stderr)
         return 2
@@ -37,7 +38,7 @@ def run_conv(arguments: argparse.Namespace) -> int:
             failed += 1
             continue
         try:
-            scene = conv.load(script, banks=arguments.banks)
+            scene = conv.load(script, banks=[*conv.bank_folders(script, arguments.banks), *shared])
         except conv.ConvError as error:
             print(conv.report(error.problems, script) + "\n", file=sys.stderr)
             failed += 1

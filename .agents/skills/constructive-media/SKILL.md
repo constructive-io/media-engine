@@ -1,10 +1,10 @@
 ---
 name: constructive-media
-description: Constructive Media — one engine for video, images, audio and voice, driven by the `me` command line with its state in PostgreSQL. Use when asked to "render a .conv", "turn a script into audio", "make a voiced scene", "say this script", "give a persona a voice", "set up the media engine", "ingest footage", "transcribe recordings", "find the best takes", "make a cut", "render a cut", or to choose a model, an adapter or a plugin for the engine.
-compatibility: Python 3.11+, PostgreSQL 17+ with pgvector, pgpm, ffmpeg, whisper.cpp
+description: Constructive Media — one engine for video, images, audio and voice, driven by the `me` command line with its state in PostgreSQL. Use when asked to "render a .conv", "turn a script into audio", "make a voiced scene", "say this script", "say this in a voice", "give a persona a voice", "clone a voice", "audition a voice", "make a narrated deck", "film a deck", "turn a script into a video", "make a walkthrough video", "narrate a document", "add a voice library", "set up the media engine", "ingest footage", "transcribe recordings", "find the best takes", "make a cut", "render a cut", or to choose a model, an adapter or a plugin for the engine.
+compatibility: Python 3.11+, PostgreSQL 17+ with pgvector, pgpm, ffmpeg, whisper.cpp; Chrome or Chromium for video of a page
 metadata:
   author: constructive-io
-  version: "0.2.0"
+  version: "0.3.0"
 ---
 
 # Constructive Media
@@ -21,6 +21,11 @@ goes in, and a mixed recording comes out.
 
 - **A script to sound:** writing a `.conv` script, checking it, giving its
   personas voices, rendering it, saying one line again.
+- **A script to video:** filming a deck, a document or a walkthrough that
+  follows the recording. See [A script to video](#a-script-to-video).
+- **Voices:** saying a few words in a voice, cutting a clip to clone from,
+  auditioning a voice, sharing voices, sounds and faces as a library. See
+  [Voices and libraries](#voices-and-libraries).
 - **Footage to a cut:** ingesting recordings, transcribing them, telling voices
   apart, ranking what is worth using, assembling and rendering a cut. See
   [references/footage.md](references/footage.md).
@@ -35,6 +40,12 @@ goes in, and a mixed recording comes out.
 | `conv`, from `@conversation/cli` on npm | the same repository | checks a script and prints it as JSON. It makes no sound |
 | `me`, this engine | here | checks a script with a parser of its own, then says and mixes it |
 | Plugins | [media-engine-plugins](https://github.com/constructive-io/media-engine-plugins) | adapters under copyleft licenses, installed apart |
+| Libraries | repositories of your own, started from [voice-boilerplates](https://github.com/constructive-io/voice-boilerplates) | voices to clone, banks of sounds and faces, added with `me library add` |
+| Pages | folders of your own, started from [video-boilerplates](https://github.com/constructive-io/video-boilerplates) or [document-boilerplates](https://github.com/constructive-io/document-boilerplates) | the deck, walkthrough or document `me film` records |
+
+`me` is the engine's command, short for "media engine". The same command is
+installed as `constructive-media`. Every command that speaks takes the voice by
+name: there is no command that belongs to one voice.
 
 `conv` and `me` do not call each other. They agree on what a script means
 because the engine's parser is held to the format's own conformance files, kept
@@ -141,6 +152,99 @@ me say scene.conv out/scene.flac --only grace     # one persona's lines
 me say scene.conv out/scene.flac --only 2,3       # lines by number, as in out/scene.lines/
 ```
 
+## A script to video
+
+`me say` writes down when every line and mark fell. `me film` opens a page in a
+browser with no window, lets it follow the recording, and lays the pictures
+under the sound. The whole of it is in [docs/STAGE.md](../../../docs/STAGE.md).
+
+**1. Say what is on the screen, in the script.** These marks are part of the
+format; a renderer of sound alone passes over them:
+
+| Write | To get |
+| --- | --- |
+| `[slide pricing]` | the slide called `pricing` |
+| `[slide pricing step:2]` | its steps up to 2 revealed |
+| `[speakers faces lower-third waveform captions]` | what is drawn of whoever speaks |
+| `[speakers off]` | nothing drawn of them |
+| `[video DEMO]` | the clip `DEMO` takes the screen and is heard |
+| `ADA: { persona: ada, name: Ada Marsh, title: Keeper }` | the words on her lower third |
+
+**2. Make the page.** Any HTML that loads `stage.js` and `stage.css` (the
+engine hands both over; a page never carries a copy) and marks its parts:
+
+| In the page | Means |
+| --- | --- |
+| `<body data-stage="deck">` | one slide at a time. `document` scrolls to what is being read; `walkthrough` moves a pointer across a screen; `plain` leaves the page alone |
+| `data-slide="pricing"` | what `[slide pricing]` shows |
+| `data-step="2"` | revealed at `step:2` |
+| `data-point="60%,40%"` | where a walkthrough's pointer goes |
+
+There is a deck in [`examples/talk`](../../../examples/talk).
+
+**3. Film it.**
+
+```sh
+me say   examples/talk/talk.conv out/talk.flac
+me film  out/talk.flac out/talk.mp4 --page examples/talk    # 1920x1080 at 30 a second, unless --size and --fps say
+me stage out/talk.flac --page examples/talk                 # the same page in your browser, to scrub through
+me print examples/talk out/talk.pdf                         # the page as a PDF
+```
+
+Without `--page` the built-in page is filmed: whoever speaks, their words and
+a waveform. Filming is in real time, a minute for a minute, and needs a Chrome
+or Chromium that is already installed
+(`CONSTRUCTIVE_MEDIA_MODEL_BROWSER` names one that is not found by itself).
+
+**4. Look at it.** `me film` prints anything the page complained of. A slide
+the script names and the page does not have is one of those. Pull a frame out
+with `ffmpeg -ss 12 -i out/talk.mp4 -frames:v 1 frame.png` and look at it
+before saying the video is right.
+
+## Voices and libraries
+
+All of it is in [docs/VOICES.md](../../../docs/VOICES.md) and
+[docs/LIBRARIES.md](../../../docs/LIBRARIES.md).
+
+**Say a few words in a voice**, with no script:
+
+```sh
+me say --voice ada "The lantern is lit at dusk." out/line.wav
+me say --voice ada --emotion whisper "Bring the map." out/quiet.wav
+```
+
+**Give a persona a voice to clone**, where the speech server clones from a
+recording. The clip is 15 to 28 seconds of one person in one mood:
+
+```sh
+me reference recording.wav voices/ada/neutral.flac --from 12 --to 34 --listen
+me voice ada ada --reference voices/ada/neutral.flac --new
+me audition ada --out out/audition
+```
+
+`me reference` cuts the clip, sets its loudness, writes the words said in it
+beside it and says what is wrong with it. `me audition` says a set of lines
+and reports any that came back with the clip's own words in them. Only clone a
+voice whose owner said yes: your own, or one you hold permission for.
+
+**Share voices, sounds and faces as a library.** A library is a folder or a git
+repository with a `media-library.json` that names what is in it and, for every
+voice, who consented:
+
+```sh
+me library check my-library                 # is it a library, and what is wrong with it
+me library add owner/lighthouse-voices      # a GitHub repository, any git address, or a folder
+me library voices lighthouse                # give its voices to the personas here
+me library lock                             # write media-libraries.json beside your scripts
+me library install                          # on another machine: the same libraries at the same commits
+```
+
+Once added, `@include weather` in a script finds the library's bank, the
+bank's sounds are found in it, and its faces are drawn by `me film`. A script
+still names only personas and banks, so it renders anywhere the libraries are.
+Start a library from
+[voice-boilerplates](https://github.com/constructive-io/voice-boilerplates).
+
 ## Before you say it is done
 
 `me say` ends by saying what it wrote, and then anything that wants a look:
@@ -202,6 +306,8 @@ Two things this renderer asks of a script:
 | the speech server refuses the request | It may not take a `seed`. `export CONSTRUCTIVE_MEDIA_EXTRA_SPEECH='{"seed": null}'` |
 | a line is marked `needs_review` | No take of it passed. Listen to `out/scene.lines/`, reword the line, or raise `--attempts` |
 | `this command needs the '...' package` | Install the extra it names: `pip install ".[all]"` |
+| `no Chrome or Chromium was found` | Install one, or export `CONSTRUCTIVE_MEDIA_MODEL_BROWSER` as the program. In a container, `CONSTRUCTIVE_MEDIA_EXTRA_BROWSER='{"flags": ["--no-sandbox"]}'` |
+| `this is not a library yet` | `me library check` listed what is missing above that line. A voice with no `consent` is the usual one |
 
 `me status` shows where things are kept; `me adapters` shows every slot and
 what fills it; `me <command> --help` describes every command.

@@ -1,0 +1,23 @@
+# A short talk with slides. Render it, then film it:
+#
+#   me say  examples/talk/talk.conv out/talk.flac
+#   me film out/talk.flac out/talk.mp4 --page examples/talk
+#
+@characters
+ADA:   { persona: ada, name: Ada Marsh, title: Keeper of the light }
+GRACE: { persona: grace, name: Grace Okafor, title: Harbour pilot }
+---
+[speakers faces lower-third captions]
+[slide title]
+ADA: Good evening. This is the lighthouse log, read aloud.
+[slide log]
+GRACE: Three things are written down every night.
+[slide log step:1]
+GRACE: When the lamp was lit.
+[slide log step:2]
+GRACE: Which boats came in.
+[slide log step:3]
+GRACE: And what the weather did.
+[slide close]
+[speakers waveform captions]
+ADA: That is the whole of it. Good night.

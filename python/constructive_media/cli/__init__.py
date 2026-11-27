@@ -13,20 +13,23 @@ from collections.abc import Sequence
 
 from .. import __version__
 from ..adapters import AdapterError
+from ..browser import BrowserError
 from ..conv import ConvError
 from ..db import DatabaseError
 from ..edit import EditError
 from ..ffmpeg import FfmpegError
+from ..libraries import LibraryError
 from ..models import ModelError
 from ..settings import SettingsError
 from ..speakers import SpeakerError
 from ..speech import SpeechError
+from ..stage import StageError
 from ..takes import TakeError
 from ..text import TextError
 from ..transcription import TranscriptionError
-from . import analyze, cut, edit, library, listen, scripts, speech, system, takes
+from . import analyze, cut, edit, libraries, library, listen, scripts, speech, stage, system, takes
 
-GROUPS = (library, analyze, listen, takes, edit, cut, scripts, speech, system)
+GROUPS = (library, analyze, listen, takes, edit, cut, scripts, speech, stage, libraries, system)
 
 
 def parser() -> argparse.ArgumentParser:
@@ -44,8 +47,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     arguments = parser().parse_args(argv)
     try:
         return arguments.run(arguments) or 0
-    except (AdapterError, ConvError, DatabaseError, EditError, FfmpegError, ModelError, SettingsError,
-            SpeakerError, SpeechError, TakeError, TextError, TranscriptionError) as error:
+    except (AdapterError, BrowserError, ConvError, DatabaseError, EditError, FfmpegError, LibraryError, ModelError,
+            SettingsError, SpeakerError, SpeechError, StageError, TakeError, TextError, TranscriptionError) as error:
         print(f"me: {error}", file=sys.stderr)
         return 1
     except ModuleNotFoundError as error:

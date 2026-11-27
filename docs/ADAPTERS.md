@@ -26,6 +26,7 @@ that does the job.
 | `effects` | audio effects | `ffmpeg` |
 | `text` | text generation and judgement | `http` |
 | `embedding` | text and image embeddings | `http` |
+| `browser` | a page opened, watched and printed | `chrome` |
 
 Slots fill in as the engine lands; see the [roadmap](./ROADMAP.md). `me adapters`
 lists what is installed on your machine, built in and plugged in.
@@ -303,7 +304,22 @@ same way whatever the seed cannot mend a bad take by saying it again.
 [`.conv`](https://github.com/constructive-io/conversation-format) script and mixes the
 result (`constructive_media.audio.scene`).
 
-A model that clones a voice from a recording on your own machine is a plugin:
+A voice cloned from a clip keeps where the clip is and the words said in it.
+A server that clones is sent them by naming them in the extra fields, since
+servers do not agree on what to call them:
+
+```sh
+export CONSTRUCTIVE_MEDIA_EXTRA_SPEECH='{"voice": null, "ref_audio": "{reference:base64}", "ref_text": "{said}"}'
+```
+
+`{reference}` is the clip's path, `{reference:base64}` the clip itself,
+`{said}` its words, `{persona}` and `{emotion}` whose voice it is. A field that
+names something a voice does not have is left out, so one setting serves
+cloned voices and the server's own. Making a clip, auditioning a voice and
+sharing voices in a library are in [VOICES.md](./VOICES.md) and
+[LIBRARIES.md](./LIBRARIES.md).
+
+A model that clones a voice on your own machine without a server is a plugin:
 its adapter is handed the voice's reference recording and the words said in
 it, and it is chosen per voice, by the voice's `engine`.
 
@@ -318,3 +334,21 @@ range is an error; nothing is silently ignored.
 The built-in backend runs the `ffmpeg` program. ffmpeg has no algorithmic
 reverb, so a space is a few echo taps: more, longer and quieter for a bigger
 room. It reads as a space. For a studio reverb, install a plugin.
+
+## Browser
+
+A page is the easiest way to draw a slide, a caption or a lower third, so the
+engine films one: see [STAGE.md](./STAGE.md). A browser opens a page and keeps
+every picture it paints, with the time it was painted, until the page says it
+is done; and it prints a page as a PDF.
+
+The built-in adapter runs a Chrome or a Chromium that is already on the
+machine, with no window, as a separate program driven down a pipe in the
+DevTools protocol. Nothing is installed, no port is opened, and nothing of the
+browser is part of this package. It looks in the usual places for Chrome,
+Chromium, Edge and Brave. To name one, or to give it more flags:
+
+```sh
+export CONSTRUCTIVE_MEDIA_MODEL_BROWSER=/usr/bin/chromium
+export CONSTRUCTIVE_MEDIA_EXTRA_BROWSER='{"flags": ["--no-sandbox"]}'    # in a container that needs it
+```

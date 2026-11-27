@@ -88,11 +88,13 @@ class Ready:
     notes: tuple[str, ...] = ()         # worth saying, not worth stopping for
 
 
-def folders(script: str | Path, sounds: Iterable[str | Path] = ()) -> list[Path]:
+def folders(script: str | Path, sounds: Iterable[str | Path] = (), shared: Iterable[str | Path] = ()) -> list[Path]:
     """Where a script's sound files are looked for, in order: the folders
-    given, the script's own folder, then the working folder."""
+    given, the script's own folder, the working folder, then the `shared`
+    folders, which are those of the libraries that were added."""
     found: list[Path] = []
-    for folder in (*(Path(given).expanduser() for given in sounds), Path(script).resolve().parent, Path.cwd()):
+    for folder in (*(Path(given).expanduser() for given in sounds), Path(script).resolve().parent, Path.cwd(),
+                   *(Path(given) for given in shared)):
         if folder not in found:
             found.append(folder)
     return found
@@ -201,7 +203,8 @@ def ready(scene: conv.Scene, *, voices: Voices, among: Sequence[Path], text: str
 def render(
     script: str | Path, target: str | Path, *, voices: Voices | None = None,
     synthesizer: Callable[[str | None], Synthesizer] | None = None, transcriber: Transcriber | None = None,
-    banks: Sequence[str | Path] = (), sounds: Sequence[str | Path] = (), stems: bool = False,
+    banks: Sequence[str | Path] = (), sounds: Sequence[str | Path] = (), shared: Sequence[str | Path] = (),
+    stems: bool = False,
     only: str | Iterable[Any] | None = None, gap: float = GAP, loudness: float | None = LOUDNESS,
     label: str | None = None, without_generated: bool = False, tell: Callable[[str], None] | None = None,
     backend: str | None = None, settings: Settings | None = None, **how: Any,
@@ -213,7 +216,7 @@ def render(
     speaks it, and `transcriber` listens back; both are the configured
     adapters unless given. `banks` are the folders `@include` looks in, and
     `sounds` the folders sound files are looked for in before the script's
-    own. `how` is passed on to every line: `attempts`, `reword` and the rest
+    own, with `shared` the ones looked in after it. `how` is passed on to every line: `attempts`, `reword` and the rest
     of what `line.speak` takes.
 
     `only` renders again just some lines of a scene rendered here before:
@@ -228,7 +231,7 @@ def render(
     said = tell or (lambda message: None)
     scene = conv.load(script, banks=[str(folder) for folder in banks])
     voices = voices if voices is not None else StoredVoices()
-    found = ready(scene, voices=voices, among=folders(script, sounds), text=conv.read(script),
+    found = ready(scene, voices=voices, among=folders(script, sounds, shared), text=conv.read(script),
                   without_generated=without_generated, source=str(script))
     _writable(target)
     for note in found.notes:
@@ -305,8 +308,7 @@ def finish(mixed: str | Path, target: str | Path, *, loudness: float | None = LO
     target = Path(target)
     target.parent.mkdir(parents=True, exist_ok=True)
     kind = _CODECS.get(target.suffix.lower(), ())
-    has = _metered(ffmpeg.run(ffmpeg.FFMPEG, "-hide_banner", "-nostats", "-i", mixed, "-af", _METER,
-                              "-f", "null", "-").stderr) if loudness is not None else None
+    has = metered(mixed) if loudness is not None else None
     if has is None:
         ffmpeg.run(ffmpeg.FFMPEG, "-hide_banner", "-loglevel", "error", "-y", "-i", mixed,
                    "-ar", str(rate), *kind, target)
@@ -325,6 +327,12 @@ def finish(mixed: str | Path, target: str | Path, *, loudness: float | None = LO
     after = _metered(done.stderr) or {}
     return {"asked": loudness, "true_peak": peak, "was": has["loudness"], "is": after.get("loudness"),
             "peak": after.get("peak"), "how": how}
+
+
+def metered(sound: str | Path) -> dict[str, float] | None:
+    """How loud a file is: its `loudness` in LUFS, its true `peak`, its `range`. None when it is all quiet."""
+    return _metered(ffmpeg.run(ffmpeg.FFMPEG, "-hide_banner", "-nostats", "-i", sound, "-af", _METER,
+                               "-f", "null", "-").stderr)
 
 
 def record(report: dict[str, Any]) -> Any:

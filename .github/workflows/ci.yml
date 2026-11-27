@@ -216,6 +216,8 @@ jobs:
       PGUSER: postgres
       PGPASSWORD: password
       PGPM_VERSION: 5.30.6
+      # The runner's Chrome films the pages. Its sandbox cannot start in a runner.
+      CONSTRUCTIVE_MEDIA_EXTRA_BROWSER: '{"flags": ["--no-sandbox"]}'
 
     services:
       pg_db:
@@ -242,6 +244,12 @@ jobs:
 
       - name: Install ffmpeg
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+
+      # `me film` is tested with a real browser, so there has to be one.
+      - name: Find the browser
+        run: |
+          command -v google-chrome || command -v chromium || command -v chromium-browser \
+            || { echo "no Chrome or Chromium on this runner"; exit 1; }
 
       - name: Test with nothing installed
         run: PYTHONPATH=python python -m unittest discover -s tests -t .

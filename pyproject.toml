@@ -39,3 +39,7 @@ version = { attr = "constructive_media.__version__" }
 
 [tool.setuptools.packages.find]
 where = ["python"]
+
+[tool.setuptools.package-data]
+# The page the stage serves: its player, its styles and the plain page.
+constructive_media = ["stage/page/*"]

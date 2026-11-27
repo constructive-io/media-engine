@@ -353,3 +353,34 @@ class Listener:
         self.listened.append(str(audio))
         text, seed = self.speaker.said[str(audio)]
         return [Segment(0.0, 1.0, self.hears(text, seed))]
+
+
+def make_render(folder: Path, *, clip: Path | None = None, ending: str = ".wav") -> Path:
+    """What `me say` leaves behind, made by hand: a mix, its lines, and the manifest that names them.
+
+    Two people speak for a second each, with a slide and a build under them.
+    With `clip`, a video takes the screen for half a second between them.
+    """
+    import json
+
+    folder.mkdir(parents=True, exist_ok=True)
+    mix = make_tone(folder / f"scene{ending}", 3.0)
+    lines = [make_tone(folder / "scene.lines" / f"line_{number:03d}.wav", 1.0) for number in (1, 2)]
+    marks = [
+        {"t": 0.0, "kind": "speakers", "show": ["faces", "captions"]},
+        {"t": 0.0, "kind": "slide", "id": "title", "step": 0},
+        {"t": 0.2, "kind": "line", "line": 1, "speaker": "ADA", "persona": "ada", "track": "dialogue",
+         "seconds": 1.0, "text": "The lantern is lit at dusk.", "name": "Ada Marsh", "title": "Keeper"},
+        {"t": 1.5, "kind": "slide", "id": "title", "step": 1},
+        {"t": 1.8, "kind": "line", "line": 2, "speaker": "GRACE", "persona": "grace", "track": "dialogue",
+         "seconds": 1.0, "text": "Then we should leave."},
+    ]
+    if clip is not None:
+        marks.append({"t": 1.2, "kind": "video", "sound": "DEMO", "file": str(clip), "start": 0.0, "seconds": 0.5})
+    manifest = folder / "scene.manifest.json"
+    manifest.write_text(json.dumps({
+        "label": "scene", "output": str(mix), "manifest": str(manifest), "seconds": 3.0,
+        "lines": [{"line": number, "file": str(file)} for number, file in zip((1, 2), lines)],
+        "marks": marks,
+    }), encoding="utf-8")
+    return manifest

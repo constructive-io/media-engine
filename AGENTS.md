@@ -41,8 +41,9 @@ How the engine is used is a skill in this repo:
 
 ```
 .agents/skills/constructive-media/
-├── SKILL.md          # start here: setting up, a `.conv` script to sound, settings,
-│                     # what to do when something goes wrong
+├── SKILL.md          # start here: setting up, a `.conv` script to sound and to
+│                     # video, voices and libraries, settings, what to do when
+│                     # something goes wrong
 └── references/       # footage to a cut, command by command
 ```
 
@@ -54,6 +55,12 @@ The engine is an implementation of the [`.conv` format](https://github.com/const
 whose repository has the grammar and a `conv` skill for writing scripts. Adapters under
 copyleft licenses, and a `media-engine-plugins` skill for them, are in
 [media-engine-plugins](https://github.com/constructive-io/media-engine-plugins).
+
+Voices, banks of sounds and faces are never kept here. They live in libraries, which are
+repositories of their own ([docs/LIBRARIES.md](./docs/LIBRARIES.md)), started from
+[voice-boilerplates](https://github.com/constructive-io/voice-boilerplates). Pages to film
+are started from [video-boilerplates](https://github.com/constructive-io/video-boilerplates)
+and [document-boilerplates](https://github.com/constructive-io/document-boilerplates).
 
 ## The pgpm skill
 

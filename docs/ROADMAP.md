@@ -21,8 +21,17 @@ lands tested, with nothing in it that breaks [the licensing rule](./LICENSING.md
 | 14 | Audio: the [`.conv`](https://github.com/constructive-io/conversation-format) renderer, with `ffmpeg` as the default effects backend; a mix that can also write each track on its own as a stem; and a check on every rendered line, which is listened back to, compared with the words it was meant to say, and made again when it falls short | Done, and tested with stand-ins for the models that speak and listen. A sound described by a `prompt:` waits for a slot that makes sounds |
 | 15 | [Model list](./MODELS.md): every supported model, its source, its license | Done |
 | 16 | [Plugin repository](https://github.com/constructive-io/media-engine-plugins) for adapters that cannot live here | Done: `pedalboard` effects (GPL-3.0) and Ultralytics detection (AGPL-3.0), each a package of its own |
+| 17 | [The stage](./STAGE.md): a rendered script filmed as a video. A timeline of what fell when, a player any page loads, layouts for a deck, a document and a walkthrough, a browser behind the `browser` slot, and clips put in with their own frames | Done, and filmed with a real browser in CI |
+| 18 | [Voices](./VOICES.md): a recording measured and cut into a clip to clone from, the clip sent to any server that clones, one line said in one voice, and a voice auditioned for its words and for its clip leaking in | Done, and tested with stand-ins for the models |
+| 19 | [Libraries](./LIBRARIES.md): voices, banks and faces in repositories of their own, with consent asked of every voice; added by address, kept at a commit, and written down for a project so another machine has the same | Done |
 
 ## Left for later, and why
+
+- **An index of libraries.** A library is added by its address. A place that
+  lists libraries by name waits until there are enough of them to need one.
+- **Blending two voices, taking a voice out of a recording with music, and
+  cleaning a noisy one.** Each is a model of its own behind a slot of its own.
+  A clip is made from a clean recording until then.
 
 - **Telling voices apart by pitch.** It was the first way tried and the voice
   model replaced it: two people of similar pitch are one voice to it. The

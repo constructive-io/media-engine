@@ -51,6 +51,7 @@ SLOTS: dict[str, str] = {
     "effects": "audio effects",
     "text": "text generation and judgement",
     "embedding": "text and image embeddings",
+    "browser": "a page opened and watched, for a film of it",
 }
 
 
@@ -246,6 +247,13 @@ def builtins() -> Iterator[Adapter]:
         factory=lazy("constructive_media.text.http:EmbeddingServer"),
         license="MIT",
         summary="Text as numbers to search by, from any server that speaks the embeddings API",
+    )
+    yield Adapter(
+        slot="browser",
+        name="chrome",
+        factory=lazy("constructive_media.browser.chrome:Chrome"),
+        license="MIT",
+        summary="A page filmed or printed by a Chrome or Chromium on this machine, run with no window",
     )
 
 

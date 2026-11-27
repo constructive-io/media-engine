@@ -5,6 +5,7 @@ that writes down what it was sent and answers with what the test told it to.
 Every voice is made up.
 """
 
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -117,6 +118,17 @@ class Keeping(DatabaseTest):
         self.assertEqual(lines[1].split(maxsplit=4),
                          ["ada-field", "whisper", "http", "ada-hushed", "(seed 31, from a recording, provisional)"])
         self.assertEqual(lines[2], "2 voices for 1 personas")
+
+        # The words of a clip are read from beside it, where `me reference` writes them.
+        with tempfile.TemporaryDirectory() as folder:
+            clip = Path(folder) / "ada.flac"
+            clip.write_bytes(b"")
+            clip.with_suffix(".txt").write_text("The lamp was lit at four.\n", encoding="utf-8")
+            self.assertEqual(run("voice", "ada-field", "ada", "--emotion", "warm", "--reference", str(clip))[0], 0)
+            warm = StoredVoices().find("ada-field", "warm")
+            self.assertEqual((warm.reference_audio, warm.reference_text),
+                             (os.path.abspath(clip), "The lamp was lit at four."))
+            speech.drop("ada-field", "warm")
 
         status, out, _ = run("voice", "Ada Field", "--drop", "--emotion", "whisper")
         self.assertEqual((status, out), (0, "1 voices of Ada Field taken away\n"))
