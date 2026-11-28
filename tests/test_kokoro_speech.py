@@ -221,11 +221,22 @@ class SlotTest(unittest.TestCase):
                 with self.assertRaisesRegex(speech.SpeechError, "pip install mlx-audio"):
                     speaker.loaded()
             with mock.patch.dict(sys.modules, {**front_end(), "misaki.en": None}):
-                with self.assertRaisesRegex(speech.SpeechError, "pip install misaki num2words spacy"):
+                with self.assertRaisesRegex(speech.SpeechError, "pip install misaki spacy"):
                     speaker.loaded()
             with mock.patch.dict(sys.modules, front_end(reads=False)):
                 with self.assertRaisesRegex(speech.SpeechError, "python -m spacy download en_core_web_sm"):
                     speaker.loaded()
+
+    def test_the_engine_writes_numbers_out_where_the_package_for_it_is_not_installed(self):
+        with mock.patch.dict(sys.modules, {**front_end(), "num2words": None}):
+            kokoro.front_end()
+            stand_in = sys.modules["num2words"]
+            self.assertTrue(stand_in.stand_in)
+            self.assertEqual(stand_in.num2words(1984, to="year"), "nineteen eighty-four")
+        theirs = types.ModuleType("num2words")
+        with mock.patch.dict(sys.modules, {**front_end(), "num2words": theirs}):
+            kokoro.front_end()
+            self.assertIs(sys.modules["num2words"], theirs)
 
     def test_something_stands_where_the_reader_it_does_without_would_be(self):
         with mock.patch.dict(sys.modules, front_end()):

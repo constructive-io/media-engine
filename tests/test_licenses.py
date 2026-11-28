@@ -4,7 +4,9 @@ What this package asks for directly must be MIT, Apache-2.0 or BSD. Whatever
 those packages bring with them must not be copyleft. See docs/LICENSING.md.
 """
 
+import ast
 import re
+import sys
 import tomllib
 import unittest
 from email.message import Message
@@ -13,6 +15,30 @@ from pathlib import Path
 from types import SimpleNamespace
 
 PROJECT = Path(__file__).resolve().parent.parent / "pyproject.toml"
+CODE = PROJECT.parent / "python" / "constructive_media"
+
+#: Every package outside Python that the engine's code names in an import: the name it is imported by, the name
+#: it is installed by, and what it is under. Asked for by the engine or installed by whoever wants the adapter
+#: that uses it, each has been read and found to be MIT, Apache-2.0 or BSD. A package that is not here fails the
+#: test; one that does not meet the rule does not go here, it goes in a plugin.
+IMPORTED = {
+    "PIL": ("pillow", "MIT-CMU"),
+    "diffusers": ("diffusers", "Apache-2.0"),
+    "huggingface_hub": ("huggingface-hub", "Apache-2.0"),
+    "misaki": ("misaki", "Apache-2.0"),
+    "mlx": ("mlx", "MIT"),
+    "mlx_audio": ("mlx-audio", "MIT"),
+    "numpy": ("numpy", "BSD-3-Clause"),
+    "onnxruntime": ("onnxruntime", "MIT"),
+    "pg8000": ("pg8000", "BSD-3-Clause"),
+    "spacy": ("spacy", "MIT"),
+    "torch": ("torch", "BSD-3-Clause"),
+    "torchvision": ("torchvision", "BSD-3-Clause"),
+    "transformers": ("transformers", "Apache-2.0"),
+}
+
+#: Ways of importing a module by a name written in the code.
+BY_NAME = ("import_module", "find_spec", "__import__")
 
 #: What a direct dependency may declare.
 ALLOWED = re.compile(r"\b(MIT|Apache|BSD)\b", re.IGNORECASE)
@@ -57,6 +83,27 @@ def direct() -> dict[str, list[str]]:
     project = tomllib.loads(PROJECT.read_text())["project"]
     groups = {"core": project.get("dependencies", []), **project.get("optional-dependencies", {})}
     return {group: [name_of(r) for r in requirements] for group, requirements in groups.items()}
+
+
+def imported() -> dict[str, set[str]]:
+    """Every module outside Python and the engine that the engine's code imports, and the files that do."""
+    found: dict[str, set[str]] = {}
+    for path in sorted(CODE.rglob("*.py")):
+        for node in ast.walk(ast.parse(path.read_text())):
+            if isinstance(node, ast.Import):
+                names = [alias.name for alias in node.names]
+            elif isinstance(node, ast.ImportFrom):
+                names = [node.module] if node.module and not node.level else []
+            elif isinstance(node, ast.Call) and getattr(node.func, "attr", getattr(node.func, "id", "")) in BY_NAME:
+                names = [first.value for first in node.args[:1]
+                         if isinstance(first, ast.Constant) and isinstance(first.value, str)]
+            else:
+                continue
+            for name in names:
+                top = name.split(".")[0]
+                if top and top not in sys.stdlib_module_names and top != CODE.name:
+                    found.setdefault(top, set()).add(str(path.relative_to(CODE)))
+    return found
 
 
 def installed(name: str) -> metadata.Distribution | None:
@@ -110,6 +157,27 @@ class LicenseTest(unittest.TestCase):
                 license = declared(distribution)
                 self.assertTrue(license, f"{name} declares no license; read it and decide")
                 self.assertNotRegex(license, COPYLEFT)
+
+    def test_every_package_the_code_imports_has_been_read_and_meets_the_rule(self):
+        found = imported()
+        for module, files in sorted(found.items()):
+            with self.subTest(module=module):
+                self.assertIn(module, IMPORTED, f"{sorted(files)} import {module}: read its license. MIT, Apache-2.0 "
+                              "or BSD goes in IMPORTED and docs/LICENSING.md; anything else goes in a plugin")
+        self.assertEqual(sorted(IMPORTED), sorted(found), "IMPORTED lists a package nothing imports any more")
+        for module, (package, license) in sorted(IMPORTED.items()):
+            with self.subTest(package=package):
+                self.assertRegex(license, ALLOWED)
+                self.assertNotRegex(license, COPYLEFT)
+                distribution = installed(package)
+                if distribution is not None:
+                    self.assertRegex(declared(distribution), ALLOWED)
+                    self.assertNotRegex(declared(distribution), COPYLEFT)
+
+    def test_a_package_imported_by_a_name_in_a_string_is_seen(self):
+        self.assertIn("speech/kokoro.py", imported()["misaki"])
+        self.assertIn("speech/mlx.py", imported()["mlx_audio"])
+        self.assertNotIn("num2words", imported())
 
     def test_a_license_shipped_only_as_a_file_is_read(self):
         def package(text):

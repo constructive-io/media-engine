@@ -7,15 +7,20 @@ it comes with a few dozen voices, each a table of numbers, and it speaks in
 one of those, or in a table that is a mix of them (`media mimic` makes one
 that leans towards a recording).
 
-    pip install "constructive-media[audio]" mlx-audio misaki num2words spacy
+    pip install "constructive-media[audio]" mlx-audio misaki spacy
     python -m spacy download en_core_web_sm
     CONSTRUCTIVE_MEDIA_ADAPTER_SPEECH=kokoro
 
 None of those is one of the engine's extras, and the engine installs none
 of them. mlx-audio (MIT) runs the model. misaki (Apache-2.0) turns English
-into the sounds the model is handed, and for that it needs spaCy (MIT), a
-small spaCy model for English (MIT), and num2words, which is LGPL: you
-install it, knowing that.
+into the sounds the model is handed, and for that it needs spaCy (MIT) and
+a small spaCy model for English (MIT).
+
+**Numbers.** misaki writes a number out in words with `num2words`, which is
+LGPL, and cannot be imported without it. This adapter does not need it:
+where it is not installed the engine's own (`speech.numerals`) stands in
+its place, and says the same words for English. If it is installed, misaki
+uses it as it always did.
 
 **Words no dictionary has.** misaki looks a word up, and hands one it does
 not find to espeak-ng, through a package that is GPL-3.0. Without that
@@ -52,7 +57,7 @@ from pathlib import Path
 from typing import Any
 
 from ..settings import Settings
-from . import SpeechError, Voice, sounding
+from . import SpeechError, Voice, numerals, sounding
 from .mlx import MlxSpeech, extras
 
 DEFAULT_MODEL = "mlx-community/Kokoro-82M-bf16"
@@ -84,10 +89,14 @@ def hushed() -> Iterator[None]:
 def front_end() -> None:
     """See that what turns English into sounds is here, and say what to install when it is not."""
     try:
+        importlib.import_module(numerals.STANDS_FOR)
+    except ImportError:
+        sys.modules[numerals.STANDS_FOR] = numerals.stand_in()
+    try:
         importlib.import_module("misaki.en")
     except ImportError as error:
-        raise SpeechError("the kokoro speech adapter reads English with misaki, spaCy and num2words: "
-                          f"pip install misaki num2words spacy ({error})") from None
+        raise SpeechError("the kokoro speech adapter reads English with misaki and spaCy: "
+                          f"pip install misaki spacy ({error})") from None
     from spacy.util import is_package
 
     if not is_package(READS_WITH):

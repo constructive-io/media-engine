@@ -4,7 +4,7 @@ description: Constructive Media — one engine for video, images, audio and voic
 compatibility: Python 3.11+, PostgreSQL 17+ with pgvector, pgpm, ffmpeg, whisper.cpp; Chrome or Chromium for video of a page
 metadata:
   author: constructive-io
-  version: "0.16.0"
+  version: "0.16.1"
 ---
 
 # Constructive Media
@@ -289,9 +289,10 @@ voices it was made from: blend only voices whose owners said yes to that.
 sentence. The `kokoro` adapter runs a small one that takes about a tenth of a
 second on a Mac and speaks in voices of its own (`af_heart`, `bm_george`: `a`
 American, `b` British, then `f` or `m`). The person installs what it needs,
-none of it an extra of the engine: `pip install mlx-audio misaki num2words
-spacy` and `python -m spacy download en_core_web_sm`. Do not tell them to
-install `misaki[en]`: that brings GPL packages the adapter does without.
+none of it an extra of the engine: `pip install mlx-audio misaki spacy` and
+`python -m spacy download en_core_web_sm`. Do not tell them to install
+`misaki[en]` or `num2words`: those are GPL and LGPL packages the adapter does
+without (it reads unknown words and writes numbers out in words itself).
 
 ```sh
 CONSTRUCTIVE_MEDIA_ADAPTER_SPEECH=kokoro media talk --profile af_heart

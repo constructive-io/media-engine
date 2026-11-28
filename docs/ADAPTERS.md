@@ -365,7 +365,7 @@ of a sentence to the first sound. It does not clone: it speaks in a voice of
 its own, or in a [mix of them](./VOICES.md#one-that-leans-towards-a-recording).
 
 ```sh
-pip install "constructive-media[audio]" mlx-audio misaki num2words spacy
+pip install "constructive-media[audio]" mlx-audio misaki spacy
 python -m spacy download en_core_web_sm
 export CONSTRUCTIVE_MEDIA_ADAPTER_SPEECH=kokoro
 media talk --profile af_heart
@@ -392,6 +392,12 @@ package. Such a word is read by its spelling, by `speech/sounding.py`: roughly,
 as a stranger would read it aloud, and it is heard. Somebody who has installed
 the GPL package gets what misaki does with it, and other languages than
 English, which this adapter does not read by itself.
+
+A number is the same story with a smaller ending. misaki writes `1984` out in
+words with `num2words`, which is LGPL, and cannot be imported without it.
+Where it is not installed, `speech/numerals.py` stands in its place and says
+the same words for English: *nineteen eighty-four* for a year, *twenty-first*
+for `21st`, *three point one four*.
 
 ### An adapter whose voices can be mixed
 

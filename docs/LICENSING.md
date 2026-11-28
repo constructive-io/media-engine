@@ -9,6 +9,7 @@ This repository is MIT licensed. The rule below keeps it that way.
 | Code written for this repository | MIT |
 | Code copied in from elsewhere | MIT, Apache-2.0 or BSD only, with its notice kept |
 | Dependencies the engine asks for | MIT, Apache-2.0 or BSD only |
+| Any package the code names in an import, asked for or not | MIT, Apache-2.0 or BSD only |
 | What those dependencies bring with them | Any permissive license; never copyleft |
 | Copyleft code or dependencies (GPL, AGPL, LGPL, MPL and the like) | Never |
 | Non-commercial or research-only code | Never |
@@ -16,7 +17,13 @@ This repository is MIT licensed. The rule below keeps it that way.
 
 `tests/test_licenses.py` enforces the dependency rows: it reads
 `pyproject.toml`, looks up what each installed package declares, and fails on
-anything outside the rule or anything that declares no license at all.
+anything outside the rule or anything that declares no license at all. It
+also reads every import written in the engine's code and fails on a package
+that is not in its list of the ones that have been read and found to meet the
+rule.
+
+Anything else goes in a [plugin](#adapters-and-plugins), in another
+repository, under its own license.
 
 ## Dependencies
 
@@ -29,10 +36,14 @@ anything outside the rule or anything that declares no license at all.
 | `torch`, `torchvision` | BSD-3-Clause | The second detector | `[torchvision]` |
 | `onnx` | Apache-2.0 | Building a small model in the tests | `[test]` |
 
-Three things the engine can use are installed by you and never by the engine.
-Each is under a license the rule allows and brings packages with it that are
-outside the rule, `tqdm` (MPL-2.0 and MIT) and `certifi` (MPL-2.0) at the
-least, so none is an extra and nothing in the engine needs any of them:
+Four things the engine can use are installed by you and never by the engine.
+Each is under a license the rule allows, and the engine's code names nothing
+in an import that is not. Each also brings packages of its own choosing with
+it, and two of those are outside the rule: `tqdm` (MPL-2.0 and MIT) and
+`certifi` (MPL-2.0), which come with anything that fetches a model from
+Hugging Face. The engine does not contain them, ask for them or import them,
+so none of the four is an extra and nothing else in the engine needs any of
+them:
 
 - `mlx-audio` (MIT), which the `mlx` speech adapter runs a model through on
   Apple silicon.
@@ -43,14 +54,15 @@ least, so none is an extra and nothing in the engine needs any of them:
 - `diffusers`, `transformers` and `ftfy` (Apache-2.0), which the `diffusers`
   video adapter loads a model with, on `torch`.
 
-The `kokoro` speech adapter needs more, and one part of it is under a license
-the rule does not allow in the engine. It is installed by you as well, and
-nothing else in the engine uses any of it:
+The fourth is what the `kokoro` speech adapter needs besides `mlx-audio`.
+What it would otherwise bring that is copyleft, the adapter does without:
 
 - `misaki` (Apache-2.0), which turns English into the sounds the model is
   handed, with `spacy` (MIT) and spaCy's `en_core_web_sm` (MIT).
-- `num2words` (LGPL), which misaki cannot be imported without. It is a
-  library you install and the engine calls nothing in it.
+- Not `num2words`, which is LGPL and which misaki imports by name to write
+  a number out in words. Where it is not installed the engine's own
+  (`speech/numerals.py`, MIT) stands in its place and says the same words
+  for English.
 - Not `phonemizer-fork` or `espeakng-loader`, which are GPL-3.0 and which
   misaki would hand a word it does not know to. The adapter reads such a word
   itself, and does not ask for them. `pip install "misaki[en]"` brings them:
@@ -67,6 +79,8 @@ Left out on purpose, each replaced by something that meets the rule:
 | PySceneDetect | Needs OpenCV | The cut detector in `video/cuts.py` |
 | `soundfile`, and `librosa`, which needs it | They load libsndfile, which is LGPL | The `ffmpeg` program to read sound, and the writer in `audio/pcm.py` |
 | `pedalboard` | GPL-3.0 | The `effects` slot, with `ffmpeg` behind it |
+| `num2words` | LGPL | The number words in `speech/numerals.py` |
+| `phonemizer-fork`, `espeakng-loader` | GPL-3.0 | The reader of unknown words in `speech/sounding.py` |
 
 Binary wheels are built by their own projects and can bundle more than the
 package's own code. Two things worth knowing before you redistribute an
@@ -86,8 +100,16 @@ repository, [media-engine-plugins](https://github.com/constructive-io/media-engi
 as a package of its own under that tool's license. The engine never imports a
 plugin by name. It discovers the ones you have installed, never makes one the
 default, and `media adapters` shows each with its license and where it came from.
-Two are there now: `pedalboard` for the `effects` slot (GPL-3.0) and
-`ultralytics` for the `detection` slot (AGPL-3.0).
+Six are there now:
+
+| Plugin | Slot | Why it is not here |
+| --- | --- | --- |
+| `pedalboard` | `effects` | The library is GPL-3.0 |
+| `ultralytics` | `detection` | The library is AGPL-3.0 |
+| `seedvc` | `voice_conversion` | The tool is GPL-3.0 |
+| `ltx` | `video` | The model is under its maker's own terms |
+| `demucs` | `separation` | The weights are for research only, and it needs an LGPL encoder |
+| `latentsync` | `lip_sync` | The weights carry use restrictions, and its face models are for non-commercial research |
 
 ## Models
 
