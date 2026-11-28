@@ -5,6 +5,7 @@ handed a stand-in that answers as mlx-audio's models do, and a stand-in for
 `mlx.core` that keeps arrays as numpy does.
 """
 
+import json
 import sys
 import tempfile
 import types
@@ -133,6 +134,43 @@ class MlxSpeechTest(unittest.TestCase):
         for wrong, why in (("{", "is not JSON"), ("[1]", "should be a JSON object")):
             with self.assertRaisesRegex(speech.SpeechError, why):
                 said_here.MlxSpeech(settings=settings_in(self.folder / "home", extras={"speech": wrong}))
+
+    def test_a_line_given_a_limit_is_said_in_a_process_of_its_own(self):
+        speaker = said_here.MlxSpeech(settings=settings_in(
+            self.folder / "home", extras={"speech": '{"patience": 90, "temperature": 0.5}'}))
+        self.assertEqual((speaker.patience, speaker.apart().patience), (90.0, 90.0))
+        there = speaker.apart()._env
+        self.addCleanup(speaker.apart().close)
+        # The other process is this adapter with the same model and settings, and no limit of its own.
+        self.assertEqual(speaker.apart().maker, "constructive_media.speech.mlx:MlxSpeech")
+        self.assertEqual(json.loads(there["CONSTRUCTIVE_MEDIA_EXTRA_SPEECH"]),
+                         {"temperature": 0.5, "top_p": 0.8, "language": "english"})
+        self.assertEqual((there["CONSTRUCTIVE_MEDIA_MODEL_SPEECH"], there["CONSTRUCTIVE_MEDIA_HOME"]),
+                         (said_here.DEFAULT_MODEL, str(self.folder / "home")))
+        asked = []
+        speaker._apart = types.SimpleNamespace(call=lambda what, **how: asked.append((what, how)) or [0.5, 0.5])
+        voice = speech.Voice("ada", reference_audio=str(self.clip), reference_text="The lantern is lit at dusk.", seed=4)
+        written = speaker.say("Bring the boats in.", self.folder / "line.wav", voice=voice, seed=507)
+        speaker.say_as("Bring the boats in.", self.folder / "as.wav", embedding=[0.5, 0.5], seed=2)
+        self.assertEqual(speaker.embed(self.clip), [0.5, 0.5])
+        self.assertEqual(written, self.folder / "line.wav")
+        self.assertEqual([what for what, _ in asked], ["say", "say_as", "embed"])
+        self.assertEqual(asked[0][1], {"text": "Bring the boats in.", "target": str(self.folder / "line.wav"), "seed": 507,
+                                       "voice": {"persona": "ada", "emotion": "neutral", "engine": None, "profile": None,
+                                                 "reference_audio": str(self.clip),
+                                                 "reference_text": "The lantern is lit at dusk.", "seed": 4}})
+        self.assertEqual(self.model.asked, [])                # nothing was said in this process
+        with self.assertRaisesRegex(speech.SpeechError, "is not there"):
+            speaker.say("Bring the boats in.", self.folder / "line.wav", voice=speech.Voice("ada", reference_audio="gone.wav"))
+
+    def test_a_limit_is_a_number_of_seconds_and_none_is_no_limit(self):
+        self.assertIsNone(self.speaker.patience)
+        for none in ("null", "0", "false"):
+            made = said_here.MlxSpeech(settings=settings_in(self.folder / "home", extras={"speech": '{"patience": %s}' % none}))
+            self.assertIsNone(made.patience)
+        for wrong in ('"soon"', "-5", "true"):
+            with self.assertRaisesRegex(speech.SpeechError, "how many seconds a line is given"):
+                said_here.MlxSpeech(settings=settings_in(self.folder / "home", extras={"speech": '{"patience": %s}' % wrong}))
 
     def test_a_voice_is_heard_as_numbers_and_said_from_them(self):
         heard = self.speaker.embed(self.clip)

@@ -26,6 +26,12 @@ line is said while holding a lock that every `media` on the machine shares.
 `CONSTRUCTIVE_MEDIA_EXTRA_SPEECH` is a JSON object of what to say a line
 with, in place of the defaults here: `{"temperature": 0.3, "top_p": 0.8,
 "language": "english"}`.
+
+A model on a graphics processor can stop without failing, and then a script
+left to render by itself waits on one line until somebody looks. `"patience":
+120` in the same object gives a line that many seconds: the model is run in
+a process of its own, and when a line takes longer that process is stopped,
+the line counts as failed, and the next is said by a new one. See `apart`.
 """
 
 from __future__ import annotations
@@ -36,6 +42,7 @@ import math
 import os
 import re
 from collections.abc import Iterator
+from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
@@ -43,6 +50,7 @@ from .. import gpu
 from ..audio import pcm
 from ..settings import Settings
 from . import SpeechError, Voice
+from .apart import Apart
 
 DEFAULT_MODEL = "mlx-community/Qwen3-TTS-12Hz-1.7B-Base-bf16"
 #: What a line is said with. A low temperature keeps a clone close to its recording.
@@ -53,6 +61,8 @@ REFERENCE_RATE = 24_000
 TOKENS_A_SECOND = 12.5
 SLOWEST_WORDS_A_SECOND = 1.0
 LEAST_TOKENS = 96
+#: The name of this adapter, as the process a model is run apart in builds it.
+MAKER = "constructive_media.speech.mlx:MlxSpeech"
 
 
 def most_tokens(text: str) -> int:
@@ -90,8 +100,22 @@ def extras(settings: Settings) -> dict[str, Any]:
     return given
 
 
+def _patience(given: Any) -> float | None:
+    """How many seconds a line is given, or None when it is given as long as it takes."""
+    if given in (None, False, 0, ""):
+        return None
+    try:
+        seconds = float(given)
+    except (TypeError, ValueError):
+        seconds = 0.0
+    if isinstance(given, bool) or seconds <= 0:
+        raise SpeechError('"patience" in CONSTRUCTIVE_MEDIA_EXTRA_SPEECH is how many seconds a line is given, '
+                          f"such as 120; it is {given!r}")
+    return seconds
+
+
 class MlxSpeech:
-    """A speech model run in this process, on Apple silicon."""
+    """A speech model run on Apple silicon: in this process, or in one of its own when lines are given a limit."""
 
     name = "mlx"
 
@@ -99,8 +123,10 @@ class MlxSpeech:
         settings = settings or Settings.from_env()
         self.model = model or settings.model("speech") or DEFAULT_MODEL
         self.options = {**DEFAULTS, **extras(settings)}
+        self.patience = _patience(self.options.pop("patience", None))
         self._settings = settings
         self._loaded: Any = None
+        self._apart: Apart | None = None
 
     # The model.
 
@@ -124,27 +150,44 @@ class MlxSpeech:
         with gpu.alone(self._settings):
             yield
 
+    def apart(self) -> Apart:
+        """This adapter in a process of its own, where a line that takes too long can be stopped."""
+        if self._apart is None:
+            assert self.patience is not None
+            said_with = json.dumps(self.options)  # as here, and without the patience: it is not apart from itself
+            self._apart = Apart(MAKER, patience=self.patience, env={
+                **os.environ, "CONSTRUCTIVE_MEDIA_HOME": str(self._settings.home),
+                "CONSTRUCTIVE_MEDIA_MODEL_SPEECH": self.model, "CONSTRUCTIVE_MEDIA_EXTRA_SPEECH": said_with})
+        return self._apart
+
     # Saying.
 
     def say(self, text: str, target: Path, *, voice: Voice, seed: int | None = None) -> Path:
-        asked: dict[str, Any] = {}
+        recording = None
         if voice.reference_audio:
             recording = Path(voice.reference_audio).expanduser()
             if not recording.is_file():
                 raise SpeechError(f"the recording the {voice.emotion} voice of {voice.persona!r} was made from "
                                   f"is not there: {recording}")
+        elif not voice.profile:
+            raise SpeechError(f"the {voice.emotion} voice of {voice.persona!r} has neither a recording to clone "
+                              "nor a profile, the name a model knows one of its own voices by")
+        if self.patience:
+            self.apart().call("say", text=text, target=str(target), voice=asdict(voice), seed=seed)
+            return Path(target)
+        asked: dict[str, Any] = {}
+        if recording is not None:
             asked["ref_audio"] = self._heard(recording)
             if voice.reference_text:
                 asked["ref_text"] = voice.reference_text
-        elif voice.profile:
-            asked["voice"] = voice.profile
         else:
-            raise SpeechError(f"the {voice.emotion} voice of {voice.persona!r} has neither a recording to clone "
-                              "nor a profile, the name a model knows one of its own voices by")
+            asked["voice"] = voice.profile
         return self._said(text, target, seed, asked)
 
     def embed(self, recording: str | Path) -> list[float]:
         """A voice as the numbers this model hears it by, from a recording of it."""
+        if self.patience:
+            return [float(one) for one in self.apart().call("embed", recording=str(recording))]
         with self.alone():
             model = self.loaded()
             if getattr(model, "speaker_encoder", None) is None:
@@ -154,6 +197,9 @@ class MlxSpeech:
 
     def say_as(self, text: str, target: Path, *, embedding: list[float], seed: int | None = None) -> Path:
         """Say `text` in the voice that `embedding` is, as `embed` gives one or as two of them blended."""
+        if self.patience:
+            self.apart().call("say_as", text=text, target=str(target), embedding=list(embedding), seed=seed)
+            return Path(target)
         import mlx.core as mx
 
         forced = mx.array([embedding], dtype=mx.float32)

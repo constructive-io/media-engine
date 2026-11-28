@@ -348,6 +348,21 @@ changes what it is said with. Two models on one graphics processor at once can
 stop a machine dead, so every `media` on a machine takes turns: a line is said
 while holding one lock under the engine's home.
 
+A model on a graphics processor can also stop without failing: it neither
+raises nor finishes, and a script left to render overnight is found in the
+morning one line in. For anything that runs with nobody watching, give a line
+a limit:
+
+```sh
+export CONSTRUCTIVE_MEDIA_EXTRA_SPEECH='{"patience": 120}'
+```
+
+The model is then run in a process of its own. A line that has not been said
+120 seconds after its turn on the graphics processor came is stopped, process
+and all; it counts as a line that failed, so it is said again with another
+seed, by a new process. Waiting a turn behind another `media` is not counted,
+and neither is loading the model.
+
 mlx-audio is MIT, and is not one of the engine's extras because it brings two
 packages under MPL-2.0 with it, tqdm and certifi. You install it yourself,
 knowing that; the engine needs neither.
