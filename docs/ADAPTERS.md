@@ -464,9 +464,9 @@ export CONSTRUCTIVE_MEDIA_ADAPTER_VOICE_CONVERSION=seedvc
 ```
 
 `seedvc` is [Seed-VC](https://github.com/Plachtaa/seed-vc), whose code and
-weights are GPL-3.0. Its adapter is in
-[media-engine-plugins](https://github.com/constructive-io/media-engine-plugins)
-under that license, which is why it is there and not here.
+weights are GPL-3.0. Its adapter is a plugin in
+[media-engine-plugins](https://github.com/constructive-io/media-engine-plugins),
+under that license.
 
 An adapter is asked for one recording at a time and may be asked by more than
 one thread. It writes a WAV file, at whatever rate its model works at. What it
