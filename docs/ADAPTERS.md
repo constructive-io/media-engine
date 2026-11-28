@@ -20,6 +20,7 @@ that does the job.
 | `speaker` | a voice as numbers, alike for one person and apart for two | `onnx` |
 | `speech` | text to speech | `http`, `mlx`, `kokoro` |
 | `denoise` | a voice with the noise under it taken off | `ffmpeg` |
+| `separation` | a recording pulled apart into the voice and what was under it | |
 | `voice_conversion` | one voice re-spoken in another | |
 | `image` | a picture made from a description | `mflux` |
 | `video` | a piece of video made from a description | `diffusers` |
@@ -98,6 +99,7 @@ What an adapter must do is set by its slot:
 | `detection` | `constructive_media.detection.Detector` | `detect(images, confidence)` returns the detections for each image, boxes as shares of the frame |
 | `speaker` | `constructive_media.speakers.Embedder` | `embed(sounds)` returns one row of numbers for each stretch of sound, at unit length, close together for one voice |
 | `voice_conversion` | `constructive_media.conversion.Converter` | `convert(source, target, like=clip)` writes what `source` says as a WAV file at `target`, in the voice heard in `clip`, and returns where it wrote it. The words, their timing and their tune are the recording's; the voice is the clip's. Its `name` and `model` are printed beside what it made |
+| `separation` | `constructive_media.separation.Separator` | `separate(source, folder)` writes the parts of `source` into `folder`, each a WAV file, and returns where each is by its name. One part is `voice`; the others are `rest`, or a name each. Its `name` and `model` are printed beside what it made |
 | `effects` | `constructive_media.effects.EffectBackend` | `apply(source, target, effects)` writes the audio with the effects applied, and answers a WAV file of floats with one, so a track that passes full scale on its way into a mix is not clipped. It may also say how long its effects ring, with `ring(effects)`, and a mix leaves that much room |
 | `image`, `video` | `constructive_media.generate.Maker` | `make(request, target)` writes the picture or the piece of video a request describes to `target`. Its `name` and `model` go on record beside what it made. It may say what a request costs, with `price(request)`. One that asks a service and is answered later has `submit(request)`, `poll(job)` and `fetch(job, target)` in place of `make` (`constructive_media.generate.Later`), and `media collect` brings in what it made |
 
@@ -582,6 +584,42 @@ by ten decibels or so and leaves the voice nearly as it was. It is the last
 thing `media clean` reaches for, after the filters that cost a voice nothing; see
 [VOICES.md](./VOICES.md#clean-a-recording-first). A model that does better is
 an adapter in this slot.
+
+## Separation
+
+A model that separates takes a recording of several things at once, somebody
+speaking or singing over music, and gives each back as a recording of its own.
+It is not denoising: a denoiser takes off what is steady, and music is not.
+
+```sh
+media separate song.wav parts      # parts/voice.wav, parts/rest.wav
+```
+
+Nothing built in fills the slot. The models that do it well learned from
+music that could be used for research and nothing else, and their weights
+carry that with them, so an adapter is a plugin, installed beside the engine
+and chosen by name:
+
+```sh
+export CONSTRUCTIVE_MEDIA_ADAPTER_SEPARATION=demucs      # or --adapter demucs, for one recording
+```
+
+`demucs` is [Demucs](https://github.com/adefossez/demucs). Its code is MIT.
+Its weights are not: their authors say they "are not covered by the MIT
+license, and are provided only for scientific purposes". The adapter is in
+[media-engine-plugins](https://github.com/constructive-io/media-engine-plugins),
+and its README has what the authors have said, in their words. Read it before
+you use what the adapter makes.
+
+An adapter is handed a recording and a folder and writes a WAV file for each
+part, at whatever rate its model works at. One part is always `voice`. The
+others are `rest`, for everything else as one, or a name for each thing the
+model keeps apart. What it cannot do it says by raising
+`constructive_media.separation.SeparationError`, which a command prints as
+one line. `separation.apart(recording, folder)` is what the command calls:
+it checks what the adapter gave back, writes the parts where they were asked
+for, and measures how loud each is beside the recording, so a part with
+nothing in it is seen to have nothing in it.
 
 ## Effects
 

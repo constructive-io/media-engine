@@ -531,6 +531,15 @@ media revoice take.wav out/take-as-ada.wav --voice ada
 media talk --voice ada --quick af_heart     # a quick voice, said again in a cloned one
 ```
 
+A voice with music under it can be taken out from over the music. That is a
+model's work too, and a [plugin](https://github.com/constructive-io/media-engine-plugins)
+fills the `separation` slot with one whose weights are for research
+([docs/VOICES.md](./docs/VOICES.md#a-voice-with-music-under-it)):
+
+```sh
+media separate interview.wav parts          # parts/voice.wav, parts/rest.wav
+```
+
 The models that listen, write and speak can hold a conversation between
 them. What you say is written down, answered and said back, a sentence at a
 time, and it stops when you speak over it:

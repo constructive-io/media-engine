@@ -1,10 +1,10 @@
 ---
 name: constructive-media
-description: Constructive Media — one engine for video, images, audio and voice, driven by the `media` command line with its state in PostgreSQL. Use when asked to "render a .conv", "turn a script into audio", "make a voiced scene", "say this script", "say this in a voice", "give a persona a voice", "clone a voice", "audition a voice", "blend two voices", "mix voices", "make a new voice from two", "make a quick voice", "a fast voice for talking", "mimic a voice", "use Kokoro", "say this recording in another voice", "revoice a recording", "convert a voice", "talk in a cloned voice", "make a narrated deck", "film a deck", "turn a script into a video", "make a walkthrough video", "narrate a document", "add a voice library", "set up the media engine", "ingest footage", "transcribe recordings", "find the best takes", "make a cut", "render a cut", "generate an image", "generate a video", "make a picture from a prompt", "talk to a model", "have a voice conversation", "measure the voice latency", or to choose a model, an adapter or a plugin for the engine.
+description: Constructive Media — one engine for video, images, audio and voice, driven by the `media` command line with its state in PostgreSQL. Use when asked to "render a .conv", "turn a script into audio", "make a voiced scene", "say this script", "say this in a voice", "give a persona a voice", "clone a voice", "audition a voice", "blend two voices", "mix voices", "make a new voice from two", "make a quick voice", "a fast voice for talking", "mimic a voice", "use Kokoro", "say this recording in another voice", "revoice a recording", "convert a voice", "talk in a cloned voice", "take a voice out of a song", "separate a voice from music", "remove the music from under a voice", "make a narrated deck", "film a deck", "turn a script into a video", "make a walkthrough video", "narrate a document", "add a voice library", "set up the media engine", "ingest footage", "transcribe recordings", "find the best takes", "make a cut", "render a cut", "generate an image", "generate a video", "make a picture from a prompt", "talk to a model", "have a voice conversation", "measure the voice latency", or to choose a model, an adapter or a plugin for the engine.
 compatibility: Python 3.11+, PostgreSQL 17+ with pgvector, pgpm, ffmpeg, whisper.cpp; Chrome or Chromium for video of a page
 metadata:
   author: constructive-io
-  version: "0.14.0"
+  version: "0.15.0"
 ---
 
 # Constructive Media
@@ -312,6 +312,30 @@ the same sort of voice and not theirs. Keep it under a name of its own
 it as `ada` takes the place of the cloned one. A kept one is spoken by the
 `kokoro` adapter whatever speaks everybody else. It is made from somebody's
 recording: only with their yes.
+
+**Take a voice out from over music.** A recording with music under the voice
+is pulled apart before a clip is cut from it: `media clean` takes off a hiss
+or a hum, and music is neither. Nothing in the engine does it: it needs a
+plugin from
+[media-engine-plugins](https://github.com/constructive-io/media-engine-plugins)
+(`demucs`), chosen with `CONSTRUCTIVE_MEDIA_ADAPTER_SEPARATION=demucs` or
+`--adapter demucs`. Its code is MIT and its weights are not: their authors
+provide them "only for scientific purposes". Say that before installing it,
+and again before a voice made with it goes into anything that is not
+research.
+
+```sh
+media separate interview.wav parts     # parts/voice.wav and parts/rest.wav, and how loud each is
+media separate interview.wav parts --json
+media clean parts/voice.wav            # then as any other recording
+```
+
+It prints a level for each part. Where it says hardly anything came out as
+the voice, there was none to find; where it says hardly anything came out but
+the voice, use the recording as it is. Some of the music stays in the voice
+(about 13 dB further under it, in one trial) and a clone copies it: have the
+person listen to `voice.wav`, and prefer a recording of the voice alone when
+there is one. The recording is somebody's, and so is the voice in it.
 
 **Say a recording again in another voice.** A model that converts keeps a
 recording's words, timing and tune and changes whose voice it is. Nothing in

@@ -26,6 +26,7 @@ from ..generate import GenerateError
 from ..libraries import LibraryError
 from ..models import ModelError
 from ..scaffold import ScaffoldError
+from ..separation import SeparationError
 from ..settings import SettingsError
 from ..speakers import SpeakerError
 from ..speech import SpeechError
@@ -63,8 +64,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         return arguments.run(arguments) or 0
     except (AdapterError, BrowserError, CleanError, ConvError, DatabaseError, DenoiseError, EditError, FfmpegError,
-            GenerateError, LaughterError, LibraryError, ModelError, ScaffoldError, SettingsError, SpeakerError, SpeechError,
-            StageError, TakeError, TalkError, TextError, TranscriptionError, UpkeepError) as error:
+            GenerateError, LaughterError, LibraryError, ModelError, ScaffoldError, SeparationError, SettingsError,
+            SpeakerError, SpeechError, StageError, TakeError, TalkError, TextError, TranscriptionError,
+            UpkeepError) as error:
         print(f"media: {error}", file=sys.stderr)
         return 1
     except ModuleNotFoundError as error:

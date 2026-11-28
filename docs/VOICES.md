@@ -39,7 +39,7 @@ What clones best, measured over many voices and models:
 | | |
 | --- | --- |
 | Length | 15 to 28 seconds. Under 12 there is too little of the voice; over 30 most models stop listening |
-| Who | one person, in one mood, with nobody else and no music |
+| Who | one person, in one mood, with nobody else and no music ([a voice with music under it](#a-voice-with-music-under-it) is taken out first) |
 | Ending | the quiet after a plain, complete sentence. A model goes on from where its clip stops: one that ends mid-word, or whose words say more than its sound, is heard at the start of every line |
 | Pauses | none over three seconds. A model copies a long pause as readily as a word |
 | Form | one channel, 24 kHz, at -19 LUFS with peaks under -2 dB |
@@ -91,6 +91,45 @@ right, `media library clip` does all of this in one step: see
 Keep the recording the clip was cut from somewhere else. A clip is a few
 hundred kilobytes; a library of clips stays small enough to clone in a moment.
 
+## A voice with music under it
+
+Music is not noise. A cleaner takes off what is steady, a hiss or a hum, and
+music moves as much as the voice does. Taking one from the other is
+separation, and it is a model's work:
+
+```sh
+media separate interview.wav parts
+```
+
+```
+interview.wav: -13.6 dB, pulled apart in 1.7 s by demucs htdemucs
+  voice   -16.2 dB  13.2 s  parts/voice.wav
+  rest    -17.6 dB  13.2 s  parts/rest.wav
+```
+
+`parts/voice.wav` is whoever speaks or sings, and `parts/rest.wav` everything
+that was under them. The numbers are how loud each is, so a part with nothing
+in it shows: where no voice was found, or nothing under one, the command says
+so in words.
+
+Nothing in the engine does this by itself. It needs a
+[plugin](./ADAPTERS.md#separation), and the one there is runs a model whose
+weights its authors provide "only for scientific purposes". Read what that
+plugin's README says before a voice made this way goes into anything:
+
+```sh
+pip install ./media-engine-plugins/plugins/demucs-separation
+export CONSTRUCTIVE_MEDIA_ADAPTER_SEPARATION=demucs
+```
+
+What comes out is not what went in. In one trial, with music about as loud
+as the voice, the music came out 13 dB further under it: quiet, and still
+there in the pauses. The voice loses a little of itself as well, and a clone
+copies both. So listen to `voice.wav` before a clip is cut from it, cut the
+clip where the music was thinnest, and prefer a recording of the voice alone
+wherever there is one. `media clean` and `media reference` take the file from
+there like any other recording.
+
 ## Clean a recording first
 
 A clone copies everything in its clip, the hiss and the hum as much as the
@@ -113,7 +152,7 @@ alone:
 | rumble under 80 Hz | a high-pass filter, which no voice minds |
 | a hum at 50 or 60 Hz | notches at it and at what rings above it |
 | hiss, or noise where the voice sits | the [denoiser](./ADAPTERS.md#denoise), and then a listen: it takes a little of the voice too |
-| no quiet at all | nothing. Music or a crowd under a voice is a second sound, not noise, and no denoiser takes it off |
+| no quiet at all | nothing. Music or a crowd under a voice is a second sound, not noise, and no denoiser takes it off: [`media separate`](#a-voice-with-music-under-it) does |
 
 After a cleaning the same stretches are measured again. It says how many
 decibels further under the voice the noise now is, and how much the voice

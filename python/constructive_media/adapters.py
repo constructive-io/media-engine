@@ -50,6 +50,7 @@ SLOTS: dict[str, str] = {
     "lip_sync": "a face re-timed to new speech",
     "effects": "audio effects",
     "denoise": "a voice with the noise under it taken off",
+    "separation": "a recording pulled apart into the voice and what was under it",
     "text": "text generation and judgement",
     "embedding": "text and image embeddings",
     "browser": "a page opened and watched, for a film of it",

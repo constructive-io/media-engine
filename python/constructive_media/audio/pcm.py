@@ -83,7 +83,8 @@ def write(path: str | Path, samples: Any, rate: int, *, bits: int = 24) -> Path:
         data = samples.astype("<f4").tobytes()
     else:
         top = (1 << (bits - 1)) - 1
-        whole = np.rint(np.clip(samples, -1.0, 1.0) * top).astype("<i4")
+        # In rows, whatever order the samples were handed over in: a table turned on its side is still a table.
+        whole = np.rint(np.clip(samples, -1.0, 1.0) * top).astype("<i4", order="C")
         data = whole.astype("<i2").tobytes() if width == 2 else whole.view(np.uint8).reshape(-1, 4)[:, :3].tobytes()
     if len(data) > _MOST:
         raise ValueError("the sound is too long for one WAV file")

@@ -25,7 +25,8 @@ whether it hums at the mains.
 
 A recording with no quiet in it at all has something under the voice all the
 way through: music, a crowd, a room. That is not noise to take off. It is a
-second sound, and taking a voice out from over one is separation.
+second sound, and taking a voice out from over one is separation, which
+`media separate` is for.
 """
 
 from __future__ import annotations
@@ -204,7 +205,8 @@ def advise(noise: Noise) -> tuple[list[str], list[str]]:
     if noise.floor is None:
         return [], ["there is no quiet in it to measure a noise by. If something plays under the voice all the "
                     "way through, music or a crowd, that is not noise to take off: it is a second sound, and "
-                    "taking a voice out from over one is separation, which no denoiser does"]
+                    "taking a voice out from over one is separation, which no denoiser does and `media separate` "
+                    "is for"]
     if noise.snr >= CLEAN_DB:
         return [], [f"the voice stands {noise.snr:.0f} dB over the quiet between its phrases: leave it alone"]
     steps, why = [], []

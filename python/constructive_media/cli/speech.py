@@ -224,6 +224,21 @@ def register(commands: Any) -> None:
     command.add_argument("--json", action="store_true", help="print the whole report as JSON")
     command.set_defaults(run=run_revoice)
 
+    command = commands.add_parser(
+        "separate", help="pull a recording apart into the voice and what was under it",
+        description="Write the voice in a recording and what was under it as files of their own, as in "
+                    "`media separate song.wav parts`: parts/voice.wav, and parts/rest.wav or a file for each "
+                    "thing the model keeps apart. It prints how loud each part is beside the recording. It is "
+                    "what comes before `media clean` and `media reference` when a voice was only ever recorded "
+                    "over music. Whatever fills the separation slot does it, and nothing built in does: an "
+                    "adapter for one is a plugin.",
+    )
+    command.add_argument("recording", help="a recording of a voice with something under it")
+    command.add_argument("folder", help="where the parts are written, one WAV file each")
+    command.add_argument("--adapter", metavar="NAME", help="which separator pulls it apart, when there is more than one")
+    command.add_argument("--json", action="store_true", help="print the whole report as JSON")
+    command.set_defaults(run=run_separate)
+
 
 def _voices(one: Any) -> str:
     return (f"{one.found} found voice{'' if one.found == 1 else 's'}, "
@@ -540,6 +555,25 @@ def run_revoice(arguments: argparse.Namespace) -> int | None:
     print(f"  {told['seconds']:.1f} s said again in {told['took']:.1f} s by {told['adapter']} {told['model']}".rstrip())
     if told["alike"] <= told["before"]:
         print("  it is no more like that voice than it was: listen before it is used")
+    return None
+
+
+def run_separate(arguments: argparse.Namespace) -> int | None:
+    import json
+
+    from .. import separation
+
+    told = separation.apart(arguments.recording, arguments.folder, adapter=arguments.adapter)
+    if arguments.json:
+        print(json.dumps(told, indent=2, ensure_ascii=False))
+        return None
+    print(f"{told['recording']}: {told['level']:.1f} dB, pulled apart in {told['took']:.1f} s by "
+          f"{told['adapter']} {told['model']}".rstrip())
+    wide = max(len(one["part"]) for one in told["parts"])
+    for one in told["parts"]:
+        print(f"  {one['part']:<{wide}}  {one['level']:6.1f} dB  {one['seconds']:.1f} s  {one['file']}")
+    for note in told["notes"]:
+        print(f"  {note}")
     return None
 
 
