@@ -1,8 +1,8 @@
-"""Pictures and video made from a description, and a record of every one.
+"""Pictures, video and sounds made from a description, and a record of every one.
 
-A `Maker` is given words and writes a picture or a piece of video. The
-engine asks for one by slot, `image` or `video`, and never knows which model
-or which program made it.
+A `Maker` is given words and writes a picture, a piece of video or a sound.
+The engine asks for one by slot, `image`, `video` or `audio`, and never knows
+which model or which program made it.
 
 What is made is kept apart from what was filmed, and that is most of what
 this module is for:
@@ -41,7 +41,7 @@ from ..ingest import quick_hash
 from ..settings import Settings
 
 #: What can be made, and what a file of it ends in. Each is also the slot that makes it.
-MEDIUMS = {"image": ".png", "video": ".mp4"}
+MEDIUMS = {"image": ".png", "video": ".mp4", "audio": ".wav"}
 #: The folder under the work folder that made files go to.
 FOLDER = "generated"
 #: What lineage says made them.
@@ -66,7 +66,7 @@ class Request:
     prompt: str
     width: int | None = None
     height: int | None = None
-    #: How long a piece of video is to run.
+    #: How long a piece of video or a sound is to run.
     seconds: float | None = None
     #: How many passes the model makes: more is slower, and up to a point better.
     steps: int | None = None
@@ -86,7 +86,7 @@ class Job:
 
 @runtime_checkable
 class Maker(Protocol):
-    """Something that makes a picture or a piece of video from words.
+    """Something that makes a picture, a piece of video or a sound from words.
 
     One that knows what a request will cost may also have
     `price(request) -> float | None`, in US dollars. One that can tell a
@@ -239,8 +239,10 @@ def make(
         value = getattr(request, name)
         if value is not None and value <= 0:
             raise GenerateError(f"{name} is {value:g}; it should be more than nothing")
-    if request.seconds is not None and request.medium != "video":
-        raise GenerateError("only video runs for a length of time")
+    if request.seconds is not None and request.medium == "image":
+        raise GenerateError("a picture does not run for a length of time")
+    if request.medium == "audio" and (request.width or request.height or request.image is not None):
+        raise GenerateError("a sound has no width or height, and does not start from a picture")
     image = image_hash = input_asset = None
     if request.image is not None:
         image = Path(request.image).expanduser().resolve()
@@ -496,10 +498,12 @@ def _succeeded(one: Generation, file: Path, *, took_s: float | None = None) -> N
     facts: dict[str, Any] = {"file": str(file.resolve())}
     if took_s is not None:
         facts["took_s"] = round(took_s, 1)
-    if one.medium == "video":
+    if one.medium in ("video", "audio"):
         described = ffmpeg.probe(file)
-        if described is None or not described.duration_s:
-            raise GenerateError(f"{file.name} was written, and it is not video that plays")
+        plays = described is not None and described.duration_s and (one.medium == "video" or described.has_audio)
+        if not plays:
+            raise GenerateError(f"{file.name} was written, and it is not "
+                                f"{'video' if one.medium == 'video' else 'sound'} that plays")
         facts["duration_s"] = round(described.duration_s, 3)
     told = {name: value for name, value in one.params.items() if name not in ("file", "project")}
     with db.transaction():

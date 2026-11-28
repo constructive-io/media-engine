@@ -24,6 +24,7 @@ that does the job.
 | `voice_conversion` | one voice re-spoken in another | |
 | `image` | a picture made from a description | `mflux` |
 | `video` | a piece of video made from a description | `diffusers` |
+| `audio` | a sound made from a description | `moss` |
 | `lip_sync` | a face re-timed to new speech | |
 | `effects` | audio effects | `ffmpeg` |
 | `text` | text generation and judgement | `http` |
@@ -102,7 +103,7 @@ What an adapter must do is set by its slot:
 | `separation` | `constructive_media.separation.Separator` | `separate(source, folder)` writes the parts of `source` into `folder`, each a WAV file, and returns where each is by its name. One part is `voice`; the others are `rest`, or a name each. Its `name` and `model` are printed beside what it made |
 | `lip_sync` | `constructive_media.lipsync.Syncer` | `sync(video, speech, target)` writes `video` to `target`, an MP4 file, with the mouth of the face in it saying `speech`, and returns where it wrote it. The picture runs as long as the speech; sound in what it writes is ignored. Its `name` and `model` are printed beside what it made |
 | `effects` | `constructive_media.effects.EffectBackend` | `apply(source, target, effects)` writes the audio with the effects applied, and answers a WAV file of floats with one, so a track that passes full scale on its way into a mix is not clipped. It may also say how long its effects ring, with `ring(effects)`, and a mix leaves that much room |
-| `image`, `video` | `constructive_media.generate.Maker` | `make(request, target)` writes the picture or the piece of video a request describes to `target`. Its `name` and `model` go on record beside what it made. It may say what a request costs, with `price(request)`. One that asks a service and is answered later has `submit(request)`, `poll(job)` and `fetch(job, target)` in place of `make` (`constructive_media.generate.Later`), and `media collect` brings in what it made |
+| `image`, `video`, `audio` | `constructive_media.generate.Maker` | `make(request, target)` writes the picture, the piece of video or the sound a request describes to `target`. Its `name` and `model` go on record beside what it made. It may say what a request costs, with `price(request)`. One that asks a service and is answered later has `submit(request)`, `poll(job)` and `fetch(job, target)` in place of `make` (`constructive_media.generate.Later`), and `media collect` brings in what it made |
 
 ## Transcription
 
@@ -594,6 +595,48 @@ in place of `make`. `media generate` hands the request over and returns, and
 `media collect` asks every service whether it has finished and brings in what
 it made; `--wait SECONDS` keeps asking that long. One that can say what a request costs has `price`, and
 `media generate --max-usd` refuses a request priced above it.
+
+
+## Sounds
+
+`media generate audio` hands a description to whatever fills the `audio`
+slot, and so does a script: a sound a `.conv` file gives a `prompt:` and no
+`file:` is made from its words the first time the script is rendered, and
+handed back every time after.
+
+```
+@sounds
+SEA: { prompt: "calm sea against a wooden quay, slow small waves", duration: 8 }
+```
+
+`moss` runs [MOSS-SoundEffect](https://huggingface.co/mlx-community/MOSS-SoundEffect-MLX-4bit)
+(Apache-2.0) through [mlx-speech](https://pypi.org/project/mlx-speech/) (MIT),
+on Apple silicon. mlx-speech wants Python 3.13 or newer, and the engine asks
+for less, so the model is run by a Python of its own, which you make:
+
+```sh
+uv venv --python 3.13 ~/tools/sounds
+uv pip install --python ~/tools/sounds/bin/python mlx-speech
+export CONSTRUCTIVE_MEDIA_EXTRA_AUDIO='{"python": "~/tools/sounds/bin/python"}'
+media generate audio "rain on a tin roof, steady" --seconds 6
+```
+
+Where the engine itself runs on Python 3.13 with mlx-speech beside it, there
+is nothing to set. Nothing in the engine imports it. A sound is four seconds
+unless you say, or a script's `duration:` does, and comes out as a WAV file,
+one channel at 24 kHz. On an Apple M4 Max a sound of three or four seconds
+takes about four, most of it the model being loaded; the weights are about
+6 GB and are fetched the first time.
+
+The same words with the same seed are the same sound. A request with no seed
+is given one worked out from its words, so a script makes the same sounds on
+every machine. `media generate audio … --again` makes another.
+`CONSTRUCTIVE_MEDIA_EXTRA_AUDIO` is a JSON object of `python` (the
+interpreter that has mlx-speech), `seconds` (how long a sound is when nobody
+says) and `codec` (the model that turns what the first writes into sound).
+
+`media say scene.conv out.flac --without-generated` leaves such sounds out
+of a render and says which they were.
 
 ## Text
 

@@ -45,7 +45,7 @@ record of what was made, from what, and why stays in one database.
 * 🎙️ **[Voices](./docs/VOICES.md)** — `media clean` and `media reference` make a clip a voice can be cloned from, `media voice` gives it to a persona, `media audition` has it say lines it has never seen, and `media blend` and `media mimic` make a voice from others
 * 📚 **[Libraries](./docs/LIBRARIES.md)** — voices, sound banks and faces in repositories of their own, each voice with its consent; `media library add`, `search` and `check` use them, and `media library lock` and `install` keep a project's at a commit
 * 🧱 **[Boilerplates](./docs/PROJECTS.md)** — `media init workspace NAME` starts a project and `media init deck NAME` adds a deck to it, from a repository of templates that `pgpm init --repo` reads too
-* 🖼️ **[Pictures and video](./docs/ADAPTERS.md#pictures-and-video)** — `media generate image` and `media generate video` hand a description to a model on your own machine and put what it makes on record as generated; `media generations` lists every request and `media synthetic` lists the clips of a cut that nobody filmed
+* 🖼️ **[Pictures and video](./docs/ADAPTERS.md#pictures-and-video)** — `media generate image`, `media generate video` and `media generate audio` hand a description to a model on your own machine and put what it makes on record as generated; a script's `prompt:` sounds are made the same way; `media generations` lists every request and `media synthetic` lists the clips of a cut that nobody filmed
 * 💬 **[Talking with a model](./docs/TALK.md)** — `media talk` serves a page on your own machine that hears you, answers a sentence at a time and stops when it is spoken over; `--measure` times each of the three models
 * 🔌 **[Plugins for the rest](#pluggable-by-design)** — `media revoice` says a recording again in another voice, `media separate` takes a voice out from over music and `media lipsync` makes a face say a recording, each through a plugin
 * ⚖️ **[One license rule](./docs/LICENSING.md)** — the code is MIT and imports only MIT, Apache-2.0 and BSD packages; `tests/test_licenses.py` fails the build otherwise, and no model weights, voices or footage are in the repository
@@ -103,7 +103,7 @@ Early, and built in the open one layer at a time.
 | [Voices](./docs/VOICES.md): a noisy recording measured and cleaned, a recording cut into a clip a voice can be cloned from, the clip sent to a server that clones or to a model run on a Mac with no server, a voice auditioned before it is used, a voice blended from others and kept as one of its own, a small quick model's own voices mixed until they lean towards a recording, and, with a plugin, a recording said again in another voice | Here, tested with stand-ins for the models |
 | [Libraries](./docs/LIBRARIES.md): voices, sound banks and faces in repositories of their own, each voice with its consent, added by address and kept at a commit | Here, tested |
 | [Starting a project](./docs/PROJECTS.md): `media init` makes a workspace and its decks from a repository of boilerplates, in the format `pgpm init` reads | Here, tested |
-| Pictures and video made from a description by a model on your own machine, every request and what it made kept on record apart from what was filmed | Here, tested with stand-ins for the models |
+| Pictures, video and sounds made from a description by a model on your own machine, every request and what it made kept on record apart from what was filmed | Here, tested with stand-ins for the models |
 | [Talking with a model](./docs/TALK.md): a page on your own machine that hears you, answers with a text model and says the answer back a sentence at a time, and stops when it is spoken over | Here, tested with stand-ins for the models |
 | [Plugins](#pluggable-by-design) for what the core leaves a slot open for: a recording said again in another voice, a voice taken out from over music, the face in a video made to say a recording | Here, tested with stand-ins for the models |
 | Engine: sounds made from a description | Being brought in |
@@ -474,8 +474,9 @@ It deletes nothing.
 
 `media generate` hands a description to a model and keeps what it makes apart
 from what was filmed. `image` is filled by [mflux](https://github.com/filipstrand/mflux)
-running FLUX.2 klein and `video` by Wan through diffusers, both on your own
-machine and both installed by you; [docs/ADAPTERS.md](./docs/ADAPTERS.md#pictures-and-video)
+running FLUX.2 klein, `video` by Wan through diffusers and `audio` by
+MOSS-SoundEffect through mlx-speech, all on your own machine and all
+installed by you; [docs/ADAPTERS.md](./docs/ADAPTERS.md#pictures-and-video)
 says how, and how long each takes. Every request is a row, with its words,
 model, settings and seed, whether it worked or not, and `media generations`
 lists them, or adds them up with `--spend`. The same request is made once:
@@ -532,7 +533,8 @@ An echo or a room put on a line rings on under whatever follows: the next
 line comes in when the words end. `media say scene.conv out/scene.flac --only ada,7`
 says again just one persona's lines and line 7, and keeps every other line as
 it was. A sound described by
-a `prompt:` cannot be made yet: give it a `file:`, or pass
+a `prompt:` is made from its words by whatever fills the `audio` slot, once,
+and kept ([docs/ADAPTERS.md](./docs/ADAPTERS.md#sounds)); pass
 `--without-generated` to leave such sounds out.
 
 The same engine from Python:

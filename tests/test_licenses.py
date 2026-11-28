@@ -28,6 +28,7 @@ IMPORTED = {
     "misaki": ("misaki", "Apache-2.0"),
     "mlx": ("mlx", "MIT"),
     "mlx_audio": ("mlx-audio", "MIT"),
+    "mlx_speech": ("mlx-speech", "MIT"),
     "numpy": ("numpy", "BSD-3-Clause"),
     "onnxruntime": ("onnxruntime", "MIT"),
     "pg8000": ("pg8000", "BSD-3-Clause"),

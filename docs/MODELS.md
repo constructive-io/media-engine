@@ -115,6 +115,19 @@ knows, a repository or a folder. Some of those, the larger FLUX models among
 them, are published under terms that do not allow commercial use. None is
 named here, and which one runs is yours to choose and to check.
 
+## Sounds: a description to a sound
+
+`generate/moss.py`. The `moss` adapter asks for
+`mlx-community/MOSS-SoundEffect-MLX-4bit` when no other model is named:
+[MOSS-SoundEffect](https://huggingface.co/mlx-community/MOSS-SoundEffect-MLX-4bit),
+published under Apache-2.0 in the layout MLX reads, which makes a sound from
+words. What it writes is turned into sound by
+[MOSS-Audio-Tokenizer](https://huggingface.co/mlx-community/MOSS-Audio-Tokenizer-MLX-8bit),
+also Apache-2.0. Both are run by
+[mlx-speech](https://pypi.org/project/mlx-speech/) (MIT) and fetched the first
+time a sound is made. `CONSTRUCTIVE_MEDIA_MODEL_AUDIO` takes a folder or
+another repository that holds the same kind of model.
+
 ## Video: a description to moving pictures
 
 `generate/diffusers.py`. The `diffusers` adapter loads
@@ -166,6 +179,4 @@ so no model is named for them here. `voice_conversion` is filled by a plugin
 ([separation](./ADAPTERS.md#separation)), by a model whose weights are for
 research, and `lip_sync` ([lip sync](./ADAPTERS.md#lip-sync)), by a model
 whose weights say what they may not be used for and whose face models are
-for non-commercial research. Nothing here makes a sound from a description
-either: a `.conv` sound given as a `prompt:` needs a `file:` until there is a
-slot for it.
+for non-commercial research.

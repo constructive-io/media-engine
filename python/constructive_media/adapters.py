@@ -47,6 +47,7 @@ SLOTS: dict[str, str] = {
     "voice_conversion": "one voice re-spoken in another",
     "image": "image generation",
     "video": "video generation",
+    "audio": "a sound made from a description",
     "lip_sync": "a face re-timed to new speech",
     "effects": "audio effects",
     "denoise": "a voice with the noise under it taken off",
@@ -235,6 +236,13 @@ def builtins() -> Iterator[Adapter]:
         factory=lazy("constructive_media.generate.diffusers:DiffusersVideo"),
         license="MIT",
         summary="Video from a description with Wan, run through diffusers",
+    )
+    yield Adapter(
+        slot="audio",
+        name="moss",
+        factory=lazy("constructive_media.generate.moss:Moss"),
+        license="MIT",
+        summary="Sounds from a description with MOSS-SoundEffect, run by mlx-speech on Apple silicon",
     )
     yield Adapter(
         slot="effects",

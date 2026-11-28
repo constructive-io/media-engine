@@ -36,13 +36,13 @@ repository, under its own license.
 | `torch`, `torchvision` | BSD-3-Clause | The second detector | `[torchvision]` |
 | `onnx` | Apache-2.0 | Building a small model in the tests | `[test]` |
 
-Four things the engine can use are installed by you and never by the engine.
+Five things the engine can use are installed by you and never by the engine.
 Each is under a license the rule allows, and the engine's code names nothing
 in an import that is not. Each also brings packages of its own choosing with
 it, and two of those are outside the rule: `tqdm` (MPL-2.0 and MIT) and
 `certifi` (MPL-2.0), which come with anything that fetches a model from
 Hugging Face. The engine does not contain them, ask for them or import them,
-so none of the four is an extra and nothing else in the engine needs any of
+so none of the five is an extra and nothing else in the engine needs any of
 them:
 
 - `mlx-audio` (MIT), which the `mlx` speech adapter runs a model through on
@@ -53,8 +53,10 @@ them:
   LGPL builds of the FFmpeg libraries.
 - `diffusers`, `transformers` and `ftfy` (Apache-2.0), which the `diffusers`
   video adapter loads a model with, on `torch`.
+- `mlx-speech` (MIT), which the `moss` audio adapter makes a sound with on
+  Apple silicon. It is run by a Python of its own and never imported.
 
-The fourth is what the `kokoro` speech adapter needs besides `mlx-audio`.
+The fifth is what the `kokoro` speech adapter needs besides `mlx-audio`.
 What it would otherwise bring that is copyleft, the adapter does without:
 
 - `misaki` (Apache-2.0), which turns English into the sounds the model is

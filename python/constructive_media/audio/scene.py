@@ -26,8 +26,14 @@ it plays must be a file that is there with sound in it, and everybody who
 speaks must have a voice. All that is wrong is reported at once, by line, the
 way a script's own mistakes are.
 
-`render` writes files and nothing else. `record` writes a render down in the
-database: the render, its lines, and the lines a person should listen to.
+A sound with a `prompt:` and no file is made from its words by whatever fills
+the `audio` slot, once: the next render of the same words is handed the sound
+that was made before.
+
+`render` writes files and nothing else, but for a sound it has made from a
+prompt, which is on record like anything else a model made. `record` writes a
+render down in the database: the render, its lines, and the lines a person
+should listen to.
 """
 
 from __future__ import annotations
@@ -38,7 +44,7 @@ import re
 import shutil
 import tempfile
 from collections.abc import Callable, Iterable, Iterator, Sequence
-from dataclasses import dataclass, fields
+from dataclasses import dataclass, field, fields
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -84,8 +90,56 @@ class Ready:
 
     files: dict[str, Path]              # a file as the script writes it, and where it is
     probes: dict[str, ffmpeg.Probe]     # what each of them holds
-    left_out: tuple[str, ...] = ()      # sounds that are made from a prompt, which nothing here makes
+    left_out: tuple[str, ...] = ()      # sounds that are made from a prompt, and were asked to be left out
     notes: tuple[str, ...] = ()         # worth saying, not worth stopping for
+    made: dict[str, Path] = field(default_factory=dict)   # sounds that were made from a prompt, and where each is
+
+
+class Prompted:
+    """Sounds made from their prompts by whatever fills the `audio` slot.
+
+    Each is a request like any other made of a model: put on record, made
+    once, and handed back the next time the same words are asked for.
+    """
+
+    def __init__(self, settings: Settings | None = None, tell: Callable[[str], None] | None = None) -> None:
+        self._settings, self._tell, self._maker = settings, tell or (lambda message: None), None
+
+    def _request(self, spec: dict[str, Any]) -> Any:
+        from .. import generate
+
+        seconds, seed = spec.get("duration"), spec.get("seed")
+        return generate.Request("audio", str(spec.get("prompt") or ""), seconds=float(seconds) if seconds else None,
+                                seed=None if seed is None else int(seed))
+
+    def maker(self) -> Any:
+        from .. import generate
+
+        if self._maker is None:
+            self._maker = generate.maker_for("audio", settings=self._settings)
+        return self._maker
+
+    def cannot(self, name: str, spec: dict[str, Any]) -> str | None:
+        """Why this sound cannot be made here, when that can be told without trying."""
+        try:
+            check = getattr(self.maker(), "check", None)
+            if check is not None:
+                check(self._request(spec))
+        except (LookupError, RuntimeError) as error:
+            return str(error)
+        return None
+
+    def __call__(self, name: str, spec: dict[str, Any]) -> Path:
+        from .. import generate
+
+        asked = self._request(spec)
+        if generate.make(asked, maker=self.maker(), dry_run=True, settings=self._settings).state == generate.WOULD:
+            self._tell(f"  {name}: being made from its prompt")
+        done = generate.make(asked, maker=self.maker(), settings=self._settings)
+        if done.state == generate.WAITING:
+            raise generate.GenerateError(f"{done.backend} has been asked for it and has not made it yet; "
+                                         "`media collect` brings it in, and then this can be rendered")
+        return done.file
 
 
 def folders(script: str | Path, sounds: Iterable[str | Path] = (), shared: Iterable[str | Path] = ()) -> list[Path]:
@@ -109,17 +163,21 @@ def find(file: str, among: Sequence[Path]) -> Path | None:
 
 
 def ready(scene: conv.Scene, *, voices: Voices, among: Sequence[Path], text: str = "",
-          without_generated: bool = False, source: str | None = None) -> Ready:
+          without_generated: bool = False, source: str | None = None,
+          prompted: Callable[[str, dict[str, Any]], Path] | None = None) -> Ready:
     """Hold a script against this machine before anything is said.
 
     Every sound the script plays must be a file that is found and has sound
     in it; what plays on the `video` track must have a picture. Everybody
     who speaks must have a voice. A `ConvError` carries all that is wrong.
 
-    A sound made from a prompt is a problem too, as nothing here makes
-    sounds; with `without_generated` such sounds are left out and listed.
-    An emotion a persona has no voice for is only noted: the line is said in
-    another of its voices.
+    A sound with a prompt and no file is made by `prompted`, which is given
+    its name and what the script says of it and returns the file. It is made
+    only when nothing else is wrong, and from then on the scene has it as a
+    file like any other. With `without_generated` such sounds are left out
+    and listed; with nothing to make them they are a problem. An emotion a
+    persona has no voice for is only noted: the line is said in another of
+    its voices.
     """
     script = text.splitlines()
     problems: list[conv.Problem] = []
@@ -131,6 +189,7 @@ def ready(scene: conv.Scene, *, voices: Voices, among: Sequence[Path], text: str
     files: dict[str, Path] = {}
     probes: dict[str, ffmpeg.Probe] = {}
     left_out: list[str] = []
+    to_make: dict[str, int | None] = {}
     seen: set[tuple[str, bool]] = set()
     bad: set[str] = set()
     for at, track, sound, file in _played(scene):
@@ -143,12 +202,19 @@ def ready(scene: conv.Scene, *, voices: Voices, among: Sequence[Path], text: str
         if not written:
             if sound not in scene["sounds"] or sound in left_out:
                 continue
+            otherwise = ("Give it a `file:`, or render without such sounds (`without_generated`, "
+                         "--without-generated on the command line)")
             if without_generated:
                 left_out.append(sound)
-            else:
-                problem(at, f"`{sound}` is made from a prompt, and nothing here makes sounds from prompts yet.\n"
-                            "Give it a `file:`, or render without such sounds (`without_generated`, "
-                            "--without-generated on the command line)")
+            elif prompted is None:
+                problem(at, f"`{sound}` is made from a prompt, and nothing was given to make it with.\n{otherwise}")
+            elif sound not in to_make:
+                cannot = getattr(prompted, "cannot", None)
+                why = cannot(sound, spec) if cannot is not None else None
+                if why:
+                    problem(at, f"`{sound}` is made from a prompt, and cannot be made here: {why}\n{otherwise}")
+                else:
+                    to_make[sound] = at
             continue
         if written in bad:
             continue
@@ -197,7 +263,23 @@ def ready(scene: conv.Scene, *, voices: Voices, among: Sequence[Path], text: str
                 notes.append(note)
     if problems:
         raise conv.ConvError(problems, source)
-    return Ready(files, probes, tuple(left_out), tuple(notes))
+    # Made last, when nothing else is wrong: a model is not run for a script that cannot be rendered.
+    made: dict[str, Path] = {}
+    for sound, at in to_make.items():
+        try:
+            path = Path(prompted(sound, scene["sounds"][sound])).resolve()   # type: ignore[misc]
+        except Exception as error:
+            problem(at, f"`{sound}` could not be made from its prompt: {error}")
+            continue
+        probe = ffmpeg.probe(path)
+        if probe is None or not probe.has_audio:
+            problem(at, f"`{sound}` was made from its prompt as `{path}`, which has no sound in it")
+            continue
+        scene["sounds"][sound]["file"] = str(path)
+        files[str(path)], probes[str(path)], made[sound] = path, probe, path
+    if problems:
+        raise conv.ConvError(problems, source)
+    return Ready(files, probes, tuple(left_out), tuple(notes), made)
 
 
 def render(
@@ -207,7 +289,8 @@ def render(
     stems: bool = False,
     only: str | Iterable[Any] | None = None, gap: float = GAP, loudness: float | None = LOUDNESS,
     label: str | None = None, without_generated: bool = False, tell: Callable[[str], None] | None = None,
-    backend: str | None = None, settings: Settings | None = None, **how: Any,
+    backend: str | None = None, settings: Settings | None = None,
+    prompted: Callable[[str, dict[str, Any]], Path] | None = None, **how: Any,
 ) -> dict[str, Any]:
     """Render a script to `target`, in the kind of file its name asks for.
 
@@ -216,7 +299,9 @@ def render(
     speaks it, and `transcriber` listens back; both are the configured
     adapters unless given. `banks` are the folders `@include` looks in, and
     `sounds` the folders sound files are looked for in before the script's
-    own, with `shared` the ones looked in after it. `how` is passed on to every line: `attempts`, `reword` and the rest
+    own, with `shared` the ones looked in after it. `prompted` makes a sound
+    from its prompt, and is whatever fills the `audio` slot unless given;
+    `without_generated` leaves such sounds out. `how` is passed on to every line: `attempts`, `reword` and the rest
     of what `line.speak` takes.
 
     `only` renders again just some lines of a scene rendered here before:
@@ -232,7 +317,8 @@ def render(
     scene = conv.load(script, banks=[str(folder) for folder in banks])
     voices = voices if voices is not None else StoredVoices()
     found = ready(scene, voices=voices, among=folders(script, sounds, shared), text=conv.read(script),
-                  without_generated=without_generated, source=str(script))
+                  without_generated=without_generated, source=str(script),
+                  prompted=prompted or Prompted(settings, said))
     _writable(target)
     for note in found.notes:
         said(f"  {note}")
@@ -284,7 +370,8 @@ def render(
         "needs_review": sum(record["status"] == lines.NEEDS_REVIEW for record in walk.records),
         "lines": walk.records,
         "marks": walk.marks,
-        "sound": dict(done.report, sounds=placed, left_out=sorted({*found.left_out, *missing})),
+        "sound": dict(done.report, sounds=placed, left_out=sorted({*found.left_out, *missing}),
+                      from_prompts={name: str(path) for name, path in sorted(found.made.items())}),
         # The stems add up to the mix as it was before it was brought to its loudness.
         "stems": {name: str(path.resolve()) for name, path in written.items()} or None,
     }

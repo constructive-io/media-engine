@@ -14,7 +14,7 @@ from constructive_media import conv
 from constructive_media.speech import GivenVoices, SpeechError, Voice
 
 from .support import (HAVE_NUMPY, DatabaseTest, Listener, Speaker, make_still, make_video,
-                      needs_ffmpeg, needs_numpy)
+                      needs_ffmpeg, needs_numpy, settings_in)
 from .test_cli import run
 
 if HAVE_NUMPY:
@@ -33,6 +33,29 @@ SOUNDS = ("@sounds\n"
 MUDDLE = "ba ko mi ru te la no si du fe"
 
 
+class Foley:
+    """A stand-in for whatever makes a sound from a prompt: it writes a tone, and keeps what it was asked."""
+
+    def __init__(self, folder, refuses=None, fails=None, writes=None):
+        self.folder, self.refuses, self.fails, self.writes = Path(folder), refuses or {}, fails or {}, writes
+        self.asked = []
+
+    def cannot(self, name, spec):
+        return self.refuses.get(name)
+
+    def __call__(self, name, spec):
+        self.asked.append((name, spec["prompt"]))
+        if name in self.fails:
+            raise RuntimeError(self.fails[name])
+        target = self.folder / "made" / f"{name.lower()}.wav"
+        if self.writes is not None:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(self.writes)
+            return target
+        return pcm.write(target, np.sin(np.arange(int(float(spec.get("duration", 1.0)) * 24_000)) * 0.1,
+                                        dtype=np.float32) * 0.4, 24_000)
+
+
 @needs_numpy
 @needs_ffmpeg
 class Rendered(unittest.TestCase):
@@ -49,6 +72,7 @@ class Rendered(unittest.TestCase):
         self.sound("tune", np.sin(np.arange(4 * 48_000) * 0.08) * 0.3)
         self.speaker = Speaker()
         self.listener = Listener(self.speaker)
+        self.foley = Foley(self.here)
         self.told: list[str] = []
 
     def sound(self, name, samples, folder="sounds"):
@@ -64,6 +88,7 @@ class Rendered(unittest.TestCase):
             self.script(body, **{key: how.pop(key) for key in ("head",) if key in how})
         how.setdefault("voices", VOICES)
         how.setdefault("transcriber", self.listener)
+        how.setdefault("prompted", self.foley)        # no test asks a model for a sound
         return scene.render(self.here / "night.conv", self.here / target, synthesizer=lambda engine: self.speaker,
                             tell=self.told.append, **how)
 
@@ -417,12 +442,14 @@ class Checking(Rendered):
 
     def test_everything_missing_is_reported_at_once_by_line(self):
         head = CAST + "BORIS: { persona: boris }\n" + SOUNDS + 'BELL: { file: sounds/bell.wav }\nWIND: { prompt: "wind over water" }\n'
+        self.foley.refuses = {"WIND": "there is no model on this boat"}
         found = self.problems("[BELL]\nADA: The lantern is lit. <sfx WIND>\n[BELL]\nBORIS: Is it.\nBORIS: It is.", head=head)
         self.assertEqual([one["line"] for one in found], [13, 14, 16])
         self.assertEqual(found[0]["text"], "[BELL]")
         self.assertIn("`BELL` plays `sounds/bell.wav`, and there is no such file.", found[0]["message"])
         self.assertIn(f"Looked in: {self.here}", found[0]["message"])
-        self.assertIn("`WIND` is made from a prompt", found[1]["message"])
+        self.assertIn("`WIND` is made from a prompt, and cannot be made here: there is no model on this boat\n"
+                      "Give it a `file:`, or render without such sounds", found[1]["message"])
         self.assertEqual(found[2]["message"],
                          "`BORIS` speaks as `boris`, and `boris` has no voice.\nVoices: ada, grace")
 
@@ -452,6 +479,44 @@ class Checking(Rendered):
         report = self.render(without_generated=True)
         self.assertEqual(report["sound"]["left_out"], ["WIND"])
         self.assertEqual([one["sound"] for one in report["sound"]["sounds"]], ["DING"])
+        self.assertEqual((self.foley.asked, report["sound"]["from_prompts"]), ([], {}))
+
+    def test_a_sound_made_from_a_prompt_is_made_once_and_played_like_any_other(self):
+        head = CAST + SOUNDS + 'WIND: { prompt: "wind over water", duration: 2 }\nGULL: { prompt: "one gull" }\n'
+        self.script("[WIND]\nADA: The lantern is lit. <sfx WIND>\n[DING]", head=head)
+        report = self.render()
+        made = self.here / "made" / "wind.wav"
+        # Played twice and made once; a sound that is declared and never played is not made at all.
+        self.assertEqual(self.foley.asked, [("WIND", "wind over water")])
+        self.assertEqual(report["sound"]["from_prompts"], {"WIND": str(made)})
+        self.assertEqual(report["sound"]["left_out"], [])
+        self.assertEqual([one["seconds"] for one in self.placed(report, "WIND")], [2.0, 2.0])
+        self.assertEqual([one["sound"] for one in report["sound"]["sounds"]], ["WIND", "WIND", "DING"])
+
+    def test_a_sound_is_made_from_its_prompt_only_when_nothing_else_is_wrong(self):
+        head = CAST + "BORIS: { persona: boris }\n" + SOUNDS + 'WIND: { prompt: "wind over water" }\n'
+        found = self.problems("[WIND]\nBORIS: Is it.", head=head)
+        self.assertEqual(len(found), 1)
+        self.assertIn("`boris` has no voice", found[0]["message"])
+        self.assertEqual(self.foley.asked, [])
+
+    def test_a_sound_that_cannot_be_made_from_its_prompt_is_a_problem_by_line(self):
+        head = CAST + SOUNDS + 'WIND: { prompt: "wind over water" }\nGULL: { prompt: "one gull" }\n'
+        self.foley.fails = {"WIND": "the made-up model fell over"}
+        self.foley.writes = "not a sound at all"
+        found = self.problems("ADA: The lantern is lit.\n[WIND]\n[GULL]\n[WIND]", head=head)
+        self.assertEqual([(one["line"], one["message"]) for one in found], [
+            (13, "`WIND` could not be made from its prompt: the made-up model fell over"),
+            (14, f"`GULL` was made from its prompt as `{self.here / 'made' / 'gull.wav'}`, which has no sound in it"),
+        ])
+
+    def test_with_nothing_to_make_a_sound_from_its_prompt_it_is_a_problem(self):
+        head = CAST + SOUNDS + 'WIND: { prompt: "wind over water" }\n'
+        script = self.script("[WIND]", head=head)
+        with self.assertRaises(conv.ConvError) as raised:
+            scene.ready(conv.load(script), voices=VOICES, among=[self.here])
+        self.assertIn("`WIND` is made from a prompt, and nothing was given to make it with.\nGive it a `file:`",
+                      raised.exception.problems[0]["message"])
 
     def test_sound_files_are_looked_for_in_the_folders_given_first(self):
         self.sound("ding", np.zeros(48_000) + 0.2, folder="library/sounds")       # a second long, where the other is half
@@ -522,6 +587,60 @@ class Recording(DatabaseTest, Rendered):
         self.assertEqual(self.rows("SELECT line_no, verdict FROM media_audio.review_queue WHERE render_id = %s "
                                    "ORDER BY created_at, verdict NULLS LAST", render_id), [(1, "accept"), (1, None)])
 
+    def test_a_prompted_sound_is_a_request_like_any_other_made_of_a_model(self):
+        from constructive_media import generate
+
+        class Bellfounder:
+            """A stand-in for a model that makes sounds."""
+
+            name, model = "made-up", "made-up-bells-1"
+
+            def __init__(self):
+                self.asked = []
+
+            def check(self, request):
+                if request.seconds and request.seconds > 60:
+                    raise generate.GenerateError("a made-up bell does not ring that long")
+
+            def make(self, request, target):
+                self.asked.append(request)
+                return pcm.write(Path(target), np.sin(np.arange(24_000) * 0.2, dtype=np.float32) * 0.4, 24_000)
+
+        class Later(Bellfounder):
+            def submit(self, request):
+                return "job-1"
+
+        founder, settings = Bellfounder(), settings_in(self.here / "home")
+        with mock.patch.object(generate, "maker_for", lambda medium, name=None, settings=None: founder):
+            prompted = scene.Prompted(settings, self.told.append)
+            bell = {"prompt": "a made-up bell across still water", "duration": 1, "seed": 4}
+            self.assertEqual(prompted.cannot("BELL", dict(bell, duration=90)), "a made-up bell does not ring that long")
+            self.assertIsNone(prompted.cannot("BELL", bell))
+            made = prompted("BELL", bell)
+            self.assertEqual((made.parent, made.suffix), (settings.work_dir / "generated", ".wav"))
+            self.assertEqual(self.told, ["  BELL: being made from its prompt"])
+            # The same words again are the same file, and nothing is made or said.
+            self.assertEqual((prompted("BELL", dict(bell)), len(founder.asked), len(self.told)), (made, 1, 1))
+            self.assertEqual((founder.asked[0].medium, founder.asked[0].seconds, founder.asked[0].seed), ("audio", 1.0, 4))
+            self.assertEqual(self.rows("SELECT medium, status, backend FROM media_video.generations"),
+                             [("audio", "succeeded", "made-up")])
+            # And a whole script: the sound is made, kept as a file, and played.
+            self.script("[BELL]\nADA: The lantern is lit.", head=CAST + SOUNDS + f"BELL: {json.dumps(bell)}\n")
+            report = self.render(prompted=prompted)
+            self.assertEqual(report["sound"]["from_prompts"], {"BELL": str(made)})
+        with mock.patch.object(generate, "maker_for", lambda medium, name=None, settings=None: Later()):
+            with self.assertRaisesRegex(generate.GenerateError, "has not made it yet; `media collect` brings it in"):
+                scene.Prompted(settings)("GULL", {"prompt": "one made-up gull"})
+
+    def test_nobody_who_makes_sounds_is_said_before_a_word_is_spoken(self):
+        from constructive_media import adapters, generate
+
+        def nobody(medium, name=None, settings=None):
+            raise adapters.AdapterError("no 'audio' adapter is installed.")
+
+        with mock.patch.object(generate, "maker_for", nobody):
+            self.assertEqual(scene.Prompted().cannot("WIND", {"prompt": "wind"}), "no 'audio' adapter is installed.")
+
     def test_the_command_says_a_script_and_writes_it_down(self):
         self.listener.hears = lambda text, seed: MUDDLE if "step" in text else text
         script = self.script("[DING]\nGRACE: I am on my way over.\nADA: Mind the step by the old door.",
@@ -548,9 +667,12 @@ class Recording(DatabaseTest, Rendered):
 
     def test_the_command_reports_what_a_script_lacks(self):
         script = self.script("[WIND]\nBORIS: Is it.", head=CAST + 'BORIS: { persona: boris }\n@sounds\nWIND: { prompt: "wind" }\n')
-        status, out, err = run("say", str(script), str(self.here / "out/night.flac"))
+        refusing = lambda settings=None, tell=None: Foley(self.here, refuses={"WIND": "nothing here makes sounds"})
+        with mock.patch.object(scene, "Prompted", refusing):
+            status, out, err = run("say", str(script), str(self.here / "out/night.flac"))
         self.assertEqual(status, 1)
         self.assertIn("2 problems", err)
+        self.assertIn("`WIND` is made from a prompt, and cannot be made here: nothing here makes sounds", err)
         self.assertIn("`boris` has no voice", err)
         self.assertIn("--without-generated", err)
         status, out, _ = run("say", str(script), str(self.here / "out/night.flac"), "--without-generated")

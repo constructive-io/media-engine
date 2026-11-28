@@ -1,4 +1,4 @@
-"""Commands for pictures and video a model makes: ask for one, see what has been asked for, and make a face speak."""
+"""Commands for pictures, video and sounds a model makes: ask for one, see what has been asked for, and make a face speak."""
 
 from __future__ import annotations
 
@@ -16,20 +16,20 @@ def register(commands: Any) -> None:
     from ..generate import MEDIUMS, STATUSES
 
     command = commands.add_parser(
-        "generate", help="make a picture or a piece of video from a description",
-        description="Hand a description to the model that fills the `image` or the `video` slot, and put what "
+        "generate", help="make a picture, a piece of video or a sound from a description",
+        description="Hand a description to the model that fills the `image`, the `video` or the `audio` slot, and put what "
                     "it makes on record as generated: the words, the model, the settings and the seed. The "
                     "same request is made once: asked again, this prints the file it has. --again makes "
                     "another. What a maker that asks a service was handed is brought in by `media collect`.",
     )
     command.add_argument("medium", choices=tuple(MEDIUMS), help="what to make")
-    command.add_argument("prompt", help="what it should show, in words")
+    command.add_argument("prompt", help="what it should show, or sound like, in words")
     command.add_argument("--from", dest="image", type=Path, metavar="PICTURE", help="a picture to start from")
     command.add_argument("--size", type=_size, metavar="WxH", help="how wide and how tall, such as 1280x720")
-    command.add_argument("--seconds", type=float, metavar="S", help="how long a piece of video is to run")
+    command.add_argument("--seconds", type=float, metavar="S", help="how long a piece of video or a sound is to run")
     command.add_argument("--steps", type=int, metavar="N",
                          help="how many passes the model makes: more is slower, and up to a point better")
-    command.add_argument("--seed", type=int, metavar="N", help="the same request with the same seed is the same picture")
+    command.add_argument("--seed", type=int, metavar="N", help="the same request with the same seed is made the same")
     command.add_argument("--out", type=Path, metavar="FILE",
                          help="where to write it (default: the work folder, under generated/)")
     command.add_argument("--adapter", metavar="NAME", help="which maker to ask, in place of the configured one")
@@ -42,7 +42,7 @@ def register(commands: Any) -> None:
 
     command = commands.add_parser(
         "generations", help="list what models have been asked to make, and what it came to",
-        description="List every request for a picture or a piece of video, the latest first: how it came "
+        description="List every request for a picture, a piece of video or a sound, the latest first: how it came "
                     "out, the model, the file and the words. --spend adds them up by model instead.",
     )
     command.add_argument("--medium", choices=tuple(MEDIUMS), help="list only this")
@@ -135,7 +135,7 @@ def run_generations(arguments: argparse.Namespace) -> None:
         through = max(len(one.backend) for one in spent)
         for one in spent:
             print(f"  {one.model:<{wide}}  {one.backend:<{through}}  {one.status:<9}  {one.runs:>4} "
-                  f"{'request' if one.runs == 1 else 'requests'}  ${one.usd:>8.2f}  {one.seconds:>7.1f} s of video")
+                  f"{'request' if one.runs == 1 else 'requests'}  ${one.usd:>8.2f}  {one.seconds:>7.1f} s made")
         print(f"${sum(one.usd for one in spent):.2f} in all")
         return
     found = generate.listed(arguments.medium, arguments.status, limit=arguments.limit)

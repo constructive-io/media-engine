@@ -1,4 +1,4 @@
-"""Pictures and video a model makes, with a stand-in for the model.
+"""Pictures, video and sounds a model makes, with a stand-in for the model.
 
 Nothing here loads a model or asks a service. The makers are stand-ins that
 write a file made on the spot and keep what they were asked.
@@ -17,7 +17,7 @@ from constructive_media.edit.timelines import Clip
 from constructive_media.generate import GenerateError, Job, Request
 
 from . import test_cli
-from .support import TEST_DATABASE_VARIABLE, DatabaseTest, make_still, make_video, needs_ffmpeg, settings_in
+from .support import TEST_DATABASE_VARIABLE, DatabaseTest, make_still, make_tone, make_video, needs_ffmpeg, settings_in
 
 WORDS = "a made-up harbour at dawn, fog over still water"
 
@@ -37,6 +37,8 @@ class Painter:
             raise RuntimeError(self.fails)
         if request.medium == "video":
             return make_video(Path(target), colours=("red",), seconds=request.seconds or 1.0)
+        if request.medium == "audio":
+            return make_tone(Path(target), seconds=request.seconds or 1.0)
         Path(target).write_bytes(b"made-up picture %d" % len(self.asked))
         return target
 
@@ -232,7 +234,9 @@ class GenerateTest(DatabaseTest):
             ("  ", "image", {}, "no words"),
             (WORDS, "image", {"width": 0}, "width is 0"),
             (WORDS, "image", {"steps": -2}, "steps is -2"),
-            (WORDS, "image", {"seconds": 2.0}, "only video"),
+            (WORDS, "image", {"seconds": 2.0}, "a picture does not run for a length of time"),
+            (WORDS, "audio", {"width": 640}, "a sound has no width or height"),
+            (WORDS, "audio", {"image": "harbour.png"}, "does not start from a picture"),
             (WORDS, "song", {}, "unknown medium 'song'"),
         ):
             with self.subTest(said), self.assertRaisesRegex(GenerateError, said):
@@ -309,6 +313,28 @@ class GenerateTest(DatabaseTest):
         self.assertAlmostEqual(generate.spend()[0].seconds, 1.0, delta=0.15)
 
     @needs_ffmpeg
+    @needs_ffmpeg
+    def test_a_sound_is_on_record_with_how_long_it_runs(self):
+        done = self.make("a made-up bell across still water", medium="audio", seconds=1.0)
+        self.assertEqual((done.state, done.file.suffix, done.file.parent), (generate.MADE, ".wav", self.settings.work_dir / "generated"))
+        (medium, params), = self.query("SELECT medium, params FROM media_video.generations")
+        self.assertEqual((medium, params["seconds"], params["duration_s"]), ("audio", 1.0, 1.0))
+        (path, duration), = self.query("SELECT path, duration_s FROM media.assets")
+        self.assertEqual((path, duration), (str(done.file), 1.0))
+        # The same words are the same sound: it is handed back, and the model is not asked twice.
+        again = self.make("a made-up bell  across still water", medium="audio", seconds=1.0)
+        self.assertEqual((again.state, again.file, len(self.painter.asked)), (generate.HAD, done.file, 1))
+
+    @needs_ffmpeg
+    def test_a_sound_that_does_not_play_has_failed(self):
+        class Scribbler(Painter):
+            def make(self, request, target):
+                return make_still(Path(target).with_suffix(".png")).rename(target)
+
+        with self.assertRaisesRegex(GenerateError, "was written, and it is not sound that plays"):
+            self.make(medium="audio", maker=Scribbler())
+        self.assertEqual([row[0] for row in self.rows()], ["failed"])
+
     def test_video_that_does_not_play_has_failed(self):
         class Scribbler(Painter):
             def make(self, request, target):
@@ -481,7 +507,7 @@ class GenerateCommandsTest(DatabaseTest):
         self.assertEqual(test_cli.run("generate", "song", WORDS)[0], 2)
         self.assertEqual(test_cli.run("generate", "image", WORDS, "--size", "wide")[0], 2)
         status, out, err = test_cli.run("generate", "image", WORDS, "--seconds", "2")
-        self.assertEqual((status, out, err), (1, "", "media: only video runs for a length of time\n"))
+        self.assertEqual((status, out, err), (1, "", "media: a picture does not run for a length of time\n"))
         status, _, err = test_cli.run("generate", "image", WORDS, "--adapter", "nobody")
         self.assertEqual((status, err), (1, "media: no 'image' adapter named 'nobody'.\n"))
 
@@ -579,11 +605,11 @@ class GenerateCommandsTest(DatabaseTest):
 
 
 class BuiltInMakersTest(unittest.TestCase):
-    def test_pictures_and_video_each_have_a_maker_under_an_allowed_licence(self):
+    def test_pictures_video_and_sounds_each_have_a_maker_under_an_allowed_licence(self):
         registry = adapters.Registry()
         for adapter in adapters.builtins():
             registry.register(adapter, default=True)
-        for slot, name in (("image", "mflux"), ("video", "diffusers")):
+        for slot, name in (("image", "mflux"), ("video", "diffusers"), ("audio", "moss")):
             found = registry.describe(slot)
             self.assertEqual(found.name, name)
             self.assertIn(found.license, PERMISSIVE)
