@@ -532,7 +532,8 @@ the manifest and put in `media_audio.review_queue` for a person to listen to.
 An echo or a room put on a line rings on under whatever follows: the next
 line comes in when the words end. `media say scene.conv out/scene.flac --only ada,7`
 says again just one persona's lines and line 7, and keeps every other line as
-it was. A sound described by
+it was; `--keep` says none again, for when only the music or the sounds have
+changed. A sound described by
 a `prompt:` is made from its words by whatever fills the `audio` slot, once,
 and kept ([docs/ADAPTERS.md](./docs/ADAPTERS.md#sounds)); pass
 `--without-generated` to leave such sounds out.

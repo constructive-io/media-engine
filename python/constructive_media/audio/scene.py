@@ -287,7 +287,8 @@ def render(
     synthesizer: Callable[[str | None], Synthesizer] | None = None, transcriber: Transcriber | None = None,
     banks: Sequence[str | Path] = (), sounds: Sequence[str | Path] = (), shared: Sequence[str | Path] = (),
     stems: bool = False,
-    only: str | Iterable[Any] | None = None, gap: float = GAP, loudness: float | None = LOUDNESS,
+    only: str | Iterable[Any] | None = None, keep: bool = False, gap: float = GAP,
+    loudness: float | None = LOUDNESS,
     label: str | None = None, without_generated: bool = False, tell: Callable[[str], None] | None = None,
     backend: str | None = None, settings: Settings | None = None,
     prompted: Callable[[str, dict[str, Any]], Path] | None = None, **how: Any,
@@ -307,6 +308,9 @@ def render(
     `only` renders again just some lines of a scene rendered here before:
     personas, or lines by number, as a list or with commas between. Every
     other line is the one already kept, as long as its words are the same.
+    `keep` says none again: every line already said here with the same words is
+    kept, which is what a change to the music or the sounds wants, and only a
+    line that is new or has changed is said.
 
     `loudness` is in LUFS; None leaves the mix as it came. `tell` is told
     about each line as it is done. Returns the report, which is also written
@@ -328,6 +332,8 @@ def render(
     kept.mkdir(parents=True, exist_ok=True)
     spoken = [item for item in scene["items"] if item["type"] == "line" and _text(item)]
     chosen = _only(only, {_persona(scene, item["speaker"]) for item in spoken}, len(spoken))
+    if chosen is None and keep:
+        chosen = set()
     before: dict[str, Any] = {}
     if chosen is not None and manifest.is_file():
         before = json.loads(manifest.read_text(encoding="utf-8"))

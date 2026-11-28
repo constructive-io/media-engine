@@ -4,7 +4,7 @@ description: Constructive Media — one engine for video, images, audio and voic
 compatibility: Python 3.11+, PostgreSQL 17+ with pgvector, pgpm, ffmpeg, whisper.cpp; Chrome or Chromium for video of a page
 metadata:
   author: constructive-io
-  version: "0.18.0"
+  version: "0.19.0"
 ---
 
 # Constructive Media
@@ -158,7 +158,10 @@ Every other line is kept as it was:
 ```sh
 media say scene.conv out/scene.flac --only grace  # one persona's lines
 media say scene.conv out/scene.flac --only 2,3    # lines by number, as in out/scene.lines/
+media say scene.conv out/scene.flac --keep        # only the music or the sounds changed: nothing is said again
 ```
+
+`--keep` still says a line that is new or whose words have changed.
 
 ## A script to video
 
@@ -393,6 +396,7 @@ media generate image "a harbour at dawn, fog over the water"       # 1344x768, a
 media generate image "the same harbour at night" --from harbour.png --size 1024x1024
 media generate video "fog lifting off the harbour" --seconds 2    # 832x480, minutes: say so before you start
 media generate video "fog drifting over the water" --from harbour.png --adapter ltx   # a still made to move: a plugin
+media generate audio "rain on a tin roof, steady" --seconds 6      # a sound, in about four seconds
 media generations                # every request, how it came out and where the file is
 media synthetic talk-over        # the clips of a cut that nobody filmed; status 1 when there are any
 ```
@@ -403,6 +407,12 @@ media synthetic talk-over        # the clips of a cut that nobody filmed; status
   path: `CONSTRUCTIVE_MEDIA_EXTRA_IMAGE='{"program": "/path/to/mflux-generate-flux2"}'`.
   `media adapters` shows what fills `image` and `video`; all of it is in
   [docs/ADAPTERS.md](../../../docs/ADAPTERS.md#pictures-and-video).
+- **Sounds need mlx-speech, in a Python of its own.** It wants Python 3.13 or
+  newer: `uv venv --python 3.13 ~/tools/sounds`, `uv pip install --python
+  ~/tools/sounds/bin/python mlx-speech`, then
+  `CONSTRUCTIVE_MEDIA_EXTRA_AUDIO='{"python": "~/tools/sounds/bin/python"}'`.
+  Apple silicon; about 6 GB of weights the first time. The same words are the
+  same sound every time; `--again` makes another.
 - **A still made to move needs the `ltx` plugin.** The engine's own video
   adapter starts from words and refuses a picture. `ltx` is in
   [media-engine-plugins](https://github.com/constructive-io/media-engine-plugins)
@@ -568,8 +578,11 @@ a track.
 
 Two things this renderer asks of a script:
 
-- **A sound needs a `file:`.** A sound described by a `prompt:` cannot be made
-  yet. `media say --without-generated` leaves those out instead of stopping.
+- **A sound is a `file:` or a `prompt:`.** One described by a `prompt:` is made
+  from its words the first time the script is rendered, by whatever fills the
+  `audio` slot (`media adapters`), and kept. Where nothing can make it, the
+  render stops and says so before a line is said; `media say
+  --without-generated` leaves those sounds out instead.
 - **Sound files are yours.** They are looked for beside the script, then in
   each folder given with `--sounds`.
 

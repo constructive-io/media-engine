@@ -84,6 +84,9 @@ def register(commands: Any) -> None:
     command.add_argument("--stems", action="store_true", help="also write each track on its own")
     command.add_argument("--only", metavar="WHO", help="say again only these, personas or lines by number with "
                                                        "commas between, and keep every other line as it was")
+    command.add_argument("--keep", action="store_true",
+                         help="say nothing again that was said here before with the same words: for a change to "
+                              "the music or the sounds. A line that is new or has changed is still said")
     command.add_argument("--attempts", type=int, metavar="N", help="how many times a line is tried before more is done")
     command.add_argument("--reword", action="store_true",
                          help="when no take of a line passes, have the text model reword it and say that. "
@@ -314,7 +317,7 @@ def run_voice(arguments: argparse.Namespace) -> int | None:
     return None
 
 
-_OF_A_SCRIPT = ("banks", "sounds", "stems", "only", "reword", "gap", "loudness", "as_mixed", "without_generated",
+_OF_A_SCRIPT = ("banks", "sounds", "stems", "only", "keep", "reword", "gap", "loudness", "as_mixed", "without_generated",
                 "label")
 
 
@@ -342,7 +345,7 @@ def run_say(arguments: argparse.Namespace) -> int | None:
     report = scene.render(
         arguments.script, arguments.output, banks=[*conv.bank_folders(arguments.script, arguments.banks), *libraries.banks()],
         sounds=arguments.sounds, shared=libraries.sounds(), stems=arguments.stems,
-        only=arguments.only, gap=scene.GAP if arguments.gap is None else arguments.gap,
+        only=arguments.only, keep=arguments.keep, gap=scene.GAP if arguments.gap is None else arguments.gap,
         loudness=None if arguments.as_mixed else scene.LOUDNESS if arguments.loudness is None else arguments.loudness,
         label=arguments.label, without_generated=arguments.without_generated, tell=print, **how,
     )

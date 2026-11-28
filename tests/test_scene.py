@@ -360,6 +360,29 @@ class Speaking(Rendered):
         self.render(body.replace("Mind the step.", "Mind the gap."), only="grace")
         self.assertEqual([text for text, _, _ in self.speaker.asked], ["I am on my way over.", "Mind the gap."])
 
+    def test_every_line_said_before_is_kept_when_only_the_sounds_have_changed(self):
+        body = "ADA: The lantern is lit.\nGRACE: I am on my way over.\nADA: Mind the step."
+        first = self.render(body)
+        self.speaker.asked.clear()
+        # A pause is new, and no words are: nothing is said, and what follows it lands later.
+        again = self.render(body.replace("GRACE:", "[pause 2]\nGRACE:"), keep=True)
+        self.assertEqual(self.speaker.asked, [])
+        self.assertEqual([one.get("reused", False) for one in again["lines"]], [True, True, True])
+        self.assertAlmostEqual(again["lines"][1]["at"], first["lines"][1]["at"] + 2, places=2)
+        self.assertEqual(again["speech"], first["speech"])
+        # A line whose words have changed is said, and so is one that was never said here.
+        self.render(body.replace("Mind the step.", "Mind the gap.") + "\nGRACE: I see it.", keep=True)
+        self.assertEqual([text for text, _, _ in self.speaker.asked], ["Mind the gap.", "I see it."])
+        # Somebody named is said again all the same.
+        self.speaker.asked.clear()
+        self.render(body, only="grace", keep=True)
+        self.assertEqual([text for text, _, _ in self.speaker.asked], ["I am on my way over.", "Mind the step."])
+
+    def test_keeping_what_was_never_said_says_every_line(self):
+        self.render("ADA: The lantern is lit.", keep=True)
+        self.assertIn("nothing was rendered here before", self.told[0])
+        self.assertEqual([text for text, _, _ in self.speaker.asked], ["The lantern is lit."])
+
     def test_only_must_name_somebody_or_a_line(self):
         self.script("ADA: The lantern is lit.")
         for wrong in ("grace", "2", "0"):
