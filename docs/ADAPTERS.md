@@ -157,7 +157,9 @@ wrong words fell from 12 to 5, and in a shorter script built around two made-up
 names, those names came out right 8 times of 8 instead of 2. On the dense
 recording it changed about one word in a hundred. With `base` it lost or
 changed a fifth of the words in the noisy recording, which is why `base` and
-`tiny` are never shown one. `media transcribe --no-vocabulary` leaves it out.
+`tiny` are never shown one. `media transcribe --no-vocabulary` leaves it out,
+and `--vocabulary-of PROJECT` listens for another project's terms in place of
+the recording's own.
 
 One thing is not fixed. A piece heard with nothing before it is sometimes
 written without capitals or punctuation: 14 of the dense recording's 159
@@ -561,7 +563,7 @@ for it, and `media synthetic` lists the clips of a cut that nobody filmed.
 An adapter for a service that takes minutes has `submit`, `poll` and `fetch`
 in place of `make`. `media generate` hands the request over and returns, and
 `media collect` asks every service whether it has finished and brings in what
-it made. One that can say what a request costs has `price`, and
+it made; `--wait SECONDS` keeps asking that long. One that can say what a request costs has `price`, and
 `media generate --max-usd` refuses a request priced above it.
 
 ## Text

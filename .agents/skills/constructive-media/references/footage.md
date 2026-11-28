@@ -55,6 +55,10 @@ won. It leaves unclear lines unnamed, never changes a line a person named,
 and says when a microphone seems to carry more than one of the voices
 `media diarize` found. Run it again after `media name` or `media wear`.
 
+`media diarize --dry-run` finds the voices and stores nothing, which is the
+way to try `--voices` or `--alike` before settling. `media speakers --people`
+adds each named person up over every recording.
+
 A wrong name in a transcript is mended, not transcribed again: record what
 the term is misheard as with `media vocabulary TERM --heard-as WORDS`, look
 with `media mend --dry-run`, then `media mend`. It rewrites the lines and
@@ -91,6 +95,12 @@ or `--no ID`. Once `media audible` has run, `media assemble` takes each
 passage's sound from the cleanest recording measured. A recipe counts a
 score once it weighs it: `media recipe NAME --like interview --weigh laughter=0.5`.
 
+Narrow a ranking with `--take NAME`, `--match PATTERN` (the file's or the
+take's name), `--min-words N` and `--at-least SCORE=FLOOR` (repeatable):
+`media rank interview --match harbour --at-least coherence=0.55`. With
+several fitted models, `--model NAME` on `media rank` and `media compile` goes by
+that model alone; an unproven model has scored nothing and the command says so.
+
 `media judge`, `media index` and `media search` talk to a server of your own, set with
 `CONSTRUCTIVE_MEDIA_URL_TEXT` and `CONSTRUCTIVE_MEDIA_URL_EMBEDDING`. The rest
 run on the machine.
@@ -120,6 +130,13 @@ media render talk-over --mix         # or through its worn microphones, mixed to
 media export talk-over --to handover/ --preview --renders  # for an editing program, with something to watch beside it
 media outputs                        # every derived file on record, and what is lying about that is not
 ```
+
+`media assemble --takes PATTERN` makes one cut from every take whose name
+fits. `media compile --max-length SECONDS` leaves long shots out, and
+`--remember NAME --description "what it is for"` keeps the settings as a
+selector for `--using NAME` later. `media script` takes `--takes PATTERN` and
+`--at-least SCORE=FLOOR` too. `media collect --wait 300` keeps asking a
+service for five minutes while anything is still to come.
 
 `media export` writes FCPXML, an edit decision list and a page about both,
 and copies no recording. `--preview` adds the cut rendered small (at most

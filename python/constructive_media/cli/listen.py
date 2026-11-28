@@ -20,6 +20,9 @@ def register(commands: Any) -> None:
                          help="transcribe again, replacing the transcript a recording already has")
     command.add_argument("--no-vocabulary", action="store_true",
                          help="tell the recogniser nothing about the project's vocabulary")
+    command.add_argument("--vocabulary-of", metavar="PROJECT",
+                         help="listen for this project's terms, in place of those of the project each "
+                              "recording belongs to")
     command.add_argument("--from", dest="source", metavar="FILE",
                          help="listen to this file in place of the one recording that matches: the same "
                               "sound cleaned up, with the same times")
@@ -96,11 +99,16 @@ def register(commands: Any) -> None:
     command.add_argument("--force", action="store_true",
                          help="go over recordings again; voices that were named keep their names")
     command.add_argument("--no-cards", action="store_true", help="do not cut a card for each voice")
+    command.add_argument("--dry-run", action="store_true",
+                         help="show the voices that would be found; store nothing and cut no cards")
     command.add_argument("--adapter", help="the speaker adapter to use")
     command.set_defaults(run=run_diarize)
 
     command = commands.add_parser("speakers", help="list the voices found in each recording, and whose they are")
     command.add_argument("match", nargs="?", help=MATCH_HELP.replace("assets", "recordings"))
+    command.add_argument("--people", action="store_true",
+                         help="add each person up over every recording: how many they speak in, how many "
+                              "lines, and for how long")
     command.set_defaults(run=run_speakers)
 
     command = commands.add_parser(
@@ -125,7 +133,7 @@ def run_transcribe(arguments: argparse.Namespace) -> None:
     done = transcripts.transcribe(
         arguments.match, project=arguments.project, language=arguments.language, force=arguments.force,
         vocabulary=not arguments.no_vocabulary, source=arguments.source, speaker=arguments.speaker,
-        transcriber=listener,
+        transcriber=listener, vocabulary_of=arguments.vocabulary_of,
     )
     for name, count in done:
         print(f"  {count:>5} segments  {name}")
@@ -221,30 +229,53 @@ def _sure(sure: float | None) -> str:
 
 
 def run_diarize(arguments: argparse.Namespace) -> None:
+    import contextlib
+
+    from .. import db
     from ..speakers import cards, embedder, voices
 
     listener = embedder(arguments.adapter)
-    done = voices.find(
-        arguments.match, voices=arguments.voices, alike=arguments.alike, force=arguments.force,
-        embedder=listener,
-    )
+    looking = arguments.dry_run
+    # Each recording is stored as it is done, so one that fails loses only itself. Looking stores none of them.
+    with db.transaction(keep=False) if looking else contextlib.nullcontext():
+        done = voices.find(
+            arguments.match, voices=arguments.voices, alike=arguments.alike, force=arguments.force,
+            embedder=listener,
+        )
     for found in done:
-        if not arguments.no_cards:
+        if not (arguments.no_cards or looking):
             cards.make(found.asset_id, found.source, found.telling.voices)
         print(f"  {found.name}")
         for voice in found.telling.voices:
             _voice(voice.label, voice.segments, voice.speech_s, voice.cohesion, voice.persona, voice.like,
-                   cards.card(found.asset_id, voice.label))
+                   None if looking else cards.card(found.asset_id, voice.label))
         if found.telling.unknown:
             print(f"    {found.telling.unknown} segments left unknown: too short or too unclear to tell")
     print(f"{len(done)} recordings gone over with {listener.name} ({listener.model}): "
-          f"{sum(len(found.telling.voices) for found in done)} voices")
+          f"{sum(len(found.telling.voices) for found in done)} voices"
+          + ("; nothing was stored" if looking else ""))
 
 
 def run_speakers(arguments: argparse.Namespace) -> None:
     from ..speakers import cards, names
 
     recordings = names.listed(arguments.match)
+    if arguments.people:
+        spoken: dict[str, list[float]] = {}
+        for recording in recordings:
+            for person in {voice.persona for voice in recording.voices if voice.persona}:
+                theirs = [voice for voice in recording.voices if voice.persona == person]
+                total = spoken.setdefault(person, [0, 0, 0.0])
+                total[0] += 1
+                total[1] += sum(voice.segments for voice in theirs)
+                total[2] += sum(voice.speech_s for voice in theirs)
+        for person, (within, lines, seconds) in sorted(spoken.items(), key=lambda item: (-item[1][2], item[0])):
+            minutes, rest = divmod(round(seconds), 60)
+            print(f"  {person:<24} {lines:>6} segments  {minutes:>4}:{rest:02d}  in {within} "
+                  f"recording{'' if within == 1 else 's'}")
+        unnamed = sum(voice.persona is None for recording in recordings for voice in recording.voices)
+        print(f"{len(spoken)} people in {len(recordings)} recordings, {unnamed} voices without a name")
+        return
     for recording in recordings:
         print(f"  {recording.name}")
         for voice in recording.voices:

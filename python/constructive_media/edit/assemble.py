@@ -303,11 +303,12 @@ def _passages(ids: Sequence[Any]) -> dict[str, _Passage]:
     return found
 
 
-def _kept(take: str | None, project: str | None, episode: str | None) -> list[Any]:
+def _kept(take: str | None, project: str | None, episode: str | None, takes: str | None = None) -> list[Any]:
     """The passages a person last ruled to keep, in the order they were said."""
+    wanted = scores.pattern(takes)
     cur = db.cursor()
     cur.execute(
-        f"""SELECT p.id
+        f"""SELECT p.id, t.name
               FROM media_video.passages p
               JOIN media.takes t ON t.id = p.take_id
              CROSS JOIN LATERAL (SELECT d.keep FROM media_video.decisions d
@@ -319,7 +320,7 @@ def _kept(take: str | None, project: str | None, episode: str | None) -> list[An
              ORDER BY t.name, p.start_s, p.id""",
         (take, take, project, project, episode),
     )
-    return [row[0] for row in cur.fetchall()]
+    return [passage_id for passage_id, name in cur.fetchall() if wanted is None or wanted.search(name)]
 
 
 def _same(spans: Iterable[tuple[str, float, float]], asset_id: Any, start: float, end: float) -> bool:
@@ -357,10 +358,12 @@ def interview(
     episode: str | None = None, recipe: str | None = None, method: str | None = None,
     per_take: int | None = None, only: Sequence[Any] | None = None, after: str | None = None,
     title: str | None = None, min_coverage: float = 0.5, canvas: str | None = None, fit: str | None = None,
+    takes: str | None = None,
 ) -> Assembled:
     """Assemble a cut from passages and store it as `name`.
 
-    The passages are one take's, one project's, or everybody's, best first by
+    The passages are one take's, those of the `takes` whose names fit a
+    pattern, one project's, or everybody's, best first by
     `recipe`, after the ones a person kept. `only` names the passages
     instead, and then they are used as they are, in the order given: nothing
     is weighed and nothing is too long. Made `after` another cut, the clips
@@ -374,8 +377,8 @@ def interview(
         feedback = timelines.feedback(after)
         before = parent.params
         episode = episode or parent.episode
-        if take is None and project is None:
-            take, project = before.get("take"), before.get("project")
+        if take is None and project is None and takes is None:
+            take, project, takes = before.get("take"), before.get("project"), before.get("takes")
         recipe = recipe or before.get("recipe")
         method = method or before.get("method")
         per_take = per_take or before.get("per_take")
@@ -392,11 +395,11 @@ def interview(
         running = [replace(known[str(passage_id)], kept=True) for passage_id in dict.fromkeys(ids)]
     else:
         ranking = scores.ranked(recipe, limit=None, min_coverage=min_coverage, project=project, method=method,
-                                take=take, episode=episode)
+                                take=take, episode=episode, match=takes)
         if ranking.recipe.subject != "passage":
             raise EditError(f"recipe {recipe!r} ranks {ranking.recipe.subject}s; an interview is cut from passages")
         withheld = ranking.withheld
-        kept = _kept(take, project, episode)
+        kept = _kept(take, project, episode, takes)
         known = _passages([*kept, *(entry.subject_id for entry in ranking.entries)])
         notes = decisions.standing(kept)
         scored = {str(entry.subject_id): entry.score for entry in ranking.entries}
@@ -485,7 +488,8 @@ def interview(
         name, _weave(held, [part.clip for part in ordered]), kind="cut",
         project=belongs_to, title=title, after=after, episode=episode, canvas=canvas, fit=fit,
         style=shape.name if shape.name in {known_style.name for known_style in styles()} else None,
-        params={"recipe": recipe, "take": take, "project": project, "method": method, "per_take": per_take,
+        params={"recipe": recipe, "take": take, "takes": takes, "project": project, "method": method,
+                "per_take": per_take,
                 "style": {key: value for key, value in asdict(shape).items() if key != "description"}},
     )
     return Assembled(stored, ordered, left, considered, withheld, len(held))

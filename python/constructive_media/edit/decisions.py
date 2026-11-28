@@ -247,7 +247,7 @@ def standing(subject_ids: Iterable[Any]) -> dict[str, tuple[bool | None, str | N
 
 def pairs(
     recipe: str = "broll", *, mode: str = "close", count: int = 10, project: str | None = None,
-    look_ahead: int = 8, actor: str | None = None,
+    look_ahead: int = 8, actor: str | None = None, match: str | None = None,
 ) -> list[Pair]:
     """Pairs most worth a person's judgement, by a recipe's ranking.
 
@@ -255,13 +255,14 @@ def pairs(
     them apart is where being told teaches it most. `contrast` pairs shots it
     scores alike that look unalike, which is where a number hides a real
     difference. Nothing appears twice, and nothing this person has already
-    chosen between is asked again.
+    chosen between is asked again. `match` keeps to shots of files whose path
+    fits a pattern, or passages of takes whose name does.
     """
     from . import scores, select
 
     if mode not in ("close", "contrast"):
         raise EditError(f"pairs are close or contrast, not {mode!r}")
-    ranking = scores.ranked(recipe, limit=None, project=project)
+    ranking = scores.ranked(recipe, limit=None, project=project, match=match)
     subject = ranking.recipe.subject
     if mode == "contrast" and subject != "shot":
         raise EditError(f"contrast compares how shots look, and {recipe!r} ranks {subject}s")

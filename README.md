@@ -215,7 +215,9 @@ them `voice1`, `voice2` and so on and cuts a short clip of each; you listen and
 say who it is with `media name`, once, and every line that voice spoke carries the
 name. A voice already named in one recording is suggested when it is heard in
 another, and never applied without you. An hour and three quarters of talk is
-gone over in about fifteen seconds.
+gone over in about fifteen seconds. `media diarize --dry-run` finds the voices
+and stores nothing, and `media speakers --people` adds each named person up
+over every recording: how many lines, how long, and in how many recordings.
 
 Where everyone at a table wears a microphone there is a second way, and it
 needs no model. `media wear` says who wore which recording of a take, and
@@ -233,7 +235,10 @@ passage and shot from what was read, heard and seen. A score nobody measured
 is left out, never counted as a zero, and `media rank` says how much of its
 recipe each result was measured on. A passage in which someone asks for
 something not to be used is never ranked, whatever it scores, until a person
-dismisses that flag. `media flag` runs the flags on their own.
+dismisses that flag. `media flag` runs the flags on their own. A ranking is
+narrowed with `--take`, `--match` (a pattern the file's or the take's name
+fits), `--min-words` and `--at-least SCORE=FLOOR`, which keeps only what
+scored that much on one score and can be given more than once.
 
 Four commands measure what the words and the pixels do not say, and
 `media score` turns each into scores. `media loudness` gives a shot its lift:
@@ -301,7 +306,8 @@ What a person decides is kept, with who decided and when. `media keep` and
 and `media prefer` records which of two was better. `media script` writes the
 best passages out as a plain document in the order they were said; mark
 each one and `media script --read` stores the marks, and saying the same thing
-twice stores it once.
+twice stores it once. `--takes PATTERN` writes out the takes whose names fit,
+and `--at-least coherence=0.55` only the passages that scored that much.
 
 `media compile` chooses shots for a cut. The best shots by score are the same
 shot over and over, so each pick is weighed for its quality less how much
@@ -310,7 +316,10 @@ neighbours differ. Every run says how alike its neighbours are beside what
 the top of the list would have given. A `--seed` makes a variant, and the
 same seed makes the same one. A cut is revised by reacting to its clips with
 `media note` and compiling the next one `--after` it. `media timelines` lists the
-cuts and `media timeline` shows one.
+cuts and `media timeline` shows one. `--max-length` leaves out shots longer
+than that many seconds. `--remember NAME` keeps a cut's settings as a
+selector to cut by again with `--using`, and `--description` says what it is
+for; `media selectors` lists them.
 
 `media fit` teaches a model from the choices made with `media prefer`: which
 measurements of a shot go with being chosen, and by how much. It is tested on
@@ -320,6 +329,10 @@ neighbours. The share it gets right is shown beside the half a coin would
 get. A model that has not beaten the coin by more than chance is stored with
 its figures and left unused. One that has gives every shot a `preferred`
 score, and a recipe made with `media recipe` can weigh it beside the rest.
+With several models stored, `media rank RECIPE --model NAME` and
+`media compile --model NAME` go by what that one model made of each shot and
+nothing else; the recipe still decides which shots were measured enough to
+be ranked at all.
 
 `media assemble` makes an interview into a cut. The passages a person kept go
 in first, then the best by a recipe until the cut is as long as it was asked
@@ -332,6 +345,8 @@ filler in the middle of a passage stays where it was said. `media styles` lists
 the stored manners of cutting, and any one setting can be given on its own.
 A cut made `--after` another keeps the clips that were kept or adjusted,
 with their sound still in step, and leaves out what was dropped.
+`--takes PATTERN` makes one cut from every take whose name fits, in place of
+`--take` for one or `--project` for all of them.
 
 `media cutaways` lays other footage over some of a cut's clips while the sound
 carries on underneath: the middle of a long clip, or the whole of a short
@@ -410,7 +425,8 @@ still made to move, which takes the `ltx` adapter from
 (`--adapter ltx`), whose model has terms of its own. `--max-usd` refuses a
 request its maker prices above that, and `--dry-run` makes nothing. An adapter
 for a service that takes minutes is handed the request and `media collect`
-brings in what it made. What is made is a derived file of the kind
+brings in what it made, asking again for as long as `--wait SECONDS` allows
+while anything is still to come. What is made is a derived file of the kind
 `generated`, so `media lineage` answers for it, and `media synthetic` lists
 the clips of a cut whose picture or sound a model made. It fails when there
 are any: the question to ask before a cut is shown as a record of what

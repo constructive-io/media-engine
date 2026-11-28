@@ -4,8 +4,12 @@ from __future__ import annotations
 
 import argparse
 import sys
+import time
 from pathlib import Path
 from typing import Any
+
+#: How often `media collect --wait` asks again.
+EVERY_S = 10.0
 
 
 def register(commands: Any) -> None:
@@ -53,6 +57,9 @@ def register(commands: Any) -> None:
                     "is written where `media generate` said it would go and put on record; what failed is "
                     "marked failed, with the reason.",
     )
+    command.add_argument("--wait", type=float, metavar="SECONDS", default=0.0,
+                         help="keep asking, every ten seconds, until nothing is still to come or this long has "
+                              "passed (default: ask once)")
     command.set_defaults(run=run_collect)
 
     command = commands.add_parser(
@@ -152,6 +159,11 @@ def run_collect(arguments: argparse.Namespace) -> int:
     from .. import generate
 
     found = generate.collect()
+    until = time.monotonic() + arguments.wait
+    while found.waiting and time.monotonic() < until:
+        time.sleep(min(EVERY_S, max(0.0, until - time.monotonic())))
+        again = generate.collect()
+        found = generate.Collected(found.made + again.made, found.failed + again.failed, again.waiting, again.lost)
     if not (found.made or found.failed or found.waiting or found.lost):
         print("no service has been handed anything that is still to come")
         return 0

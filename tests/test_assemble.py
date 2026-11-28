@@ -203,6 +203,25 @@ class InterviewTest(Talks):
         self.assertEqual(refused(recipe="broll"), "recipe 'broll' ranks shots; an interview is cut from passages")
         self.assertEqual([cut.name for cut in timelines.listing()], ["made-up-paused"])
 
+    def test_a_cut_can_be_of_the_takes_whose_names_fit_a_pattern(self):
+        self.wall()
+        everything = assemble.interview("made-up-all", LOOSE, project="made-up")
+        self.assertEqual({part.take for part in everything.parts}, {"made-up-lighthouse", "made-up-harbour-wall"})
+        decisions.keep(self.first, actor="made-up-editor")
+        made = assemble.interview("made-up-wall", LOOSE, takes="wall$")
+        self.assertEqual({part.take for part in made.parts}, {"made-up-harbour-wall"})
+        self.assertEqual([part.passage_id for part in made.parts], [self.built, self.fish])
+        self.assertEqual((made.timeline.params["takes"], made.timeline.params["take"]), ("wall$", None))
+        # What was kept in another take is not brought in, and the cut after it keeps to the same takes.
+        timelines.react("made-up-wall", 2, "drop")
+        again = assemble.interview("made-up-wall-2", after="made-up-wall")
+        self.assertEqual((again.timeline.params["takes"], [part.passage_id for part in again.parts]),
+                         ("wall$", [self.built]))
+        with self.assertRaisesRegex(EditError, "ranks no passages here"):
+            assemble.interview("made-up-none", LOOSE, takes="made-up-nowhere")
+        with self.assertRaisesRegex(EditError, r"'\(' is not a pattern"):
+            assemble.interview("made-up-none", LOOSE, takes="(")
+
     def test_what_a_person_kept_goes_in_whatever_it_scored(self):
         decisions.keep(self.first, note="the storm", actor="made-up-editor")
         made = assemble.interview("made-up-talk", take="made-up-lighthouse")
@@ -517,6 +536,8 @@ class AssembleCommandsTest(Talks):
         self.assertRegex(lines[3], r"^3 clips, 0:\d\d\.\d of 1:00\.0, from 3 passages$")
         self.assertEqual(lines[4:], ["1 left out: someone in them asks for it not to be used", "nothing was written"])
         self.assertEqual(run("timelines")[1], "0 timelines\n")
+        status, out, _ = run("assemble", "made-up-wall", "--takes", "wall", *loose, "--dry-run")
+        self.assertEqual((status, out.count("quay.mov"), out.count("lighthouse.mov")), (0, 2, 0))
 
         self.assertEqual(run("assemble", "made-up-talk", "--project", "made-up", *loose, "--style", "thematic")[0], 0)
         self.assertIn("  thematic style", run("timelines")[1])

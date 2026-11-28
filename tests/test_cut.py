@@ -297,6 +297,18 @@ class CompilationTest(Footage):
         with self.assertRaisesRegex(EditError, "'\\(' is not a pattern"):
             select.compilation("made-up-reel", match="(")
 
+    def test_shots_over_a_length_can_be_left_out(self):
+        long = self.film(self.harbour, 8, GREEN, 0.99)
+        self.query("UPDATE media_video.shots SET end_s = start_s + 9 WHERE id = %s RETURNING id", (long,))
+        made = select.compilation("made-up-reel", count=1, diversity=0.0)
+        self.assertEqual([clip.shot_id for clip in made.timeline.clips], [long])
+        made = select.compilation("made-up-short", count=1, diversity=0.0, max_length_s=8.0)
+        self.assertEqual((self.cut("made-up-short"), made.selection.considered), (["red-1"], 8))
+        self.assertEqual(made.timeline.params["options"]["max_length_s"], 8.0)
+        # A revision is made with what the cut before it was made with.
+        again = select.compilation("made-up-short-2", after="made-up-short")
+        self.assertEqual((again.options.max_length_s, self.cut("made-up-short-2")), (8.0, ["red-1"]))
+
     def test_nothing_to_choose_from_says_what_to_run(self):
         with self.assertRaisesRegex(EditError, "ranks no shots matching 'nowhere'. `media score`"):
             select.compilation("made-up-reel", match="nowhere")
@@ -478,6 +490,17 @@ class DecisionsTest(Footage):
         self.assertEqual({pair.one.id, pair.other.id}, {self.first, self.second})
         self.assertIsNone(pair.likeness)
 
+    def test_pairs_can_be_kept_to_some_files_or_takes(self):
+        pier = self.asset("pier.mov", medium="video")
+        self.film(pier, 0, RED, 0.945)
+        everywhere = [(pair.one.where, pair.other.where) for pair in decisions.pairs("broll", count=2)]
+        self.assertIn("pier.mov 0:00.0-0:06.0", [where for pair in everywhere for where in pair])
+        self.assertEqual(self.pairs(match="harbour"),
+                         [("red-1", "red-2"), ("red-3", "red-4"), ("green", "blue"), ("gold", "grey")])
+        self.assertEqual(decisions.pairs("broll", match="made-up-nowhere"), [])
+        self.assertEqual(len(decisions.pairs("interview", match="lighthouse")), 1)
+        self.assertEqual(decisions.pairs("interview", match="harbour"), [])
+
 
 class ScriptTest(test_edit.Scored):
     def setUp(self):
@@ -551,6 +574,19 @@ class ScriptTest(test_edit.Scored):
         self.assertEqual((everything.count("\n## "), everything.count("\n>\n")), (2, 2))
         self.assertEqual(script.read(everything).unmarked, 2)
 
+    def test_a_script_can_be_of_some_takes_and_of_what_scored_enough(self):
+        self.allow()
+        whole = script.write()
+        narrowed = script.write(takes="lighthouse$")
+        self.assertTrue(narrowed.startswith("# takes matching lighthouse$: the best 2 passages by interview\n"))
+        self.assertEqual(narrowed.split("\n", 1)[1], whole.split("\n", 1)[1])
+        exchanges = script.write(at_least={"exchange": 0.5})
+        self.assertEqual((exchanges.count("\n## "), self.heading(self.first) in exchanges), (1, True))
+        with self.assertRaisesRegex(EditError, "no ranked passages to write out"):
+            script.write(takes="harbour")
+        with self.assertRaisesRegex(EditError, "no ranked passages to write out"):
+            script.write(at_least={"exchange": 0.5, "completeness": 0.9})
+
     def test_a_script_needs_ranked_passages(self):
         with self.assertRaisesRegex(EditError, "recipe 'broll' ranks shots; a script is made of passages"):
             script.write("broll")
@@ -606,6 +642,21 @@ class CutCommandsTest(Footage):
         self.assertEqual(run("timeline", "made-up-reel-2")[1].splitlines()[-1],
                          "made-up-reel-2: compilation, 4 clips, 0:22.0, draft, revision 2 after made-up-reel, seed 5")
 
+    def test_a_selector_is_kept_with_what_it_is_for(self):
+        status, out, _ = run("compile", "made-up-short", "--count", "2", "--max-length", "8",
+                             "--remember", "made-up-short", "--description", "Two short ones")
+        self.assertEqual((status, out.splitlines()[2]), (0, "2 clips, 0:12.0, from 8 shots by broll"))
+        self.assertEqual(run("selectors")[1], "made-up-short: count 2, max length s 8.0. Two short ones\n")
+        run("compile", "made-up-short", "--count", "3", "--remember", "made-up-short")
+        self.assertEqual(run("selectors")[1], "made-up-short: count 3. Two short ones\n")
+        run("compile", "made-up-short", "--count", "3", "--remember", "made-up-short", "--description", "Three")
+        self.assertEqual(run("selectors")[1], "made-up-short: count 3. Three\n")
+        status, _, err = run("compile", "made-up-none", "--max-length", "2")
+        self.assertEqual(status, 1)
+        self.assertIn("nothing to choose from", err)
+        status, _, err = run("compile", "made-up-none", "--model", "made-up-taste")
+        self.assertEqual((status, err), (1, "media: no model is called 'made-up-taste'; `media models` lists them\n"))
+
     def test_what_cannot_be_done_is_said_plainly(self):
         self.assertEqual(run("compile", "made-up-reel", "--match", "nowhere")[::2], (
             1, "media: nothing to choose from: recipe 'broll' ranks no shots matching 'nowhere'. "
@@ -644,6 +695,9 @@ class CutCommandsTest(Footage):
             f"  {self.short('red-2')}  harbour.mov 0:10.0-0:16.0  (0.010 apart in score, 1.00 alike)\n\n"
             "1 pairs; answer each with `media prefer <chosen> <rejected>`\n")))
         self.assertEqual(run("pairs", "--mode", "contrast", "--count", "2")[1].count("alike"), 2)
+        self.assertEqual(run("pairs", "--match", "harbour", "--count", "1")[1], out)
+        self.assertEqual(run("pairs", "--match", "made-up-nowhere")[:2],
+                         run("pairs", "--project", "made-up-nowhere")[:2])
 
     def test_a_script_is_written_marked_and_read(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -653,6 +707,11 @@ class CutCommandsTest(Footage):
             status, out, _ = run("script", "--top", "5")
             self.assertEqual((status, out), (0, path.read_text(encoding="utf-8").replace(
                 "# made-up-lighthouse:", "# Script:")))
+            self.assertEqual(run("script", "--takes", "light")[1], out.replace("# Script:", "# takes matching light:"))
+            self.assertEqual(run("script", "--takes", "light", "--at-least", "exchange=0.5")[1].count("\n## "), 1)
+            status, _, err = run("script", "--at-least", "completeness=0.9")
+            self.assertEqual(status, 1)
+            self.assertIn("no ranked passages to write out", err)
             path.write_text(path.read_text(encoding="utf-8").replace("\n>\n", "\n> keep - opens the film\n")
                             + "\n## 0000000000ff\n\n> keep\n", encoding="utf-8")
             self.assertEqual(run("script", "--read", str(path), "--dry-run")[:2], (1, (

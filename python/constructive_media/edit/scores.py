@@ -21,8 +21,9 @@ Scores are redone, never piled up: scoring twice leaves what scoring once did.
 
 from __future__ import annotations
 
+import re
 from collections import Counter
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
@@ -387,21 +388,60 @@ def known(subject: str) -> set[str]:
     return {name for (name,) in cur.fetchall()}
 
 
+#: Something a floor is put under must have this score at or over the floor, whatever the rest come to.
+_FLOORS = """NOT EXISTS (SELECT 1 FROM unnest(%s::text[], %s::float8[]) AS wanted(name, least)
+                           WHERE NOT EXISTS (SELECT 1 FROM media_video.scores s
+                                              WHERE s.subject_type = v.subject_type AND s.subject_id = v.subject_id
+                                                AND s.name = wanted.name AND s.value >= wanted.least))"""
+
+
+def pattern(given: str | None) -> re.Pattern[str] | None:
+    """A pattern to narrow by, or a plain word about why it is not one."""
+    if given is None:
+        return None
+    try:
+        return re.compile(given)
+    except re.error as error:
+        raise EditError(f"{given!r} is not a pattern: {error}") from None
+
+
 def ranked(
     name: str, *, limit: int | None = 25, min_coverage: float = 0.5, project: str | None = None,
     method: str | None = None, take: str | None = None, episode: str | None = None,
+    match: str | None = None, at_least: Mapping[str, float] | None = None, min_words: int | None = None,
+    model: str | None = None,
 ) -> Ranking:
     """The best of what a recipe ranks, best first, or all of it with no `limit`.
 
     `min_coverage` is how much of the recipe must have had a score: below it a
     figure rests on too little to set beside the others. For passages, each
     moment appears once, as the best passage that covers it, `method` keeps
-    to passages found one way and `take` to one take's. Anything cut for good
-    is left out, and so is anything cut from `episode` when one is named.
+    to passages found one way, `take` to one take's and `min_words` to those
+    with that many words. Anything cut for good is left out, and so is
+    anything cut from `episode` when one is named.
+
+    `match` is a pattern for where a thing is from: the path of a shot's
+    file, or the name of a passage's take. `at_least` puts a floor under a
+    score by name: what has no such score, or one below the floor, is left
+    out however well the rest of the recipe thinks of it.
+
+    `model` ranks shots by what one fitted model made of them and nothing
+    else. The recipe still says which shots have been measured enough to
+    rank; the order, and the score each carries, are the model's.
     """
     chosen = recipe(name)
     weight = sum(chosen.weights.values()) or 1.0
+    wanted = pattern(match)
+    floors = dict(at_least or {})
+    for score, least in floors.items():
+        if not 0.0 <= least <= 1.0:
+            raise EditError(f"a score runs from 0 to 1, and the floor under {score} is {least:g}")
+    under = (list(floors), [float(least) for least in floors.values()])
     cur = db.cursor()
+    if model is not None and chosen.subject != "shot":
+        raise EditError(f"a fitted model ranks shots, and recipe {name!r} ranks {chosen.subject}s")
+    if min_words and chosen.subject != "passage":
+        raise EditError(f"only a passage has words to count, and recipe {name!r} ranks {chosen.subject}s")
     if chosen.subject == "passage":
         cur.execute(
             f"""SELECT v.subject_id, v.score, v.coverage, v.modalities, v.deepest_tier, v.contributing,
@@ -412,24 +452,30 @@ def ranked(
                 WHERE v.recipe = %s AND v.subject_type = 'passage' AND v.coverage >= %s
                   AND (%s::text IS NULL OR t.project = %s) AND (%s::text IS NULL OR p.method = %s)
                   AND (%s::text IS NULL OR t.name = %s)
+                  AND {_FLOORS}
                   AND NOT EXISTS (SELECT 1 FROM media_video.exclusions x
                                    WHERE x.passage_id = p.id AND {_CUT})
                 ORDER BY v.score DESC, p.start_s, v.subject_id""",
-            (name, min_coverage * weight, project, project, method, method, take, take, episode),
+            (name, min_coverage * weight, project, project, method, method, take, take, *under, episode),
         )
     elif chosen.subject == "shot":
+        by = _by(model)
         cur.execute(
-            f"""SELECT v.subject_id, v.score, v.coverage, v.modalities, v.deepest_tier, v.contributing,
-                      a.path, sh.start_s, sh.end_s, '', sh.asset_id
+            f"""SELECT v.subject_id, coalesce(m.value, v.score), v.coverage, v.modalities, v.deepest_tier,
+                      v.contributing, a.path, sh.start_s, sh.end_s, '', sh.asset_id
                  FROM media_video.v_combined v
                  JOIN media_video.shots sh ON sh.id = v.subject_id
                  JOIN media.assets a ON a.id = sh.asset_id
+                 LEFT JOIN media_video.scores m
+                   ON m.subject_type = 'shot' AND m.subject_id = sh.id AND m.name = %s::text AND m.producer = %s::text
                 WHERE v.recipe = %s AND v.subject_type = 'shot' AND v.coverage >= %s
+                  AND (%s::text IS NULL OR m.id IS NOT NULL)
                   AND (%s::text IS NULL OR a.project = %s)
+                  AND {_FLOORS}
                   AND NOT EXISTS (SELECT 1 FROM media_video.exclusions x
                                    WHERE (x.shot_id = sh.id OR x.asset_id = sh.asset_id) AND {_CUT})
-                ORDER BY v.score DESC, a.path, sh.start_s""",
-            (name, min_coverage * weight, project, project, episode),
+                ORDER BY 2 DESC, a.path, sh.start_s""",
+            (*by, name, min_coverage * weight, by[1], project, project, *under, episode),
         )
     else:
         raise EditError(f"recipe {name!r} ranks {chosen.subject}s, which nothing here can list")
@@ -442,6 +488,10 @@ def ranked(
     for subject_id, score, coverage, modalities, deepest, contributing, source, start, end, text, within in rows:
         if limit is not None and len(entries) >= limit:
             break
+        if wanted is not None and not wanted.search(source):
+            continue
+        if min_words and len((text or "").split()) < min_words:
+            continue
         start, end = float(start), float(end)
         spans = taken.setdefault(within, [])
         # Passages found different ways cover the same moments. Shots never do.
@@ -456,3 +506,15 @@ def ranked(
         entries.append(Entry(subject_id, float(score), float(coverage) / weight, int(modalities),
                              int(deepest), tuple(contributing), source, start, end, text or ""))
     return Ranking(chosen, entries, withheld)
+
+
+def _by(model: str | None) -> tuple[str | None, str | None]:
+    """The score and its producer that one fitted model's ranking is read from."""
+    if model is None:
+        return None, None
+    from . import ranker
+
+    if not ranker.load(model).proven:
+        raise EditError(f"model {model!r} has not proved better than a coin, so it has scored nothing to rank by; "
+                        f"`media models {model}` shows how it did")
+    return ranker.SCORE, ranker.PRODUCER + model

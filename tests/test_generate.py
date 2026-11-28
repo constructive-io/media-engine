@@ -525,6 +525,30 @@ class GenerateCommandsTest(DatabaseTest):
         status, out, err = test_cli.run("collect")
         self.assertEqual((status, out, err), (1, "", "  failed   a made-up gull: out of ink\n"))
 
+    def test_collect_can_wait_for_what_is_still_to_come(self):
+        test_cli.run("generate", "image", WORDS, "--adapter", "made-up-service")
+        test_cli.run("generate", "image", "a made-up gull", "--adapter", "made-up-service")
+        asked = []
+
+        def later(seconds):
+            asked.append(seconds)
+            # The first is made while the command waits; the second never is.
+            self.service.states["job-1"] = Job("succeeded")
+
+        with mock.patch("constructive_media.cli.generate.time.sleep", side_effect=later), \
+                mock.patch("constructive_media.cli.generate.EVERY_S", 0.004):
+            status, out, _ = test_cli.run("collect", "--wait", "0.02")
+        self.assertEqual(status, 0)
+        self.assertGreaterEqual(len(asked), 1)
+        self.assertLessEqual(max(asked), 0.004)
+        self.assertRegex(out, r"^  made     /.*\.png\n  waiting  a made-up gull  \(made-up-service\)\n$")
+        # With nothing still to come there is nothing to wait for.
+        self.service.states["job-2"] = Job("succeeded")
+        with mock.patch("constructive_media.cli.generate.time.sleep", side_effect=AssertionError("it waited")):
+            status, out, _ = test_cli.run("collect", "--wait", "60")
+        self.assertEqual((status, len(out.splitlines())), (0, 1))
+        self.assertRegex(out, r"^  made     /.*\.png\n$")
+
     @needs_ffmpeg
     def test_synthetic_returns_1_when_a_cut_holds_what_nobody_filmed(self):
         filmed = make_video(self.root / "footage" / "quay cam.mp4")

@@ -25,7 +25,6 @@ from __future__ import annotations
 import heapq
 import math
 import random
-import re
 from collections.abc import Iterable, Sequence
 from dataclasses import asdict, dataclass, fields, replace
 from pathlib import Path
@@ -79,6 +78,10 @@ class Options:
     #: Use this many seconds of each shot, around its sharpest moment. None uses all of it.
     excerpt_s: float | None = None
     min_length_s: float = 1.0
+    #: The longest shot to consider. None is any length.
+    max_length_s: float | None = None
+    #: Rank by what this fitted model alone makes of each shot, not by the recipe's own sum.
+    model: str | None = None
     #: Order by file and by time within it, not by look.
     chronological: bool = False
     #: Only shots with somebody in them.
@@ -152,18 +155,15 @@ def adjacent(looks: Sequence[Look | None]) -> float | None:
 
 def candidates(options: Options, *, episode: str | None = None) -> tuple[list[Shot], int]:
     """The shots a selection may draw on, best first, and how many had no signature."""
-    if options.match is not None:
-        try:
-            wanted = re.compile(options.match)
-        except re.error as error:
-            raise EditError(f"{options.match!r} is not a pattern: {error}") from None
+    scores.pattern(options.match)
+    if scores.recipe(options.recipe).subject != "shot":
+        raise EditError(f"recipe {options.recipe!r} ranks {scores.recipe(options.recipe).subject}s; "
+                        "a compilation is made of shots")
     ranking = scores.ranked(options.recipe, limit=None, min_coverage=options.min_coverage,
-                            project=options.project, episode=episode)
-    if ranking.recipe.subject != "shot":
-        raise EditError(f"recipe {options.recipe!r} ranks {ranking.recipe.subject}s; a compilation is made of shots")
+                            project=options.project, episode=episode, match=options.match, model=options.model)
     entries = [entry for entry in ranking.entries
                if entry.end_s - entry.start_s >= options.min_length_s
-               and (options.match is None or wanted.search(entry.source))]
+               and (options.max_length_s is None or entry.end_s - entry.start_s <= options.max_length_s)]
     cur = db.cursor()
     cur.execute(
         """SELECT sh.id, sh.asset_id, coalesce(sh.is_black, false), coalesce(sh.subject_n, 0),
@@ -374,6 +374,7 @@ def compilation(
         raise EditError(
             f"nothing to choose from: recipe {options.recipe!r} ranks no shots"
             + (f" matching {options.match!r}" if options.match else "")
+            + (f" that model {options.model!r} has scored" if options.model else "")
             + (f" ({unsigned} have no signature; `media signatures` gives them one)" if unsigned
                else ". `media score` scores what has been analysed")
         )

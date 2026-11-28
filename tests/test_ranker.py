@@ -311,6 +311,34 @@ class ModelsTest(Preferences):
         self.assertEqual(best, sorted(self.sharpness, key=self.sharpness.get, reverse=True)[:3])
 
 
+    def test_a_ranking_can_go_by_one_model_alone(self):
+        made = ranker.train("made-up-taste")
+        ranker.save(made)
+        ranker.apply(made)
+        sharpest = sorted(self.sharpness, key=self.sharpness.get, reverse=True)
+        # A recipe that thinks the opposite of the editor: the dullest shot first.
+        scores.record([("shot", shot_id, "colour_variety", 1.0 - at / 18, None, 2, "picture", "made-up")
+                       for at, shot_id in enumerate(reversed(sharpest))])
+        scores.define("made-up-dull", {"colour_variety": 1.0})
+
+        def ranked(**by):
+            return [str(entry.subject_id) for entry in scores.ranked("made-up-dull", limit=None, **by).entries]
+
+        self.assertEqual(ranked(), sharpest[::-1])
+        self.assertEqual(ranked(model="made-up-taste"), sharpest)
+        (best, *_) = scores.ranked("made-up-dull", model="made-up-taste").entries
+        self.assertAlmostEqual(best.score, self.preferred()[sharpest[0]])
+        # Only what the model has scored is ranked by it.
+        ranker.save(dataclasses.replace(made, name="made-up-quay", match="quay"))
+        ranker.apply(ranker.load("made-up-quay"))
+        self.assertEqual(set(ranked(model="made-up-quay")), {str(shot_id) for shot_id in self.shoots["quay"]})
+        ranker.save(dataclasses.replace(made, name="made-up-coin", accuracy=0.5))
+        with self.assertRaisesRegex(EditError, "model 'made-up-coin' has not proved better than a coin"):
+            ranked(model="made-up-coin")
+        with self.assertRaisesRegex(EditError, "no model is called 'made-up-other'"):
+            ranked(model="made-up-other")
+
+
 class RecipesTest(test_edit.Interview):
     def test_a_recipe_is_made_and_changed(self):
         scores.define("made-up-reel", {"sharpness": 2.0, "preferred": 1.0})
@@ -378,6 +406,32 @@ class RankerCommandsTest(Preferences):
                                                "than a coin by more than chance. More choices may change that")
         self.assertEqual(run("models", "made-up-quay")[1].splitlines()[-1],
                          "  not in use: not shown to be better than a coin")
+
+    def test_a_model_can_be_ranked_and_cut_by(self):
+        run("fit", "--save", "made-up-taste")
+        run("fit", "--match", "quay", "--min-pairs", "10", "--save", "made-up-quay")
+        run("recipe", "made-up-reel", "--weigh", "preferred=1")
+        sharpest = sorted(self.sharpness, key=self.sharpness.get, reverse=True)
+        status, out, _ = run("rank", "made-up-reel", "--model", "made-up-taste", "--top", "2")
+        self.assertEqual(status, 0)
+        self.assertEqual(out.splitlines()[-1], "2 shots by model made-up-taste")
+        self.assertIn(self.file[sharpest[0]], out.splitlines()[0])
+        cut = ("compile", "made-up-cut", "--recipe", "made-up-reel", "--model", "made-up-taste", "--count", "3",
+               "--diversity", "0")
+        self.assertEqual(run(*cut)[::2], (
+            1, "media: nothing to choose from: recipe 'made-up-reel' ranks no shots that model 'made-up-taste' "
+               "has scored (18 have no signature; `media signatures` gives them one)\n"))
+        self.query("INSERT INTO media_video.signatures (shot_id, hue, value, sat_mean, motion) "
+                   "SELECT id, %s, %s, 0.5, 10.0 FROM media_video.shots RETURNING shot_id",
+                   ([1 / 24] * 24, [0, 0, 0, 1.0, 0, 0, 0, 0]))
+        status, out, _ = run(*cut)
+        self.assertEqual(status, 0)
+        self.assertRegex(out.splitlines()[3], r"^3 clips, 0:\d\d\.\d, from 18 shots by model made-up-taste$")
+        self.assertEqual({str(shot_id) for (shot_id,) in self.query("SELECT shot_id FROM media_video.timeline_clips")},
+                         set(sharpest[:3]))
+        self.assertEqual(run("rank", "made-up-reel", "--model", "made-up-quay")[::2], (
+            1, "media: model 'made-up-quay' has not proved better than a coin, so it has scored nothing to rank by; "
+               "`media models made-up-quay` shows how it did\n"))
 
     def test_what_cannot_be_done_is_said(self):
         self.assertEqual(run("fit", "--min-pairs", "500")[::2], (

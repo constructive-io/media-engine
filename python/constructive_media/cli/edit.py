@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from .analyze import MATCH_HELP
+from .cut import floor
 
 
 def register(commands: Any) -> None:
@@ -76,6 +77,16 @@ def register(commands: Any) -> None:
     command.add_argument("--min-coverage", type=float, default=0.5, metavar="SHARE",
                          help="how much of the recipe must have been measured, 0 to 1 (default %(default)g)")
     command.add_argument("--method", help="only passages found this way: gap, sentence, or a --name you gave")
+    command.add_argument("--take", help="only this take's passages")
+    command.add_argument("--match", metavar="PATTERN",
+                         help="only shots of files whose path matches this regular expression, or passages of "
+                              "takes whose name does")
+    command.add_argument("--min-words", type=int, metavar="N", help="only passages with at least this many words")
+    command.add_argument("--at-least", action="append", default=[], metavar="SCORE=FLOOR", type=floor,
+                         help="only what has this score at or over a floor from 0 to 1, as in sharpness=0.6; "
+                              "say it again for another score")
+    command.add_argument("--model", metavar="NAME",
+                         help="rank shots by what this fitted model alone makes of them")
     command.set_defaults(run=run_rank)
 
     command = commands.add_parser(
@@ -249,13 +260,16 @@ def run_rank(arguments: argparse.Namespace) -> None:
             _recipe(recipe)
         return
     ranking = scores.ranked(arguments.recipe, limit=arguments.top, min_coverage=arguments.min_coverage,
-                            project=arguments.project, method=arguments.method)
+                            project=arguments.project, method=arguments.method, take=arguments.take,
+                            match=arguments.match, min_words=arguments.min_words,
+                            at_least=dict(arguments.at_least), model=arguments.model)
     for entry in ranking.entries:
         source = entry.source if ranking.recipe.subject == "passage" else Path(entry.source).name
         text = entry.text if len(entry.text) <= 72 else entry.text[:71].rstrip() + "…"
         print(f"  {entry.score:.2f}  {source}  {clock(entry.start_s)}-{clock(entry.end_s)}  "
               f"{entry.coverage:.0%} measured" + (f"  {text}" if text else ""))
-    print(f"{len(ranking.entries)} {ranking.recipe.subject}s by {ranking.recipe.name}")
+    print(f"{len(ranking.entries)} {ranking.recipe.subject}s by "
+          + (f"model {arguments.model}" if arguments.model else ranking.recipe.name))
     if ranking.withheld:
         print(f"{ranking.withheld} left out: someone in them asks for it not to be used")
 

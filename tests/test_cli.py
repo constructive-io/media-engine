@@ -248,6 +248,21 @@ class ListeningCommandsTest(DatabaseTest):
                          "1 lines put back to what the recogniser wrote, 1 corrections dropped\n")
         self.assertEqual(run("mend", "--undo", "--dry-run")[0], 2)
 
+    def test_another_projects_terms_can_be_listened_for(self):
+        self.recording("harbour.wav")
+        run("vocabulary", "Quillfeather", "--project", "made-up-market")
+        heard = []
+
+        class Noting(Listener):
+            def transcribe(self, audio, *, language="en", prompt=None):
+                heard.append(prompt)
+                return super().transcribe(audio, language=language, prompt=prompt)
+
+        with mock.patch("constructive_media.transcription.transcriber", return_value=Noting("The tide is in.")):
+            run("transcribe", "--match", "^/made-up/")
+            run("transcribe", "--match", "^/made-up/", "--force", "--vocabulary-of", "made-up-market")
+        self.assertEqual(["Quillfeather" in (prompt or "") for prompt in heard], [False, True])
+
     def test_the_weakest_recordings_are_listened_to_again(self):
         self.recording("harbour.wav")
         self.recording("market.wav")
@@ -340,6 +355,49 @@ class SpeakerCommandsTest(DatabaseTest):
         self.assertEqual(run("name", "meeting", "voice1", "--clear")[:2],
                          (0, "voice1 in meeting.wav has no name: 1 segments\n"))
         self.assertEqual(run("speakers", "no-such-recording")[1], "0 recordings, 0 voices without a name\n")
+
+    def test_voices_can_be_looked_for_without_storing_any(self):
+        cards = self.root / "home" / "work" / "speakers" / str(self.asset)[:8]
+        with mock.patch("constructive_media.speakers.embedder", return_value=ByNote()):
+            status, out, _ = run("diarize", "--dry-run")
+            self.assertEqual((status, out), (0, (
+                "  meeting.wav\n"
+                "    voice1       1 segments    0:30\n"
+                "    voice2       1 segments    0:20\n"
+                "    1 segments left unknown: too short or too unclear to tell\n"
+                "1 recordings gone over with by-note (by-note-1): 2 voices; nothing was stored\n"
+            )))
+            self.assertEqual(self.query("SELECT count(*) FROM media_video.speaker_clusters"), [(0,)])
+            self.assertEqual(self.query("SELECT count(*) FROM media_video.segments WHERE speaker IS NOT NULL"), [(0,)])
+            self.assertFalse(cards.exists())
+            self.assertEqual(run("speakers")[1], "0 recordings, 0 voices without a name\n")
+            # Having looked, the recording is still there to be gone over.
+            self.assertEqual(run("diarize", "--no-cards")[1].splitlines()[-1],
+                             "1 recordings gone over with by-note (by-note-1): 2 voices")
+
+    def test_each_person_is_added_up_over_every_recording(self):
+        ((second,),) = self.query(
+            """INSERT INTO media.assets (medium, path, content_hash, has_audio)
+               VALUES ('audio', %s, 'made-up-afterwards', true) RETURNING id""",
+            (str(self.root / "meeting.wav") + "2",))
+        self.assertEqual(run("speakers", "--people")[1], "0 people in 0 recordings, 0 voices without a name\n")
+        with mock.patch("constructive_media.speakers.embedder", return_value=ByNote()):
+            run("diarize", "--no-cards")
+        self.query("""INSERT INTO media_video.speaker_clusters
+                          (asset_id, label, n_segments, n_windows, speech_s, method, model, centroid, persona_id)
+                      SELECT %s, label, 3, n_windows, 95.4, method, model, centroid, persona_id
+                        FROM media_video.speaker_clusters WHERE label = 'voice1' RETURNING id""", (second,))
+        run("name", "meeting.wav$", "voice1", "Ada Example", "--new")
+        run("name", "meeting.wav2", "voice1", "Ada Example")
+        run("name", "meeting.wav$", "voice2", "Ben Example", "--new")
+        status, out, _ = run("speakers", "--people")
+        self.assertEqual((status, out), (0, (
+            "  Ada Example                   4 segments     2:05  in 2 recordings\n"
+            "  Ben Example                   1 segments     0:20  in 1 recording\n"
+            "2 people in 2 recordings, 0 voices without a name\n"
+        )))
+        self.assertEqual(run("speakers", "wav2", "--people")[1].splitlines()[0],
+                         "  Ada Example                   3 segments     1:35  in 1 recording")
 
     def test_the_number_of_voices_and_how_alike_they_may_be_are_passed_on(self):
         with mock.patch("constructive_media.speakers.embedder", return_value=ByNote()), \

@@ -144,6 +144,18 @@ class TranscriptsTest(DatabaseTest):
             "c.wav": {"Zentrova"},
         })
 
+    def test_another_projects_vocabulary_can_be_listened_for(self):
+        self.asset("a.wav", project="made-up-harbour")
+        self.asset("c.wav")
+        before = transcripts.terms()
+        transcripts.learn(["Zentrova"])
+        transcripts.learn(["Ottoline Varga"], project="made-up-harbour")
+        transcripts.learn(["Quillfeather"], project="made-up-market")
+        listener = FakeTranscriber()
+        self.transcribe(listener, vocabulary_of="made-up-market")
+        self.assertEqual({name: set(prompt.split(", ")) - set(before) for name, _, prompt in listener.asked},
+                         {"a.wav": {"Zentrova", "Quillfeather"}, "c.wav": {"Zentrova", "Quillfeather"}})
+
     def test_the_vocabulary_can_be_left_out(self):
         self.asset("a.wav")
         transcripts.learn(["Zentrova"])

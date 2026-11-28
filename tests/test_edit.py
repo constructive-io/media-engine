@@ -623,6 +623,36 @@ class RankingTest(Scored):
         self.assertEqual([entry.score for entry in sentences.entries],
                          sorted((entry.score for entry in sentences.entries), reverse=True))
 
+    def test_a_ranking_is_narrowed_by_where_a_thing_is_from_and_what_it_scored(self):
+        def ranked(recipe="interview", **narrowing):
+            return [entry.subject_id for entry in scores.ranked(recipe, **narrowing).entries]
+
+        scores.run()
+        self.query("UPDATE media_video.flags SET accepted = false WHERE kind = 'off_record' RETURNING id")
+        both = ranked()
+        self.assertEqual(set(both), {self.first, self.second})
+        self.assertEqual(ranked(match="lighthouse$"), both)
+        self.assertEqual(ranked(match="^harbour"), [])
+        # The first is an exchange and stops short of a sentence's end; the second is neither.
+        self.assertEqual(ranked(at_least={"exchange": 0.5}), [self.first])
+        self.assertEqual(ranked(at_least={"completeness": 0.9}), [self.second])
+        self.assertEqual(ranked(at_least={"exchange": 0.5, "completeness": 0.9}), [])
+        self.assertEqual(ranked(at_least={"exchange": 0.0, "completeness": 0.75}), both)
+        # A score nothing has is a floor nothing stands on.
+        self.assertEqual(ranked(at_least={"made_up_score": 0.0}), [])
+        words = {entry.subject_id: len(entry.text.split()) for entry in scores.ranked("interview").entries}
+        longest = max(words, key=words.get)
+        self.assertEqual(ranked(min_words=max(words.values())), [longest])
+        self.assertEqual(ranked(min_words=min(words.values())), both)
+        with self.assertRaisesRegex(EditError, "a score runs from 0 to 1, and the floor under exchange is 1.5"):
+            ranked(at_least={"exchange": 1.5})
+        with self.assertRaisesRegex(EditError, r"'\(' is not a pattern"):
+            ranked(match="(")
+        with self.assertRaisesRegex(EditError, "only a passage has words to count, and recipe 'broll' ranks shots"):
+            ranked("broll", min_words=3)
+        with self.assertRaisesRegex(EditError, "a fitted model ranks shots, and recipe 'interview' ranks passages"):
+            ranked(model="made-up-taste")
+
     def test_shots_are_ranked_by_what_has_been_measured_of_them(self):
         near, wide, other = self.footage()
         scores.run()
@@ -679,6 +709,17 @@ class EditCommandsTest(Interview):
         self.assertEqual(rest, ["1 passages by interview",
                                 "1 left out: someone in them asks for it not to be used"])
         self.assertEqual(run("rank", "made-up")[::2], (1, "media: no recipe is called 'made-up'; `media rank` lists them\n"))
+        narrowed = ("rank", "interview", "--take", "made-up-lighthouse", "--match", "light", "--min-words", "5")
+        # The one someone asks not to be used is no exchange, so it is not there to be left out.
+        self.assertEqual(run(*narrowed, "--at-least", "exchange=0.5")[1].splitlines()[1:], rest[:1])
+        self.assertEqual(run(*narrowed, "--at-least", "exchange=0.5", "--at-least", "completeness=0.9")[1],
+                         "0 passages by interview\n")
+        self.assertEqual(run("rank", "interview", "--match", "quay")[1].splitlines()[0], "0 passages by interview")
+        status, _, err = run("rank", "interview", "--at-least", "exchange")
+        self.assertEqual(status, 2)
+        self.assertIn("'exchange' is not SCORE=FLOOR, as in coherence=0.55", err)
+        self.assertEqual(run("rank", "interview", "--at-least", "exchange=2")[::2],
+                         (1, "media: a score runs from 0 to 1, and the floor under exchange is 2\n"))
 
     def test_rank_without_a_recipe_lists_them(self):
         status, out, _ = run("rank")

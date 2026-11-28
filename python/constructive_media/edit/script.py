@@ -23,6 +23,7 @@ reported and left alone: nothing is guessed from a document a person wrote.
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 
 from . import EditError, clock, decisions, scores
@@ -56,10 +57,15 @@ class Read:
 def write(
     recipe: str = "interview", *, take: str | None = None, project: str | None = None,
     episode: str | None = None, limit: int = 40, min_coverage: float = 0.5, method: str | None = None,
+    takes: str | None = None, at_least: Mapping[str, float] | None = None,
 ) -> str:
-    """The best `limit` passages by a recipe, in the order they were said, as a document."""
+    """The best `limit` passages by a recipe, in the order they were said, as a document.
+
+    `takes` keeps to takes whose name fits a pattern, and `at_least` to
+    passages with a named score at or over a floor.
+    """
     ranking = scores.ranked(recipe, limit=limit, min_coverage=min_coverage, project=project, method=method,
-                            take=take, episode=episode)
+                            take=take, episode=episode, match=takes, at_least=at_least)
     if ranking.recipe.subject != "passage":
         raise EditError(f"recipe {recipe!r} ranks {ranking.recipe.subject}s; a script is made of passages")
     if not ranking.entries:
@@ -68,8 +74,9 @@ def write(
     entries = sorted(ranking.entries, key=lambda entry: (entry.source, entry.start_s))
     marked = decisions.standing(entry.subject_id for entry in entries)
     seconds = sum(entry.end_s - entry.start_s for entry in entries)
+    of = take or (takes and f"takes matching {takes}") or project or "Script"
     lines = [
-        f"# {take or project or 'Script'}: the best {len(entries)} passages by {ranking.recipe.name}",
+        f"# {of}: the best {len(entries)} passages by {ranking.recipe.name}",
         "",
         f"{clock(seconds)} in all. On the `>` line under a passage write keep, cut, trim or ?, and "
         "anything you want to add after it. Leave it empty to say nothing.",

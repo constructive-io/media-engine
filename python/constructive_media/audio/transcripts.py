@@ -64,13 +64,16 @@ def transcribe(
     speaker: str | None = None,
     transcriber: Transcriber | None = None,
     settings: Settings | None = None,
+    vocabulary_of: str | None = None,
 ) -> list[tuple[str, int]]:
     """Transcribe each recording that has sound. Returns (file name, segments written).
 
     The language is given, not detected: a recogniser that guesses the wrong
     language over a noisy opening does not write a worse transcript, it writes
     a different one. With `vocabulary` off the recogniser is told nothing
-    about the project.
+    about the project. `vocabulary_of` names the project whose terms are
+    listened for, in place of the one each recording belongs to: for a
+    recording filed under one project in which another's names are said.
 
     `source` is another file to listen to in place of the recording's own:
     the same sound cleaned up, say. Its times have to be the recording's, and
@@ -100,7 +103,7 @@ def transcribe(
         transcriber = default_transcriber(settings=settings)
     done = []
     for asset_id, path, its_own, its_project in waiting:
-        prompt = ", ".join(terms(its_project)) if vocabulary else ""
+        prompt = ", ".join(terms(vocabulary_of or its_project)) if vocabulary else ""
         heard = clean(transcriber.transcribe(Path(source or its_own), language=language, prompt=prompt or None),
                       prompt or None)
         if force:

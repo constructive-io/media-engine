@@ -10,6 +10,17 @@ from typing import Any
 from .analyze import MATCH_HELP
 
 
+def floor(given: str) -> tuple[str, float]:
+    """`SCORE=FLOOR` from the command line, as the score's name and the least it may be."""
+    name, equals, least = given.partition("=")
+    try:
+        if not (name.strip() and equals):
+            raise ValueError
+        return name.strip().replace("-", "_").replace(" ", "_"), float(least)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"{given!r} is not SCORE=FLOOR, as in coherence=0.55") from None
+
+
 def register(commands: Any) -> None:
     command = commands.add_parser(
         "compile", help="choose shots that are good and unalike, and store them as a cut",
@@ -31,6 +42,10 @@ def register(commands: Any) -> None:
                          help="use this much of each shot, around its sharpest moment (default: all of it)")
     command.add_argument("--min-length", type=float, metavar="SECONDS",
                          help="the shortest shot to consider (default 1)")
+    command.add_argument("--max-length", type=float, metavar="SECONDS",
+                         help="the longest shot to consider (default: any length)")
+    command.add_argument("--model", metavar="NAME",
+                         help="rank by what this fitted model alone makes of each shot (`media models` lists them)")
     command.add_argument("--chronological", action=argparse.BooleanOptionalAction,
                          help="order by file and time, not by look")
     command.add_argument("--people", action=argparse.BooleanOptionalAction,
@@ -39,6 +54,7 @@ def register(commands: Any) -> None:
     command.add_argument("--episode", help="the episode this cut is for, whose own cuts it then honours")
     command.add_argument("--title", help="a title for the cut")
     command.add_argument("--remember", metavar="SELECTOR", help="also keep these settings as a selector")
+    command.add_argument("--description", metavar="TEXT", help="with --remember: what the selector is for")
     command.add_argument("--dry-run", action="store_true", help="show the cut and store nothing")
     command.set_defaults(run=run_compile)
 
@@ -51,6 +67,8 @@ def register(commands: Any) -> None:
     )
     command.add_argument("name", help="what to call the cut")
     command.add_argument("--take", help="only this take's passages")
+    command.add_argument("--takes", metavar="PATTERN",
+                         help="only passages of takes whose name matches this regular expression")
     command.add_argument("--project", help="only this project's")
     command.add_argument("--episode", help="the episode this cut is for: what was cut from it is left out")
     command.add_argument("--passage", action="append", metavar="ID",
@@ -185,6 +203,9 @@ def register(commands: Any) -> None:
     command.add_argument("--mode", choices=("close", "contrast"), default="close")
     command.add_argument("--count", type=int, default=10, metavar="N", help="how many pairs (default %(default)s)")
     command.add_argument("--project", help="only this project's")
+    command.add_argument("--match", metavar="PATTERN",
+                         help="only shots of files whose path matches this regular expression, or passages of "
+                              "takes whose name does")
     command.add_argument("--render", metavar="FOLDER",
                          help="also write each pair of shots as a video: the first on the left, the second "
                               "on the right")
@@ -278,7 +299,12 @@ def register(commands: Any) -> None:
     )
     command.add_argument("recipe", nargs="?", default="interview", help="the recipe to rank by (default %(default)s)")
     command.add_argument("--take", help="only this take's passages")
+    command.add_argument("--takes", metavar="PATTERN",
+                         help="only passages of takes whose name matches this regular expression")
     command.add_argument("--project", help="only this project's")
+    command.add_argument("--at-least", action="append", default=[], metavar="SCORE=FLOOR", type=floor,
+                         help="only passages with this score at or over a floor from 0 to 1, as in "
+                              "coherence=0.55; say it again for another score")
     command.add_argument("--episode", help="the episode this is for: its cuts are left out, and cuts read are from it")
     command.add_argument("--top", type=int, default=40, metavar="N", help="how many passages (default %(default)s)")
     command.add_argument("--method", help="only passages found this way")
@@ -315,14 +341,19 @@ def run_compile(arguments: argparse.Namespace) -> None:
             arguments.name, using=arguments.using, after=arguments.after, seed=arguments.seed,
             episode=arguments.episode, title=arguments.title, recipe=arguments.recipe, match=arguments.match,
             project=arguments.project, count=arguments.count, diversity=arguments.diversity,
-            excerpt_s=arguments.excerpt, min_length_s=arguments.min_length,
-            chronological=arguments.chronological, people=arguments.people,
+            excerpt_s=arguments.excerpt, min_length_s=arguments.min_length, max_length_s=arguments.max_length,
+            model=arguments.model, chronological=arguments.chronological, people=arguments.people,
         )
         if arguments.remember:
-            select.remember(arguments.remember, made.options)
+            said = arguments.description
+            if said is None:
+                # Kept again with nothing said about it, a selector is still for what it was for.
+                said = next((kept.description for kept in select.selectors() if kept.name == arguments.remember), "")
+            select.remember(arguments.remember, made.options, said or "")
     cut, chosen = made.timeline, made.selection
     _show(cut.clips)
-    print(f"{len(cut.clips)} clips, {clock(cut.duration_s)}, from {chosen.considered} shots by {made.options.recipe}"
+    by = f"model {made.options.model}" if made.options.model else made.options.recipe
+    print(f"{len(cut.clips)} clips, {clock(cut.duration_s)}, from {chosen.considered} shots by {by}"
           + (f"; revision {cut.revision}, after {cut.after}" if cut.after else ""))
     if chosen.likeness is not None:
         print(f"neighbours are {chosen.likeness:.2f} alike"
@@ -357,7 +388,8 @@ def run_assemble(arguments: argparse.Namespace) -> None:
         shape = replace(shape or assemble.Style(), **changes)
     with db.transaction(keep=not arguments.dry_run):
         made = assemble.interview(
-            arguments.name, shape, take=arguments.take, project=arguments.project, episode=arguments.episode,
+            arguments.name, shape, take=arguments.take, takes=arguments.takes, project=arguments.project,
+            episode=arguments.episode,
             recipe=arguments.recipe, method=arguments.method, per_take=arguments.per_take,
             only=arguments.passage, after=arguments.after, title=arguments.title,
         )
@@ -505,7 +537,8 @@ def run_prefer(arguments: argparse.Namespace) -> None:
 def run_pairs(arguments: argparse.Namespace) -> None:
     from ..edit import decisions
 
-    found = decisions.pairs(arguments.recipe, mode=arguments.mode, count=arguments.count, project=arguments.project)
+    found = decisions.pairs(arguments.recipe, mode=arguments.mode, count=arguments.count, project=arguments.project,
+                            match=arguments.match)
     for pair in found:
         alike = f", {pair.likeness:.2f} alike" if pair.likeness is not None else ""
         print(f"  {_short(pair.one.id)}  {pair.one.where}")
@@ -712,7 +745,8 @@ def run_script(arguments: argparse.Namespace) -> int | None:
 
     if arguments.read is None:
         text = script.write(arguments.recipe, take=arguments.take, project=arguments.project,
-                            episode=arguments.episode, limit=arguments.top, method=arguments.method)
+                            episode=arguments.episode, limit=arguments.top, method=arguments.method,
+                            takes=arguments.takes, at_least=dict(arguments.at_least))
         if arguments.out is None:
             sys.stdout.write(text)
         else:
