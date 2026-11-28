@@ -434,8 +434,11 @@ class _Script:
     def _segments(self, words: str, line: int, said: str, wrong: list[str]) -> list[dict[str, Any]]:
         made = self.made
         segments: list[dict[str, Any]] = []
-        for piece in pieces(words):
-            if piece.type == "break":
+        for piece in pieces(words, tuple(made.directives)):
+            if piece.type == "mark":
+                data = made.directives[piece.kind](piece.raw, wrong.append)
+                segments.append({"type": "mark", "kind": piece.kind, "data": data or {}})
+            elif piece.type == "break":
                 if piece.seconds is None:
                     wrong.append(f"`{piece.raw}` needs seconds, e.g. `<break 0.5>`")
                 else:

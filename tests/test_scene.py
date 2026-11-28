@@ -217,6 +217,18 @@ class Walking(Rendered):
         self.assertEqual((spoken["speaker"], spoken["persona"], spoken["name"], spoken["title"], spoken["seconds"]),
                          ("ADA", "ada", "Ada Field", "Keeper", first["seconds"]))
 
+    def test_a_mark_written_inside_a_line_falls_where_the_words_have_reached(self):
+        report = self.render("[slide one]\nADA: One two three four. <slide one step:1> Five six seven eight.\n"
+                             "ADA: <slide two> Mind the step.")
+        first, second = report["lines"]
+        self.assertEqual(first["text"], "One two three four. Five six seven eight.")
+        marks = [(mark["kind"], mark.get("id"), mark.get("step"), mark["t"]) for mark in report["marks"]]
+        self.assertEqual([mark[:3] for mark in marks], [("slide", "one", 0), ("line", None, None), ("slide", "one", 1),
+                                                         ("line", None, None), ("slide", "two", 0)])
+        self.assertAlmostEqual(marks[2][3], first["seconds"] * 19 / 40, places=2)
+        self.assertEqual(marks[4][3], second["at"])
+        self.assertEqual([mark["t"] for mark in report["marks"]], sorted(mark["t"] for mark in report["marks"]))
+
     def test_a_clip_takes_the_screen_and_the_scene_waits_for_it(self):
         make_video(self.here / "clips/boat.mp4", colours=("red",), seconds=3.0)
         head = CAST + SOUNDS + "CLIP: { file: clips/boat.mp4 }\n"

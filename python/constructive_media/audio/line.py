@@ -56,6 +56,8 @@ SHORT = 3
 QUIET_RATE = 24_000
 
 _SMALLEST = 256
+#: What begins a piece that nothing is put before: `cost <slide a>, and` is "cost, and".
+_CLOSES = frozenset(",.;:!?)]}%…’”")
 
 _REWORD = (
     "Rephrase this sentence so that a text-to-speech voice reads it cleanly. Do not change what it means "
@@ -227,7 +229,9 @@ def perform(
 
     `segments` are the line's pieces as a script is read: text, which may
     ask for an emotion, a seed or effects of its own; breaks, which are
-    quiet; and sounds, which are not said and are passed over. `synthesizer`
+    quiet; sounds, which are not said and are passed over; and marks, which
+    are taken out, so the words on either side of one are a single piece.
+    `synthesizer`
     is given the name of a voice's engine and returns what speaks it.
     `line_seed` pins every piece to one seed unless the piece has its own.
     `how` is passed on to `speak`.
@@ -237,6 +241,7 @@ def perform(
     worst piece, and it is that piece's verdict the whole is given.
     """
     folder = Path(folder)
+    segments = joined(segments)
     said = [piece for piece in segments if piece["type"] == "text"]
     if len(said) == 1 and len(segments) == 1 and not said[0].get("overrides"):
         voice = _pinned(voices.find(persona, emotion), line_seed)
@@ -286,6 +291,31 @@ def perform(
         sum(take.attempts for take in takes), worst.repeat, worst.tail_db,
     )
     return Line(whole, voice, " ".join(piece["text"] for piece in said), tuple(applied))
+
+
+def joined(segments: Sequence[dict[str, Any]]) -> list[dict[str, Any]]:
+    """A line's pieces with its marks taken out.
+
+    A mark is silent and takes no time. Words with a mark between them, asked
+    for in the same way, are one piece: a sentence with a build cued in the
+    middle of it is said in one breath, not as two takes.
+    """
+    kept: list[dict[str, Any]] = []
+    marked = False
+    for piece in segments:
+        if piece["type"] == "mark":
+            marked = True
+            continue
+        last = kept[-1] if kept else None
+        if (marked and last is not None and piece["type"] == "text" and last["type"] == "text"
+                and (last.get("overrides") or {}) == (piece.get("overrides") or {})):
+            # `cost <slide a>, and` is "cost, and": nothing is put before a comma.
+            between = "" if piece["text"][:1] in _CLOSES else " "
+            kept[-1] = dict(last, text=f"{last['text']}{between}{piece['text']}")
+        else:
+            kept.append(piece)
+        marked = False
+    return kept
 
 
 def _pinned(voice: Voice, seed: int | None) -> Voice:

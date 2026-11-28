@@ -38,6 +38,7 @@ with marks, which a renderer of sound alone passes over:
 | --- | --- |
 | `[slide pricing]` | the slide called `pricing` is shown |
 | `[slide pricing step:2]` | its steps up to 2 are revealed |
+| `ADA: It costs less, <slide pricing step:3> and it is quicker.` | step 3 is revealed where the words have reached; the sentence is still said in one breath |
 | `[speakers faces lower-third waveform captions]` | what is drawn of whoever speaks, until the next such mark |
 | `[speakers all]`, `[speakers off]` | all four, or none |
 | `[video DEMO]` | the clip called `DEMO` takes the screen and is heard |

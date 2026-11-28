@@ -4,7 +4,7 @@ description: Constructive Media — one engine for video, images, audio and voic
 compatibility: Python 3.11+, PostgreSQL 17+ with pgvector, pgpm, ffmpeg, whisper.cpp; Chrome or Chromium for video of a page
 metadata:
   author: constructive-io
-  version: "0.17.0"
+  version: "0.18.0"
 ---
 
 # Constructive Media
@@ -173,6 +173,7 @@ format; a renderer of sound alone passes over them:
 | --- | --- |
 | `[slide pricing]` | the slide called `pricing` |
 | `[slide pricing step:2]` | its steps up to 2 revealed |
+| `<slide pricing step:3>` inside a line | step 3 revealed where the words have reached, the sentence still said in one breath |
 | `[speakers faces lower-third waveform captions]` | what is drawn of whoever speaks |
 | `[speakers off]` | nothing drawn of them |
 | `[video DEMO]` | the clip `DEMO` takes the screen and is heard |
@@ -190,7 +191,9 @@ engine hands both over; a page never carries a copy) and marks its parts:
 | `data-point="60%,40%"` | where a walkthrough's pointer goes |
 
 A build per spoken line reads best: put `[slide ID step:N]` before the line
-that speaks of it. `body[data-stage-speaker="ada"]` styles the page by who is
+that speaks of it, or `<slide ID step:N>` inside the line when the build
+belongs to a clause in the middle of a sentence. Do not cut a sentence into
+two lines to cue a build; the voice starts over at every line. `body[data-stage-speaker="ada"]` styles the page by who is
 talking. What a page draws itself, a chart filling or a clock, is drawn from
 `window.stage.since('pricing', 2)`, the seconds since the script reached that
 step (null before it), so the film and the preview agree. The engine names

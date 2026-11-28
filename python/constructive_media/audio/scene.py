@@ -491,6 +491,8 @@ class _Walk:
                     self._play(_track_of(self.scene, piece["sound"]), piece["sound"], None, self.clock, piece["overrides"])
                 elif piece["type"] == "break":
                     self.clock += float(piece["seconds"])
+                elif piece["type"] == "mark":
+                    self.marks.append({"t": round(self.clock, 3), "kind": piece["kind"], **piece["data"]})
             return
         self.number += 1
         number, speaker, asked = self.number, item["speaker"], item["overrides"]
@@ -516,6 +518,11 @@ class _Walk:
         self.marks.append({"t": round(self.clock, 3), "kind": "line", "line": number, "speaker": speaker,
                            "persona": persona, "track": track, "seconds": round(seconds, 3), "text": text,
                            **{key: character[key] for key in ("name", "title") if character.get(key)}})
+        # A mark written inside the line falls where the words have reached.
+        for piece in segments:
+            if piece["type"] == "mark":
+                self.marks.append({"t": round(self.clock + seconds * _part(segments, piece), 3),
+                                   "kind": piece["kind"], **piece["data"]})
         self.records.append(dict(found, file=str(file.resolve()), track=track, at=round(self.clock, 3),
                                  seconds=round(seconds, 3)))
         self.clock += seconds + self.gap
@@ -690,7 +697,7 @@ def _persona(scene: conv.Scene, speaker: str) -> str:
 
 
 def _text(item: dict[str, Any]) -> str:
-    return " ".join(piece["text"] for piece in item["segments"] if piece["type"] == "text").strip()
+    return " ".join(piece["text"] for piece in lines.joined(item["segments"]) if piece["type"] == "text").strip()
 
 
 def _when(clock: float, asked: dict[str, Any]) -> float:
@@ -704,7 +711,7 @@ def _when(clock: float, asked: dict[str, Any]) -> float:
 
 
 def _part(segments: Sequence[dict[str, Any]], sound: dict[str, Any]) -> float:
-    """How far through a line's words a sound written inside it comes, from 0 to 1."""
+    """How far through a line's words a sound or a mark written inside it comes, from 0 to 1."""
     before = total = 0
     passed = False
     for piece in segments:

@@ -1,7 +1,7 @@
 # conversation-format fixtures
 
 The conformance files of the [`.conv` format](https://github.com/constructive-io/conversation-format),
-copied as they are from its `__fixtures__` folder at commit `615c4ac`. They are
+copied as they are from its `__fixtures__` folder at commit `825c865`. They are
 MIT licensed; the license is beside this file.
 
 - `scenes/X.conv` must parse to exactly `scenes/X.json`.

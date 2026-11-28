@@ -255,6 +255,18 @@ class Performing(Said):
         # Three joins of thirty thousandths of a second are overlaps; the break is not joined to anything.
         self.assertAlmostEqual(pcm.seconds(said.take.path), pieces + 0.5 - 0.03 * 2, delta=0.02)
 
+    def test_words_with_a_mark_between_them_are_said_in_one_breath(self):
+        mark = {"type": "mark", "kind": "slide", "data": {"id": "one", "step": 1}}
+        said = self.perform([text("The lantern is lit"), mark, text(", and the tide is in."), mark,
+                             text("Come closer now."), text("Mind the step.", emotion="whisper")], name="line_005")
+        self.assertEqual([words for words, _, _ in self.speaker.asked],
+                         ["The lantern is lit, and the tide is in. Come closer now.", "Mind the step."])
+        # A line that is plain but for its marks is one take, named as a line of one piece is.
+        said = self.perform([mark, text("The lantern is lit."), mark, text("Come closer now.")], name="line_006")
+        self.assertEqual((said.text, said.take.path.name), ("The lantern is lit. Come closer now.", "line_006_a1.wav"))
+        # With no mark between them, two pieces are two takes, as they always were.
+        self.assertEqual(len(line.joined([text("The lantern is lit."), text("Come closer now.")])), 2)
+
     def test_the_whole_is_as_good_as_its_worst_piece(self):
         said = self.perform(
             [text("The lantern is lit."), text("Come closer now and listen to me."), text("The tide is in tonight.")],

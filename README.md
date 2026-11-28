@@ -550,7 +550,8 @@ scenes.record(report)                                                # the rende
 ```
 
 A rendered script is filmed by a page that follows it. A script's
-`[slide …]`, `[speakers …]` and `[video …]` marks say what is on the screen;
+`[slide …]`, `[speakers …]` and `[video …]` marks say what is on the screen
+(`<slide …>` inside a line puts one in the middle of a sentence);
 the page is the built-in one, or any HTML of your own:
 
 ```sh
