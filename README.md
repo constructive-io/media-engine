@@ -25,6 +25,66 @@ and words found inside them, the cuts made from them and every judgement a
 person or a model passed along the way. Models come and go behind adapters. The
 record of what was made, from what, and why stays in one database.
 
+## Features
+
+* 🗄️ **[Postgres as its memory](#what-is-in-the-box)** — three pgpm modules, `media-core`, `media-video` and `media-audio`, hold every file, person, shot, word, cut and ruling as rows
+* 📥 **[Ingest and lineage](#usage)** — `media ingest` registers a file or a folder, `media lineage` shows what a file was made from, and `media outputs` lists every file the engine has made
+* 🎞️ **[Shots, frames and detection](#usage)** — `media shots`, `media frames`, `media signatures` and `media detect` split each video into shots, sample them, give each a colour and motion signature, and find the objects and people in it
+* 📝 **[Transcripts put right](#usage)** — `media transcribe` writes down what is said, word by word with timings; `media vocabulary`, `media mend` and `media relisten` put right what was misheard, and `media mend --undo` puts it back
+* 🗣️ **[Speakers and personas](#usage)** — `media diarize` finds the voices in a recording, `media name` says whose each is, and a persona is the same row whether a model speaks in their voice or recognises it
+* 🎬 **[Takes and sync](#usage)** — `media group`, `media match` and `media sync` put the cameras and recorders that rolled together on one timeline; `media sync --check` checks the offsets and `media microphones` tells who spoke each line
+* 📏 **[Sound and picture measured](#usage)** — `media loudness`, `media audible`, `media laughter` and `media coordination` measure how loud a shot is against what surrounds it, how well a line can be heard, where people laugh and how what is lit moves
+* 🏅 **[Scores, recipes and rankings](#usage)** — `media passages`, `media flag` and `media score` turn what was measured into scores from 0 to 1; `media recipe` says which count and `media rank` lists the best
+* 🔎 **[Judged and found by meaning](#usage)** — `media judge` has a text model read the best passages, `media index` and `media search` find passages by what they mean, and `media search --cut NAME` stores the answer as a cut
+* ✅ **[Decisions that are kept](#usage)** — `media keep` and `media cut` rule a passage or a shot in or out of every ranking and cut; `media prefer` and `media fit` teach a ranker from your choices, and `media script --read` takes a marked-up script back
+* ✂️ **[Cuts and timelines](#usage)** — `media compile` picks shots that are good and unalike, `media assemble` cuts an interview from its best passages, `media cutaways` lays footage over it, and `--after` revises a cut by what `media note` said of each clip
+* 📤 **[Render and export](#usage)** — `media render` makes a cut into a file to watch; `media export` writes FCPXML and a CMX3600 edit decision list that point at the original recordings
+* 📜 **[Scripts said and checked](#usage)** — `media conv` reports everything wrong in a [`.conv`](https://github.com/constructive-io/conversation-format) script; `media say` says every line in its persona's voice, listens back and says it again until a take passes
+* 🎚️ **[The mix](#usage)** — clips on named tracks, brought to a level, looped, faded, ducked under speech and put through effects; `media say --stems` writes each track on its own beside the mix
+* 🎭 **[The stage](./docs/STAGE.md)** — `media film` films the page that follows a render, as a deck, a document or a walkthrough; `media still` takes pictures of chosen moments, `media stage` serves it to your own browser and `media print` writes a page as a PDF
+* 🎙️ **[Voices](./docs/VOICES.md)** — `media clean` and `media reference` make a clip a voice can be cloned from, `media voice` gives it to a persona, `media audition` has it say lines it has never seen, and `media blend` and `media mimic` make a voice from others
+* 📚 **[Libraries](./docs/LIBRARIES.md)** — voices, sound banks and faces in repositories of their own, each voice with its consent; `media library add`, `search` and `check` use them, and `media library lock` and `install` keep a project's at a commit
+* 🧱 **[Boilerplates](./docs/PROJECTS.md)** — `media init workspace NAME` starts a project and `media init deck NAME` adds a deck to it, from a repository of templates that `pgpm init --repo` reads too
+* 🖼️ **[Pictures and video](./docs/ADAPTERS.md#pictures-and-video)** — `media generate image` and `media generate video` hand a description to a model on your own machine and put what it makes on record as generated; `media generations` lists every request and `media synthetic` lists the clips of a cut that nobody filmed
+* 💬 **[Talking with a model](./docs/TALK.md)** — `media talk` serves a page on your own machine that hears you, answers a sentence at a time and stops when it is spoken over; `--measure` times each of the three models
+* 🔌 **[Plugins for the rest](#pluggable-by-design)** — `media revoice` says a recording again in another voice, `media separate` takes a voice out from over music and `media lipsync` makes a face say a recording, each through a plugin
+* ⚖️ **[One license rule](./docs/LICENSING.md)** — the code is MIT and imports only MIT, Apache-2.0 and BSD packages; `tests/test_licenses.py` fails the build otherwise, and no model weights, voices or footage are in the repository
+* 🤖 **[Agent skills](#working-with-an-ai-agent)** — `npx skills add constructive-io/media-engine` gives a coding agent the skill in `.agents/skills/constructive-media`: setting up, a script to sound, footage to a cut
+
+## Pluggable by design
+
+Nothing in the engine is tied to one model. The database driver, every model, the
+effects and the browser each sit behind a [slot](./docs/ADAPTERS.md#slots), and an
+adapter fills it. `media adapters` lists every slot and what can fill it on your
+machine, with the license of each. `CONSTRUCTIVE_MEDIA_ADAPTER_<SLOT>` chooses one, so
+swapping a model is a setting, not a code change.
+
+A plugin is a separate Python package that fills a slot from outside this repository.
+Install it next to `constructive-media` and the engine finds it. A plugin is never the
+default, and it cannot replace a built-in adapter. Six are in
+[media-engine-plugins](https://github.com/constructive-io/media-engine-plugins), each
+for a tool, or a model it runs, that is not MIT, Apache-2.0 or BSD licensed:
+
+| Plugin | Fills the slot | Chosen as | What it adds |
+| --- | --- | --- | --- |
+| [`pedalboard-effects`](https://github.com/constructive-io/media-engine-plugins/tree/main/plugins/pedalboard-effects) | `effects` | `pedalboard` | The reverb, delay, compression and gain a script asks for, through pedalboard |
+| [`ultralytics-detection`](https://github.com/constructive-io/media-engine-plugins/tree/main/plugins/ultralytics-detection) | `detection` | `ultralytics` | Ultralytics YOLO detectors for `media detect` |
+| [`seedvc-conversion`](https://github.com/constructive-io/media-engine-plugins/tree/main/plugins/seedvc-conversion) | `voice_conversion` | `seedvc` | `media revoice`, and `media talk --voice WHO --quick NAME` |
+| [`ltx-video`](https://github.com/constructive-io/media-engine-plugins/tree/main/plugins/ltx-video) | `video` | `ltx` | A still made to move: `media generate video "…" --from PICTURE --adapter ltx` |
+| [`demucs-separation`](https://github.com/constructive-io/media-engine-plugins/tree/main/plugins/demucs-separation) | `separation` | `demucs` | `media separate`: a voice taken out from over music |
+| [`latentsync-lipsync`](https://github.com/constructive-io/media-engine-plugins/tree/main/plugins/latentsync-lipsync) | `lip_sync` | `latentsync` | `media lipsync`: the face in a video made to say a recording |
+
+The `voice_conversion`, `separation` and `lip_sync` slots have nothing built in, so the
+commands that use them run only when a plugin fills the slot. Each plugin's README says
+what its code and its model are under. Read it before you install one.
+
+### Make your own
+
+* 🔌 **[A plugin](./docs/ADAPTERS.md#writing-a-plugin)** — an ordinary Python package with an entry point in the `constructive_media.adapters` group; it names its slot and its license, and the slot sets what it must do
+* 📚 **[A library](./docs/LIBRARIES.md#write-one)** — `media init library NAME` starts a repository of voices, sound banks and faces with a `media-library.json`; `media library check` says everything wrong with it
+* 🧱 **[Boilerplates](./docs/PROJECTS.md#boilerplates-of-your-own)** — a repository of folders with blanks in them; `media init --repo owner/name` reads yours in place of the default
+* 🎭 **[A page for the stage](./docs/STAGE.md#a-page)** — any HTML that loads the player is filmed with `media film --page FOLDER`; a page served by something else is filmed with `--url` when it keeps [the contract](./docs/STAGE.md#a-page-that-is-not-built-on-the-player)
+
 ## Status
 
 Early, and built in the open one layer at a time.
@@ -45,7 +105,8 @@ Early, and built in the open one layer at a time.
 | [Starting a project](./docs/PROJECTS.md): `media init` makes a workspace and its decks from a repository of boilerplates, in the format `pgpm init` reads | Here, tested |
 | Pictures and video made from a description by a model on your own machine, every request and what it made kept on record apart from what was filmed | Here, tested with stand-ins for the models |
 | [Talking with a model](./docs/TALK.md): a page on your own machine that hears you, answers with a text model and says the answer back a sentence at a time, and stops when it is spoken over | Here, tested with stand-ins for the models |
-| Engine: sounds made from a description, a voice re-spoken in another, a face re-timed to new speech | Being brought in |
+| [Plugins](#pluggable-by-design) for what the core leaves a slot open for: a recording said again in another voice, a voice taken out from over music, the face in a video made to say a recording | Here, tested with stand-ins for the models |
+| Engine: sounds made from a description | Being brought in |
 
 The roadmap is in [docs/ROADMAP.md](./docs/ROADMAP.md).
 
