@@ -1,4 +1,4 @@
-"""Commands for pictures and video a model makes: ask for one, and see what has been asked for."""
+"""Commands for pictures and video a model makes: ask for one, see what has been asked for, and make a face speak."""
 
 from __future__ import annotations
 
@@ -63,6 +63,21 @@ def register(commands: Any) -> None:
     )
     command.add_argument("timeline", nargs="?", help="the cut's name (default: every cut)")
     command.set_defaults(run=run_synthetic)
+
+    command = commands.add_parser(
+        "lipsync", help="make the face in a video say a recording",
+        description="Write a piece of video again with the mouth of the face in it moved to say a recording, "
+                    "as in `media lipsync face.mp4 line.wav out/face-says-line.mp4`. What is written runs as "
+                    "long as the speech, with the recording under it as it was handed over. Whatever fills the "
+                    "lip_sync slot does it, and nothing built in does: an adapter for one is a plugin. The face "
+                    "is somebody's: use one that is yours to use.",
+    )
+    command.add_argument("video", help="a piece of video with a face in it")
+    command.add_argument("speech", help="a recording of what the face is to say")
+    command.add_argument("output", help="where to write it: an .mp4 or a .mov")
+    command.add_argument("--adapter", metavar="NAME", help="which syncer moves the mouth, when there is more than one")
+    command.add_argument("--json", action="store_true", help="print the whole report as JSON")
+    command.set_defaults(run=run_lipsync)
 
 
 def _size(said: str) -> tuple[int, int]:
@@ -171,3 +186,20 @@ def run_synthetic(arguments: argparse.Namespace) -> int:
     clips = len({(one.timeline, one.number) for one in found})
     print(f"{clips} {'clip' if clips == 1 else 'clips'} that nobody filmed")
     return 1
+
+
+def run_lipsync(arguments: argparse.Namespace) -> None:
+    import json
+
+    from .. import lipsync
+
+    told = lipsync.sync(arguments.video, arguments.speech, arguments.output, adapter=arguments.adapter)
+    if arguments.json:
+        print(json.dumps(told, indent=2, ensure_ascii=False))
+        return
+    wide, tall = told["size"]
+    print(f"{told['output']}: {told['seconds']:.1f} s at {wide}x{tall}, {told['video']} saying {told['speech']}")
+    print(f"  {told['speech_seconds']:.1f} s of speech over {told['video_seconds']:.1f} s of video, in "
+          f"{told['took']:.1f} s by {told['adapter']} {told['model']}".rstrip())
+    for note in told["notes"]:
+        print(f"  {note}")

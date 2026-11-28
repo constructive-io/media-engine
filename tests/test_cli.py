@@ -45,6 +45,7 @@ class CommandLineTest(unittest.TestCase):
                         "wear", "microphones",
                         "timeline", "note", "keep", "cut", "prefer", "pairs", "decisions", "script", "render", "relink", "export",
                         "conv", "persona", "personas", "voices", "voice", "say", "reference", "clean", "audition", "blend", "mimic", "revoice", "separate", "library", "talk",
+                        "lipsync",
                         "film", "still", "stage", "print", "init",
                         "generate", "generations", "collect", "synthetic",
                         "status", "adapters"):

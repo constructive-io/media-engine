@@ -100,6 +100,7 @@ What an adapter must do is set by its slot:
 | `speaker` | `constructive_media.speakers.Embedder` | `embed(sounds)` returns one row of numbers for each stretch of sound, at unit length, close together for one voice |
 | `voice_conversion` | `constructive_media.conversion.Converter` | `convert(source, target, like=clip)` writes what `source` says as a WAV file at `target`, in the voice heard in `clip`, and returns where it wrote it. The words, their timing and their tune are the recording's; the voice is the clip's. Its `name` and `model` are printed beside what it made |
 | `separation` | `constructive_media.separation.Separator` | `separate(source, folder)` writes the parts of `source` into `folder`, each a WAV file, and returns where each is by its name. One part is `voice`; the others are `rest`, or a name each. Its `name` and `model` are printed beside what it made |
+| `lip_sync` | `constructive_media.lipsync.Syncer` | `sync(video, speech, target)` writes `video` to `target`, an MP4 file, with the mouth of the face in it saying `speech`, and returns where it wrote it. The picture runs as long as the speech; sound in what it writes is ignored. Its `name` and `model` are printed beside what it made |
 | `effects` | `constructive_media.effects.EffectBackend` | `apply(source, target, effects)` writes the audio with the effects applied, and answers a WAV file of floats with one, so a track that passes full scale on its way into a mix is not clipped. It may also say how long its effects ring, with `ring(effects)`, and a mix leaves that much room |
 | `image`, `video` | `constructive_media.generate.Maker` | `make(request, target)` writes the picture or the piece of video a request describes to `target`. Its `name` and `model` go on record beside what it made. It may say what a request costs, with `price(request)`. One that asks a service and is answered later has `submit(request)`, `poll(job)` and `fetch(job, target)` in place of `make` (`constructive_media.generate.Later`), and `media collect` brings in what it made |
 
@@ -620,6 +621,55 @@ one line. `separation.apart(recording, folder)` is what the command calls:
 it checks what the adapter gave back, writes the parts where they were asked
 for, and measures how loud each is beside the recording, so a part with
 nothing in it is seen to have nothing in it.
+
+## Lip sync
+
+A model that syncs lips takes a piece of video with a face in it and a
+recording of speech, and writes the video again with the mouth saying the
+recording. The rest of the picture is left as it was.
+
+```sh
+media lipsync face.mp4 line.wav out/face-says-line.mp4
+```
+
+Nothing built in fills the slot. The models that do it well carry terms of
+their own, and so do the face models they find the face with, so an adapter
+is a plugin, installed beside the engine and chosen by name:
+
+```sh
+export CONSTRUCTIVE_MEDIA_ADAPTER_LIP_SYNC=latentsync      # or --adapter latentsync, for one video
+```
+
+`latentsync` is [LatentSync](https://github.com/bytedance/LatentSync). Its
+code is Apache-2.0. Its weights are published under the Open RAIL++-M
+License, which says what they may not be used for, and the face models it
+fetches from InsightFace are, in their makers' words, "for non-commercial
+research purposes only". The adapter is in
+[media-engine-plugins](https://github.com/constructive-io/media-engine-plugins),
+and its README has each of those in their makers' words, what it needs and
+how long it takes. Read it before you use what the adapter makes.
+
+What is written runs as long as the speech does, and the speech under it is
+the recording as it was handed in, not a copy that has been through the
+model. A video longer than the speech is cut to it. One that is shorter is
+made to last by the adapter, each in its own way, and the command says when
+that happened, because what a face does once its video has run out is worth
+looking at. It also says when the picture came back another size. A face
+that moves a little to begin with comes out better than a still.
+
+Nothing is put on record: the command writes a file, as `media say` does.
+
+The face is somebody's. A model that moves a mouth will move anybody's, and
+a person shown saying what they never said is the harm this is known for.
+Use a face that is yours to use: one a model made, or one whose owner said
+yes to these words.
+
+An adapter is handed the video, the recording and the name of an MP4 file to
+write. What it cannot do it says by raising
+`constructive_media.lipsync.LipSyncError`, which a command prints as one
+line. `lipsync.sync(video, speech, output)` is what the command calls: it
+checks that there is a picture and a sound, checks what the adapter gave
+back, and lays the speech under it.
 
 ## Effects
 

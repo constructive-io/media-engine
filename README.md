@@ -540,6 +540,16 @@ fills the `separation` slot with one whose weights are for research
 media separate interview.wav parts          # parts/voice.wav, parts/rest.wav
 ```
 
+A face in a piece of video can be made to say a recording. That is a model's
+work as well, and a [plugin](https://github.com/constructive-io/media-engine-plugins)
+fills the `lip_sync` slot with one whose face models are for non-commercial
+research ([docs/ADAPTERS.md](./docs/ADAPTERS.md#lip-sync)). Use a face that is
+yours to use: one a model made, or one whose owner said yes to the words.
+
+```sh
+media lipsync face.mp4 line.wav out/face-says-line.mp4
+```
+
 The models that listen, write and speak can hold a conversation between
 them. What you say is written down, answered and said back, a sentence at a
 time, and it stops when you speak over it:

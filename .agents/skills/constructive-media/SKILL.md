@@ -1,10 +1,10 @@
 ---
 name: constructive-media
-description: Constructive Media — one engine for video, images, audio and voice, driven by the `media` command line with its state in PostgreSQL. Use when asked to "render a .conv", "turn a script into audio", "make a voiced scene", "say this script", "say this in a voice", "give a persona a voice", "clone a voice", "audition a voice", "blend two voices", "mix voices", "make a new voice from two", "make a quick voice", "a fast voice for talking", "mimic a voice", "use Kokoro", "say this recording in another voice", "revoice a recording", "convert a voice", "talk in a cloned voice", "take a voice out of a song", "separate a voice from music", "remove the music from under a voice", "make a narrated deck", "film a deck", "turn a script into a video", "make a walkthrough video", "narrate a document", "add a voice library", "set up the media engine", "ingest footage", "transcribe recordings", "find the best takes", "make a cut", "render a cut", "generate an image", "generate a video", "make a picture from a prompt", "talk to a model", "have a voice conversation", "measure the voice latency", or to choose a model, an adapter or a plugin for the engine.
+description: Constructive Media — one engine for video, images, audio and voice, driven by the `media` command line with its state in PostgreSQL. Use when asked to "render a .conv", "turn a script into audio", "make a voiced scene", "say this script", "say this in a voice", "give a persona a voice", "clone a voice", "audition a voice", "blend two voices", "mix voices", "make a new voice from two", "make a quick voice", "a fast voice for talking", "mimic a voice", "use Kokoro", "say this recording in another voice", "revoice a recording", "convert a voice", "talk in a cloned voice", "take a voice out of a song", "separate a voice from music", "remove the music from under a voice", "make a narrated deck", "film a deck", "turn a script into a video", "make a walkthrough video", "narrate a document", "add a voice library", "set up the media engine", "ingest footage", "transcribe recordings", "find the best takes", "make a cut", "render a cut", "generate an image", "generate a video", "make a picture from a prompt", "lip sync a video", "make a face say a recording", "make a picture talk", "use LatentSync", "talk to a model", "have a voice conversation", "measure the voice latency", or to choose a model, an adapter or a plugin for the engine.
 compatibility: Python 3.11+, PostgreSQL 17+ with pgvector, pgpm, ffmpeg, whisper.cpp; Chrome or Chromium for video of a page
 metadata:
   author: constructive-io
-  version: "0.15.0"
+  version: "0.16.0"
 ---
 
 # Constructive Media
@@ -409,6 +409,8 @@ media synthetic talk-over        # the clips of a cut that nobody filmed; status
 - **The same request is made once.** Run again, the command prints `had` and
   the file. `--again` makes another with a new seed; `--seed N` makes one you
   can make again. `--dry-run` says where it would go and makes nothing.
+- **A face made to say a recording needs the `latentsync` plugin.** See
+  [A face made to say a recording](#a-face-made-to-say-a-recording).
 - **Sides are multiples of 16**, or of 32 for `ltx`. The command says the
   nearest size that works.
 - **One at a time.** A model holds a lock every `media` on the machine shares;
@@ -423,6 +425,48 @@ media synthetic talk-over        # the clips of a cut that nobody filmed; status
   `media synthetic` on it.
 - A request handed to a service (an adapter from a plugin) prints `asked`;
   `media collect` brings in what the service made.
+
+## A face made to say a recording
+
+```sh
+media lipsync face.mp4 line.wav out/face-says-line.mp4 --adapter latentsync
+media lipsync face.mp4 line.wav out/face-says-line.mp4 --json
+```
+
+A piece of video with a face in it and a recording of speech go in, and the
+video comes back with the mouth saying the recording, for as long as the
+speech runs. The speech under it is the recording as it was handed in.
+
+- **Nothing in the engine does it.** It needs the `latentsync` plugin from
+  [media-engine-plugins](https://github.com/constructive-io/media-engine-plugins),
+  chosen with `CONSTRUCTIVE_MEDIA_ADAPTER_LIP_SYNC=latentsync` or
+  `--adapter latentsync`, and a checkout of LatentSync with a Python of its
+  own. The plugin's README and the `media-engine-plugins` skill say how.
+  `media adapters` shows whether one is there.
+- **Say what it is under before installing it.** LatentSync's code is
+  Apache-2.0. Its weights are under the Open RAIL++-M License, which lists
+  what they may not be used for. The face models it fetches from InsightFace
+  are, in their makers' words, "for non-commercial research purposes only".
+  Describe that; do not rule on whether somebody's use is allowed.
+- **Whose face is it?** Ask before anything else. A face a model made
+  (`media generate image`) is yours to use. A real person's face needs that
+  person's yes to these words, and without it the answer is no: do not make a
+  picture or a video of a real person say what they did not say.
+- **Start from a face that moves.** A still made into a video holds stock
+  still but for the mouth. Make the still move first
+  (`media generate video "…" --from face.png --adapter ltx`), then sync it.
+- **A face in every frame, looking at the camera.** A frame with none stops
+  it, and the command says so.
+- **Keep it short, and say how long it takes.** Five seconds of speech took
+  under three minutes on Apple silicon, with 17 to 20 GB of memory in use.
+  Every frame is held at once: sync a line at a time, not a speech.
+- **Read the notes.** Where the video ran out before the speech did, the
+  model looped it, forwards and then backwards: look at the join. Where the
+  picture came back another size, it says so.
+- **Look at it.** Pull frames (`ffmpeg -i OUT -vf fps=2,tile=6x2 -frames:v 1
+  sheet.png`) and look at the mouth before saying it is right.
+- **Nothing is put on record.** It writes a file, as `media say` does. A
+  face made to speak is not footage: say so wherever it is shown.
 
 ## Talk with a model
 
