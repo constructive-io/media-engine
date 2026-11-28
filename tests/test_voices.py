@@ -139,6 +139,17 @@ class VoicesTest(DatabaseTest):
             "SELECT count(*) FROM media_video.speaker_clusters WHERE persona_id IS NOT NULL"), [(1,)])
         self.assertEqual([recording.name for recording in names.listed("after")], ["afterwards.wav"])
 
+    def test_a_voice_with_no_time_stored_is_listed_by_the_length_of_its_lines(self):
+        asset = self.recording("afterwards")
+        ((voice,),) = self.query(
+            """INSERT INTO media_video.speaker_clusters (asset_id, label, n_segments, method)
+               VALUES (%s, 'low', 2, 'made-up-method') RETURNING id""", (asset,))
+        self.query("UPDATE media_video.segments SET cluster_id = %s WHERE asset_id = %s RETURNING id", (voice, asset))
+        (afterwards,) = names.listed()
+        spoken = sum(end - start for start, end in self.spans["afterwards"])
+        self.assertEqual([(found.label, found.segments) for found in afterwards.voices], [("low", 2)])
+        self.assertAlmostEqual(afterwards.voices[0].speech_s, spoken, places=3)
+
     def test_naming_says_what_is_wrong(self):
         with self.assertRaisesRegex(SpeakerError, "media diarize"):
             names.name("meeting", ADA, "Ada Example", new=True)

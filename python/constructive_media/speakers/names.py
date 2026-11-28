@@ -59,7 +59,11 @@ def listed(match: str | None = None) -> list[Recording]:
     recordings = []
     for asset_id, path, unknown in cur.fetchall():
         cur.execute(
-            """SELECT c.label, c.n_segments, c.speech_s, c.cohesion, p.name, c.model, c.centroid
+            # A voice found before its time speaking was kept has none stored: its lines are added up.
+            """SELECT c.label, c.n_segments,
+                      COALESCE(c.speech_s, (SELECT sum(s.end_s - s.start_s) FROM media_video.segments s
+                                             WHERE s.cluster_id = c.id)),
+                      c.cohesion, p.name, c.model, c.centroid
                  FROM media_video.speaker_clusters c
                  LEFT JOIN media.personas p ON p.id = c.persona_id
                 WHERE c.asset_id = %s
