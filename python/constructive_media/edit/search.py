@@ -185,29 +185,37 @@ def search(
     cur = db.cursor()
     cur.execute(
         f"""SELECT s.passage_id, s.take, s.start_s, s.end_s, s.text, s.ends_complete,
-                   1 - (s.embedding <=> %s::vector), coalesce(c.score, s.coherence), s.take_id
+                   1 - (s.embedding <=> %s::vector), s.coherence, s.take_id
               FROM media_video.v_searchable s
               JOIN media_video.passages p ON p.id = s.passage_id
               JOIN media_video.passage_embeddings e ON e.passage_id = s.passage_id
-              LEFT JOIN media_video.v_combined c
-                ON c.subject_type = 'passage' AND c.subject_id = s.passage_id AND c.recipe = %s
              WHERE e.model = %s AND e.text_hash = {_MARK}
                AND s.coherence >= %s AND (%s OR NOT s.excluded)
                AND (%s::text IS NULL OR s.project = %s) AND (%s::text IS NULL OR s.take = %s)
                AND (%s::float8 IS NULL OR s.duration_s >= %s) AND (%s::float8 IS NULL OR s.duration_s <= %s)
              ORDER BY s.embedding <=> %s::vector
              LIMIT %s""",
-        (near, recipe, reader.model, min_coherence, include_cut, project, project, take, take,
+        (near, reader.model, min_coherence, include_cut, project, project, take, take,
          min_len_s, min_len_s, max_len_s, max_len_s, near, max(top, 1) * 4),
     )
     rows = cur.fetchall()
+    # What the recipe makes of the few that were found is asked apart. Joined to the search, the scores of
+    # every passage were added up again for each row of it, and a library of any size took minutes.
+    cur.execute(
+        """SELECT subject_id, score FROM media_video.v_combined
+            WHERE subject_type = 'passage' AND recipe = %s AND subject_id = ANY(%s::uuid[])""",
+        (recipe, [str(row[0]) for row in rows]),
+    )
+    by_recipe = {str(passage_id): score for passage_id, score in cur.fetchall()}
     held = flags.held_back((row[0], row[4]) for row in rows)
     hits: list[Hit] = []
     withheld = 0
-    for passage_id, within, start, end, said, complete, similarity, quality, take_id in rows:
+    for passage_id, within, start, end, said, complete, similarity, coherence, take_id in rows:
         if str(passage_id) in held:
             withheld += 1
             continue
+        quality = by_recipe.get(str(passage_id))
+        quality = coherence if quality is None else quality
         similarity = max(0.0, min(1.0, float(similarity)))
         quality = max(0.0, min(1.0, float(quality if quality is not None else 0.5)))
         hits.append(Hit(passage_id, within, float(start), float(end), said or "", round(similarity, 4),
