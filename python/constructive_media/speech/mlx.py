@@ -18,7 +18,12 @@ Qwen3-TTS (Apache-2.0), which clones a voice from a recording of it.
 
 A voice with a reference recording is cloned from it: the recording and the
 words said in it go to the model with every line. A voice with only a
-`profile` is asked for by that name, for a model that has voices of its own.
+`profile` is asked for by that name, of a model that has voices of its own.
+The Qwen3-TTS that clones has none, so beside it the adapter loads the
+Qwen3-TTS that does (Apache-2.0 too; `ryan`, `vivian` and seven more), the
+first time such a voice speaks. A model you name yourself is asked for both,
+unless `"named_voices"` in `CONSTRUCTIVE_MEDIA_EXTRA_SPEECH` names the model
+to ask for a voice by name.
 
 Two models on one graphics processor at once can stop a machine dead, so a
 line is said while holding a lock that every `media` on the machine shares.
@@ -53,6 +58,8 @@ from . import SpeechError, Voice
 from .apart import Apart
 
 DEFAULT_MODEL = "mlx-community/Qwen3-TTS-12Hz-1.7B-Base-bf16"
+#: The same model with voices of its own, and no cloning: what a voice with only a profile is said by.
+NAMED_VOICES_MODEL = "mlx-community/Qwen3-TTS-12Hz-1.7B-CustomVoice-bf16"
 #: What a line is said with. A low temperature keeps a clone close to its recording.
 DEFAULTS = {"temperature": 0.3, "top_p": 0.8, "language": "english"}
 #: The rate a recording is handed to the model at.
@@ -124,25 +131,40 @@ class MlxSpeech:
         self.model = model or settings.model("speech") or DEFAULT_MODEL
         self.options = {**DEFAULTS, **extras(settings)}
         self.patience = _patience(self.options.pop("patience", None))
+        named = self.options.pop("named_voices", None)
+        if named is not None and (not isinstance(named, str) or not named.strip()):
+            raise SpeechError('"named_voices" in CONSTRUCTIVE_MEDIA_EXTRA_SPEECH is the model asked for a voice by '
+                              f"name, a folder or a repository; it is {named!r}")
+        #: The model a voice with only a profile is said by. The default has a companion; any other is asked itself.
+        self.named_voices = named or (NAMED_VOICES_MODEL if self.model == DEFAULT_MODEL else self.model)
         self._settings = settings
         self._loaded: Any = None
+        self._named: Any = None
         self._apart: Apart | None = None
 
     # The model.
 
-    def loaded(self) -> Any:
+    def loaded(self, *, named: bool = False) -> Any:
+        """The model that clones, or with `named` the one asked for a voice by name. Each is loaded once."""
+        if named and self.named_voices != self.model:
+            if self._named is None:
+                self._named = self._load(self.named_voices)
+            return self._named
         if self._loaded is None:
-            try:
-                from mlx_audio.tts.utils import load_model
-            except ImportError:
-                raise SpeechError(f"the {self.name} speech adapter needs mlx-audio, which runs on Apple silicon: "
-                                  "pip install mlx-audio") from None
-            try:
-                with _quietly():
-                    self._loaded = load_model(self.model)
-            except Exception as error:  # noqa: BLE001 - whatever a model fails to load with, say it plainly
-                raise SpeechError(f"the speech model {self.model} could not be loaded: {error}") from None
+            self._loaded = self._load(self.model)
         return self._loaded
+
+    def _load(self, model: str) -> Any:
+        try:
+            from mlx_audio.tts.utils import load_model
+        except ImportError:
+            raise SpeechError(f"the {self.name} speech adapter needs mlx-audio, which runs on Apple silicon: "
+                              "pip install mlx-audio") from None
+        try:
+            with _quietly():
+                return load_model(model)
+        except Exception as error:  # noqa: BLE001 - whatever a model fails to load with, say it plainly
+            raise SpeechError(f"the speech model {model} could not be loaded: {error}") from None
 
     @contextlib.contextmanager
     def alone(self) -> Iterator[None]:
@@ -154,7 +176,8 @@ class MlxSpeech:
         """This adapter in a process of its own, where a line that takes too long can be stopped."""
         if self._apart is None:
             assert self.patience is not None
-            said_with = json.dumps(self.options)  # as here, and without the patience: it is not apart from itself
+            # As here, and without the patience: it is not apart from itself.
+            said_with = json.dumps({**self.options, "named_voices": self.named_voices})
             self._apart = Apart(MAKER, patience=self.patience, env={
                 **os.environ, "CONSTRUCTIVE_MEDIA_HOME": str(self._settings.home),
                 "CONSTRUCTIVE_MEDIA_MODEL_SPEECH": self.model, "CONSTRUCTIVE_MEDIA_EXTRA_SPEECH": said_with})
@@ -182,7 +205,7 @@ class MlxSpeech:
                 asked["ref_text"] = voice.reference_text
         else:
             asked["voice"] = voice.profile
-        return self._said(text, target, seed, asked)
+        return self._said(text, target, seed, asked, named=recording is None)
 
     def embed(self, recording: str | Path) -> list[float]:
         """A voice as the numbers this model hears it by, from a recording of it."""
@@ -219,13 +242,16 @@ class MlxSpeech:
 
         return mx.array(pcm.read(recording, rate=REFERENCE_RATE, stereo=False))
 
-    def _said(self, text: str, target: Path, seed: int | None, asked: dict[str, Any], *, embedding: Any = None) -> Path:
+    def _said(self, text: str, target: Path, seed: int | None, asked: dict[str, Any], *, embedding: Any = None,
+              named: bool = False) -> Path:
         import numpy as np
 
+        said_by = self.named_voices if named else self.model
         with self.alone():
             import mlx.core as mx
 
-            model = self.loaded()
+            # An adapter built on this one has one model, and a loader that takes nothing.
+            model = self.loaded(named=True) if named else self.loaded()
             if seed is not None:
                 np.random.seed(seed % (2 ** 32))
                 mx.random.seed(seed)
@@ -239,11 +265,11 @@ class MlxSpeech:
             except SpeechError:
                 raise
             except Exception as error:  # noqa: BLE001
-                raise SpeechError(f"the speech model {self.model} could not say the line: {error}") from None
+                raise SpeechError(f"the speech model {said_by} could not say the line: {error}") from None
             finally:
                 if put_back is not None:
                     model.extract_speaker_embedding = put_back
             rate = int(getattr(model, "sample_rate", REFERENCE_RATE))
         if not parts or not sum(len(part) for part in parts):
-            raise SpeechError(f"the speech model {self.model} answered with nothing to hear")
+            raise SpeechError(f"the speech model {said_by} answered with nothing to hear")
         return pcm.write(Path(target), np.concatenate(parts), rate)

@@ -87,6 +87,11 @@ The `http` adapter names no model: the server it reaches has its own. The
 under Apache-2.0. It is fetched by mlx-audio the first time a line is said,
 and it clones a voice from a clip of 15 to 28 seconds and the words said in it.
 
+It has no voices of its own. A voice with no clip, only the name of one, is
+said by `mlx-community/Qwen3-TTS-12Hz-1.7B-CustomVoice-bf16`, a conversion of
+[the same model with nine voices in it](https://huggingface.co/Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice),
+also Apache-2.0, fetched the first time such a voice speaks.
+
 The `kokoro` adapter loads `mlx-community/Kokoro-82M-bf16` when no other is
 named, a conversion for MLX of
 [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M), published under

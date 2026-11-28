@@ -341,7 +341,21 @@ media say --voice ada "The lantern is lit at dusk." out/line.wav
 Left to itself it loads Qwen3-TTS, which clones a voice from its clip and the
 words said in it; `CONSTRUCTIVE_MEDIA_MODEL_SPEECH` names another model
 mlx-audio can load, as a folder or a repository on Hugging Face. The first
-line waits for the model to be fetched, a few gigabytes. A line is said at a
+line waits for the model to be fetched, a few gigabytes.
+
+A voice with no clip and a `profile` is one of a model's own, asked for by
+that name. The Qwen3-TTS that clones has none, so such a voice is said by the
+one that does, which is fetched and loaded the first time one speaks:
+
+```sh
+media voice ada vivian --new      # aiden, dylan, eric, ono_anna, ryan, serena, sohee, uncle_fu, vivian
+media say --voice ada "The lantern is lit at dusk." out/line.wav
+```
+
+A model you name yourself is asked for its own voices too, unless
+`"named_voices"` in `CONSTRUCTIVE_MEDIA_EXTRA_SPEECH` names another.
+
+A line is said at a
 temperature of 0.3, which keeps a clone close to its clip;
 `CONSTRUCTIVE_MEDIA_EXTRA_SPEECH='{"temperature": 0.5, "language": "french"}'`
 changes what it is said with. Two models on one graphics processor at once can

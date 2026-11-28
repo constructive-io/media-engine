@@ -285,7 +285,7 @@ not clone. It comes with a few dozen voices, and it speaks in one of those:
 
 ```sh
 media talk --profile af_heart          # with CONSTRUCTIVE_MEDIA_ADAPTER_SPEECH=kokoro
-media voice ada --engine kokoro --profile bm_george
+media voice ada bm_george --engine kokoro
 ```
 
 The first letter of a voice's name is what it speaks, `a` American English and

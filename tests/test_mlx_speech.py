@@ -5,6 +5,7 @@ handed a stand-in that answers as mlx-audio's models do, and a stand-in for
 `mlx.core` that keeps arrays as numpy does.
 """
 
+import contextlib
 import json
 import sys
 import tempfile
@@ -70,7 +71,7 @@ class MlxSpeechTest(unittest.TestCase):
         self.seeds = sys.modules["mlx.core"].seeds
         self.model = Model()
         self.speaker = said_here.MlxSpeech(settings=settings_in(self.folder / "home"))
-        self.speaker._loaded = self.model
+        self.speaker._loaded = self.speaker._named = self.model
         self.clip = pcm.write(self.folder / "ada.wav", syllables(3.0, 48_000), 48_000)
 
     def test_a_cloned_voice_is_said_from_its_recording_and_the_words_in_it(self):
@@ -86,11 +87,37 @@ class MlxSpeechTest(unittest.TestCase):
         self.assertEqual(self.seeds, [507])
 
     def test_a_voice_the_model_has_of_its_own_is_asked_for_by_name(self):
+        # The model that clones has no voices of its own: the one beside it does, and it is asked.
+        self.assertEqual(self.speaker.named_voices, said_here.NAMED_VOICES_MODEL)
+        self.speaker._named = beside = Model()
         self.speaker.say("Bring the boats in.", self.folder / "line.wav", voice=speech.Voice("ada", profile="keeper"))
-        (asked,) = self.model.asked
+        (asked,) = beside.asked
         self.assertEqual(asked["voice"], "keeper")
         self.assertNotIn("ref_audio", asked)
-        self.assertEqual(self.seeds, [])
+        self.assertEqual((self.model.asked, self.seeds), ([], []))
+        # A clone is still said by the model that clones, with a profile or without.
+        cloned = speech.Voice("ada", profile="keeper", reference_audio=str(self.clip))
+        self.speaker.say("Bring the boats in.", self.folder / "line.wav", voice=cloned)
+        self.assertEqual((len(self.model.asked), len(beside.asked)), (1, 1))
+
+    def test_the_model_asked_for_a_voice_by_name_is_loaded_once_and_can_be_named(self):
+        loads = []
+        loader = types.ModuleType("mlx_audio.tts.utils")
+        loader.load_model = lambda name: loads.append(name) or Model()
+        with mock.patch.dict(sys.modules, {"mlx_audio": types.ModuleType("mlx_audio"),
+                                           "mlx_audio.tts": types.ModuleType("mlx_audio.tts"),
+                                           "mlx_audio.tts.utils": loader}), \
+                mock.patch.object(said_here, "_quietly", contextlib.nullcontext):
+            speaker = said_here.MlxSpeech(settings=settings_in(
+                self.folder / "home", extras={"speech": '{"named_voices": "a-model-with-voices"}'}))
+            for _ in range(2):
+                speaker.say("Bring the boats in.", self.folder / "line.wav", voice=speech.Voice("ada", profile="keeper"))
+            self.assertEqual(loads, ["a-model-with-voices"])           # and the model that clones was never loaded
+            self.assertNotIn("named_voices", speaker._named.asked[0])  # it is the adapter's, not a thing to say a line with
+        own = said_here.MlxSpeech(settings=settings_in(self.folder / "home", models={"speech": "a-folder-of-weights"}))
+        self.assertEqual(own.named_voices, "a-folder-of-weights")      # a model you name is asked for both
+        with self.assertRaisesRegex(speech.SpeechError, "the model asked for a voice by name"):
+            said_here.MlxSpeech(settings=settings_in(self.folder / "home", extras={"speech": '{"named_voices": 3}'}))
 
     def test_a_voice_with_nothing_to_speak_from_is_refused(self):
         with self.assertRaisesRegex(speech.SpeechError, "neither a recording to clone nor a profile"):
@@ -100,13 +127,13 @@ class MlxSpeechTest(unittest.TestCase):
             self.speaker.say("Bring the boats in.", self.folder / "line.wav", voice=gone)
 
     def test_what_a_model_says_in_parts_is_one_recording(self):
-        self.speaker._loaded = Model(parts=3)
+        self.speaker._loaded = self.speaker._named = Model(parts=3)
         written = self.speaker.say("Bring the boats in.", self.folder / "line.wav",
                                    voice=speech.Voice("ada", profile="keeper"))
         self.assertAlmostEqual(pcm.seconds(written), 3.0, delta=0.01)
 
     def test_a_model_that_fails_or_says_nothing_is_an_error_of_speech(self):
-        self.speaker._loaded = Model(parts=0)
+        self.speaker._loaded = self.speaker._named = Model(parts=0)
         with self.assertRaisesRegex(speech.SpeechError, "nothing to hear"):
             self.speaker.say("Bring the boats in.", self.folder / "line.wav", voice=speech.Voice("ada", profile="keeper"))
 
@@ -114,7 +141,7 @@ class MlxSpeechTest(unittest.TestCase):
             def generate(self, **asked):
                 raise ValueError("out of memory")
 
-        self.speaker._loaded = Broken()
+        self.speaker._loaded = self.speaker._named = Broken()
         with self.assertRaisesRegex(speech.SpeechError, "could not say the line: out of memory"):
             self.speaker.say("Bring the boats in.", self.folder / "line.wav", voice=speech.Voice("ada", profile="keeper"))
 
@@ -144,7 +171,8 @@ class MlxSpeechTest(unittest.TestCase):
         # The other process is this adapter with the same model and settings, and no limit of its own.
         self.assertEqual(speaker.apart().maker, "constructive_media.speech.mlx:MlxSpeech")
         self.assertEqual(json.loads(there["CONSTRUCTIVE_MEDIA_EXTRA_SPEECH"]),
-                         {"temperature": 0.5, "top_p": 0.8, "language": "english"})
+                         {"temperature": 0.5, "top_p": 0.8, "language": "english",
+                          "named_voices": said_here.NAMED_VOICES_MODEL})
         self.assertEqual((there["CONSTRUCTIVE_MEDIA_MODEL_SPEECH"], there["CONSTRUCTIVE_MEDIA_HOME"]),
                          (said_here.DEFAULT_MODEL, str(self.folder / "home")))
         asked = []
