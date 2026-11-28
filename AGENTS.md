@@ -52,8 +52,8 @@ somebody. `tests/test_skill.py` holds it to the code: a command it names must be
 one and the script it shows must parse, so change the skill with the command line.
 
 The engine is an implementation of the [`.conv` format](https://github.com/constructive-io/conversation-format),
-whose repository has the grammar and a `conv` skill for writing scripts. Adapters under
-copyleft licenses, and a `media-engine-plugins` skill for them, are in
+whose repository has the grammar and a `conv` skill for writing scripts. Optional adapters,
+each a package of its own, and a `media-engine-plugins` skill for them, are in
 [media-engine-plugins](https://github.com/constructive-io/media-engine-plugins).
 
 Voices, banks of sounds and faces are never kept here. They live in libraries, which are

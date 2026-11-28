@@ -47,7 +47,7 @@ goes in, and a mixed recording comes out.
 | The `.conv` format | [conversation-format](https://github.com/constructive-io/conversation-format) | says what a script may hold; has the `conv` skill for writing one |
 | `conv`, from `@conversation/cli` on npm | the same repository | checks a script and prints it as JSON. It makes no sound |
 | `media`, this engine | here | checks a script with a parser of its own, then says and mixes it |
-| Plugins | [media-engine-plugins](https://github.com/constructive-io/media-engine-plugins) | adapters under copyleft licenses, installed apart |
+| Plugins | [media-engine-plugins](https://github.com/constructive-io/media-engine-plugins) | optional adapters, each a package installed apart |
 | Libraries | repositories of your own, started with `media init library NAME` from [media-engine-boilerplates](https://github.com/constructive-io/media-engine-boilerplates) | voices to clone, banks of sounds and faces, added with `media library add` |
 | Projects | a workspace of your own, started with `media init` from [media-engine-boilerplates](https://github.com/constructive-io/media-engine-boilerplates) | a pnpm workspace whose packages are what `media film` records; `media init workspace NAME`, then `media init deck NAME` inside it, or `walkthrough`, `animation` or `document` |
 

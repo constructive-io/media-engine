@@ -63,7 +63,7 @@ A plugin is a separate Python package that fills a slot from outside this reposi
 Install it next to `constructive-media` and the engine finds it. A plugin is never the
 default, and it cannot replace a built-in adapter. Six are in
 [media-engine-plugins](https://github.com/constructive-io/media-engine-plugins), each
-for a tool, or a model it runs, that is not MIT, Apache-2.0 or BSD licensed:
+a package of its own:
 
 | Plugin | Fills the slot | Chosen as | What it adds |
 | --- | --- | --- | --- |
@@ -686,9 +686,9 @@ Everything in this repository is MIT licensed, and it stays that way:
 
 - Code here is MIT. Dependencies are MIT, Apache-2.0 or BSD, and a test fails
   the build on one that is not.
-- No copyleft code or dependency (GPL, AGPL, LGPL, MPL) is added here. Adapters
-  for tools under those licenses live in a separate plugin repository, under
-  their own license, and the engine works without any of them.
+- No copyleft code or dependency (GPL, AGPL, LGPL, MPL) is added here. An
+  adapter for anything else is a plugin, a package of its own in another
+  repository, and the engine works without any of them.
 - `ffmpeg`, whisper.cpp and PostgreSQL are programs the engine runs, not code
   it contains. They keep their own licenses and you install them yourself.
 - No model weights, voices, audio or footage are committed. A model's license
@@ -705,8 +705,7 @@ engine knows by name, with its source and its license, is in
   it: it reads a script and renders it. The grammar, the reference parser and
   a skill for writing scripts are there.
 - [media-engine-plugins](https://github.com/constructive-io/media-engine-plugins):
-  adapters for tools under copyleft licenses, each a package of its own that
-  you choose to install.
+  optional adapters, each a package of its own that you choose to install.
 - [media-engine-boilerplates](https://github.com/constructive-io/media-engine-boilerplates):
   what `media init` starts a project from: a pnpm workspace, and what goes in
   one. A narrated deck, a walkthrough, an animation, and a document that is
@@ -822,7 +821,7 @@ Render scripts to audio and video, mix sound, and assemble footage into cuts.
 
 * [Conversation Format](https://github.com/constructive-io/conversation-format): write `.conv` scripts using the spec, reference parser, and authoring skill.
 * [Media Engine boilerplates](https://github.com/constructive-io/media-engine-boilerplates): scaffold a narrated deck, walkthrough, animation, or document.
-* [Media Engine plugins](https://github.com/constructive-io/media-engine-plugins): optional adapters for tools under copyleft licenses.
+* [Media Engine plugins](https://github.com/constructive-io/media-engine-plugins): optional adapters, each a package you choose to install.
 * [Media Engine libraries](https://github.com/constructive-io/media-engine-libraries): find voices, sounds, and faces, including the [CC0 foley library](https://github.com/constructive-io/media-engine-library-foley).
 
 ### 📦 Key packages
