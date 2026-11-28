@@ -177,6 +177,16 @@ class DiffusersVideoTest(unittest.TestCase):
         self.assertEqual([one[1] for one in self.loads], ["made-up/film", "made-up/film"])
         self.assertEqual(round(ffmpeg.probe(self.target).fps), 8)
 
+    def test_they_are_its_own_when_it_is_chosen_by_name_as_well(self):
+        maker = self.maker('{"steps": 6}', models={"video": "made-up/film"}, adapters={"video": "diffusers"})
+        self.assertEqual((maker.model, maker.options["steps"]), ("made-up/film", 6))
+
+    def test_with_another_adapter_chosen_the_settings_are_that_one_s(self):
+        # A plugin chosen for video has a model and options of its own: asked for by name, this runs on its defaults.
+        maker = self.maker('{"steps": 25, "rough": 12}', models={"video": "made-up/another-kind"},
+                           adapters={"video": "another"})
+        self.assertEqual((maker.model, maker.options), ("Wan-AI/Wan2.1-T2V-1.3B-Diffusers", filmed.DEFAULTS))
+
     def test_the_model_is_loaded_once_on_the_best_there_is(self):
         maker = self.maker()
         for name in ("one.mp4", "two.mp4"):
@@ -219,7 +229,7 @@ class DiffusersVideoTest(unittest.TestCase):
         start = self.folder / "quay.png"
         for request, said in (
             (Request("image", WORDS), "makes video, not pictures"),
-            (Request("video", WORDS, image=start), "starts from words, not from a picture"),
+            (Request("video", WORDS, image=start), "starts from words, not from a picture; the ltx adapter"),
             (Request("video", WORDS, width=830), "830x480 cannot be made.*such as 832x480"),
         ):
             with self.subTest(said), self.assertRaisesRegex(GenerateError, said):

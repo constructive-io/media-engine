@@ -4,7 +4,7 @@ description: Constructive Media — one engine for video, images, audio and voic
 compatibility: Python 3.11+, PostgreSQL 17+ with pgvector, pgpm, ffmpeg, whisper.cpp; Chrome or Chromium for video of a page
 metadata:
   author: constructive-io
-  version: "0.13.0"
+  version: "0.14.0"
 ---
 
 # Constructive Media
@@ -364,6 +364,7 @@ the person, and do not put in a voice whose owner has not said yes.
 media generate image "a harbour at dawn, fog over the water"       # 1344x768, about twenty seconds
 media generate image "the same harbour at night" --from harbour.png --size 1024x1024
 media generate video "fog lifting off the harbour" --seconds 2    # 832x480, minutes: say so before you start
+media generate video "fog drifting over the water" --from harbour.png --adapter ltx   # a still made to move: a plugin
 media generations                # every request, how it came out and where the file is
 media synthetic talk-over        # the clips of a cut that nobody filmed; status 1 when there are any
 ```
@@ -374,10 +375,18 @@ media synthetic talk-over        # the clips of a cut that nobody filmed; status
   path: `CONSTRUCTIVE_MEDIA_EXTRA_IMAGE='{"program": "/path/to/mflux-generate-flux2"}'`.
   `media adapters` shows what fills `image` and `video`; all of it is in
   [docs/ADAPTERS.md](../../../docs/ADAPTERS.md#pictures-and-video).
+- **A still made to move needs the `ltx` plugin.** The engine's own video
+  adapter starts from words and refuses a picture. `ltx` is in
+  [media-engine-plugins](https://github.com/constructive-io/media-engine-plugins)
+  (`pip install ./plugins/ltx-video`, about 26 GB of weights and 29 GB of
+  memory, about a minute for two seconds). Its model is under Lightricks' own
+  terms, not MIT: say so before installing it, and read the
+  `media-engine-plugins` skill, which has what to tell the person.
 - **The same request is made once.** Run again, the command prints `had` and
   the file. `--again` makes another with a new seed; `--seed N` makes one you
   can make again. `--dry-run` says where it would go and makes nothing.
-- **Sides are multiples of 16.** The command says the nearest size that works.
+- **Sides are multiples of 16**, or of 32 for `ltx`. The command says the
+  nearest size that works.
 - **One at a time.** A model holds a lock every `media` on the machine shares;
   do not start a second in the background to save time.
 - **Look at it.** Read the picture, or pull a frame from the video with

@@ -28,6 +28,15 @@ piece is made while holding the lock that every `media` on the machine shares.
 with, in place of the defaults here:
 
     {"steps": 15, "fps": 16, "guidance": 5.0, "negative": "blurry, low quality, distorted"}
+
+Both settings are read only while this is the adapter chosen for video, which
+it is until `CONSTRUCTIVE_MEDIA_ADAPTER_VIDEO` names another. With another
+chosen, they are that adapter's, and this one asked for by name
+(`--adapter diffusers`) runs on its defaults.
+
+It starts from words alone. A still made to move is the `ltx` adapter in
+[media-engine-plugins](https://github.com/constructive-io/media-engine-plugins),
+whose model is published under terms outside the engine's rule.
 """
 
 from __future__ import annotations
@@ -67,9 +76,11 @@ class DiffusersVideo:
 
     def __init__(self, model: str | None = None, *, settings: Settings | None = None) -> None:
         self._settings = settings or Settings.from_env()
-        self.model = model or self._settings.model("video") or DEFAULT_MODEL
+        # With another adapter chosen for video, the model and the options that are set are that one's.
+        chosen = self._settings.adapter("video") in (None, self.name)
+        self.model = model or (self._settings.model("video") if chosen else None) or DEFAULT_MODEL
         self.options = dict(DEFAULTS)
-        extra = self._settings.extra("video")
+        extra = self._settings.extra("video") if chosen else None
         if extra:
             try:
                 given = json.loads(extra)
@@ -131,7 +142,8 @@ class DiffusersVideo:
         if request.medium != "video":
             raise GenerateError("the diffusers adapter makes video, not pictures")
         if request.image is not None:
-            raise GenerateError(f"the video model {self.model} starts from words, not from a picture")
+            raise GenerateError(f"the video model {self.model} starts from words, not from a picture; the ltx "
+                                "adapter in media-engine-plugins makes a still move")
         width, height = request.width or WIDTH, request.height or HEIGHT
         if width % SIDE or height % SIDE:
             raise GenerateError(f"{width}x{height} cannot be made: each side is a multiple of {SIDE}, "

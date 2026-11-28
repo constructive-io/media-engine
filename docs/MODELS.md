@@ -122,6 +122,14 @@ diffusers fetches it the first time a piece is made.
 `CONSTRUCTIVE_MEDIA_MODEL_VIDEO` takes a folder or another repository that
 holds a Wan model of the same kind.
 
+No model here makes a still move. The ones that do it well on one machine are
+published under terms outside the rule: LTX-Video, for one, under licenses of
+Lightricks' own that forbid a list of uses, are for research alone in its
+first two versions, and point companies above a size to a paid license in its
+later ones. Its adapter, `ltx`, is in
+[media-engine-plugins](https://github.com/constructive-io/media-engine-plugins),
+where its terms are set out version by version.
+
 ## Models you bring
 
 Three slots reach a model through a server you run or rent, and know no model

@@ -514,6 +514,31 @@ and one second took under two.
 `guidance` and `negative`, the words for what to keep out. It runs on
 `CONSTRUCTIVE_MEDIA_DEVICE`, or the best the machine has.
 
+That adapter starts from words alone. **A still made to move** is the `ltx`
+adapter, a plugin:
+
+```sh
+pip install ./media-engine-plugins/plugins/ltx-video
+media generate video "fog drifting over the water" --from harbour.png --adapter ltx
+```
+
+`ltx` runs [LTX-Video](https://github.com/Lightricks/LTX-Video), from words
+or from a picture and words, with the picture as the first frame. The
+adapter's code is MIT. The model is published under Lightricks' own terms,
+which differ by version, forbid a list of uses and, for the later versions,
+point companies above a size to a paid license. That puts it outside
+[the rule](./LICENSING.md), so it is in
+[media-engine-plugins](https://github.com/constructive-io/media-engine-plugins),
+whose README sets the terms out. On an Apple M4 Max two seconds from a
+picture took about a minute and four about two, with about 26 GB of weights
+on disk and about 29 GB of memory in use.
+
+`--adapter` asks another adapter for one piece.
+`CONSTRUCTIVE_MEDIA_MODEL_VIDEO` and `CONSTRUCTIVE_MEDIA_EXTRA_VIDEO` belong
+to the adapter `CONSTRUCTIVE_MEDIA_ADAPTER_VIDEO` names, or to `diffusers`
+when it names none: an adapter asked for with `--adapter` while another is
+chosen runs on its own defaults.
+
 Both hold the lock every `media` on a machine shares while a model runs: two
 models on one graphics processor at once can stop a machine dead.
 

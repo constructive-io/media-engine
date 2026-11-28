@@ -40,6 +40,7 @@ lands tested, with nothing in it that breaks [the licensing rule](./LICENSING.md
 | 33 | [A voice between other voices](./VOICES.md#a-voice-between-two-voices): `media blend` takes two voices or more as a model that clones hears them, finds the voice that is so much of each on the sphere they lie on, says a passage in it, checks what was said, and says how like each voice it came out. `--keep` cuts the passage as a clip and gives it to a persona, so a blend is a cloned voice like any other from then on | Done, and tried with the `mlx` adapter. The arithmetic is the standard library's |
 | 34 | [A quick voice](./VOICES.md#a-quick-voice): the `kokoro` adapter runs a small model that says a sentence in about a tenth of a second, in a voice of its own, and reads a word no dictionary has by its spelling, so nothing under the GPL is needed to say it. `media mimic` hears every one of the model's voices beside a recording, mixes the nearest, and writes the mix as a voice a persona can be given | Done, and tried on a Mac. It is not a clone and says so: over words a mix was not found with, it was no nearer than the nearest of the model's own voices |
 | 35 | [A recording said again in another voice](./VOICES.md#a-recording-said-again-in-another-voice): the `voice_conversion` slot has a contract, `conversion.Converter`, for a plugin to fill. `media revoice` says a recording again in a persona's voice or like a clip and prints how like the voice it was before and is after. `media talk --voice WHO --quick NAME` says an answer in a quick voice and again in a cloned one | Done, and tried with the Seed-VC plugin, which is GPL-3.0 and so is in [media-engine-plugins](https://github.com/constructive-io/media-engine-plugins). Nothing built in fills the slot |
+| 36 | [A still made to move](./ADAPTERS.md#pictures-and-video): `media generate video "…" --from PICTURE --adapter ltx` starts a piece of video from a picture. The `video` slot's settings belong to the adapter that is chosen, so the engine's own adapter and a plugin keep theirs apart on one machine | Done as a plugin, `ltx`, which runs LTX-Video. Its code is MIT and its model is under Lightricks' own terms, so it is in [media-engine-plugins](https://github.com/constructive-io/media-engine-plugins). Nothing built in starts video from a picture |
 
 ## Left for later, and why
 
@@ -49,13 +50,13 @@ lands tested, with nothing in it that breaks [the licensing rule](./LICENSING.md
   [media-engine-plugins](https://github.com/constructive-io/media-engine-plugins)
   when it is written. A clip is made from a recording of a voice alone until
   then.
-- **Sounds from a description, video that starts from a picture, and models
-  on a service.** `media generate` makes pictures and video from words with
-  what runs on one machine under terms within the rule. A sound made from a
-  description needs a slot of its own. Larger and closed models, and the
-  services that run them, are adapters in
-  [media-engine-plugins](https://github.com/constructive-io/media-engine-plugins);
-  the engine already hands a request over and collects it later.
+- **Sounds from a description, and models on a service.** `media generate`
+  makes pictures and video from words with what runs on one machine under
+  terms within the rule. A sound made from a description needs a slot of its
+  own. Larger and closed models, and the services that run them, are adapters
+  in [media-engine-plugins](https://github.com/constructive-io/media-engine-plugins);
+  the engine already hands a request over and collects it later. Video that
+  starts from a picture is there now, as the `ltx` adapter.
 - **A denoiser that is a model.** `media clean` uses ffmpeg's own, which is worth
   about ten decibels on a steady hiss. A model does better on noise that
   changes, and is an adapter in the `denoise` slot when one is added.

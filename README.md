@@ -404,7 +404,10 @@ says how, and how long each takes. Every request is a row, with its words,
 model, settings and seed, whether it worked or not, and `media generations`
 lists them, or adds them up with `--spend`. The same request is made once:
 asked again, the command prints the file it has, and `--again` makes another
-with a seed of its own. `--from` starts from a picture, `--max-usd` refuses a
+with a seed of its own. `--from` starts from a picture: for video, that is a
+still made to move, which takes the `ltx` adapter from
+[media-engine-plugins](https://github.com/constructive-io/media-engine-plugins)
+(`--adapter ltx`), whose model has terms of its own. `--max-usd` refuses a
 request its maker prices above that, and `--dry-run` makes nothing. An adapter
 for a service that takes minutes is handed the request and `media collect`
 brings in what it made. What is made is a derived file of the kind
