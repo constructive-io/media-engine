@@ -18,7 +18,9 @@ what it holds:
       ],
       "banks":  ["banks"],
       "sounds": ["sounds"],
-      "faces":  {"ada": "faces/ada.png"}
+      "faces":  {"ada": "faces/ada.png"},
+      "personas": {"ada": {"name": "Ada Marsh", "kind": "person",
+                           "bio": "Keeps the light. Dry, exact, fond of weather."}}
     }
 
 A voice is a clip to clone from and the words said in it: `said` in the
@@ -29,7 +31,9 @@ voices by. Either way it says whose it is and by what right it is here:
 not a library. `kind` is one of `KINDS`.
 
 `banks` are folders of `.sounds` files, `sounds` the folders the files those
-name are in, and `faces` a picture for a persona.
+name are in, and `faces` a picture for a persona. `personas` says who each
+one is: a name, whether they are a person or a character, and a few words
+about them, which is what a writer is told when a script is written for them.
 
 A library is added to this machine once, by its address, and is kept at the
 commit it was added at until it is updated. What was added is written in
@@ -51,7 +55,7 @@ import subprocess
 import tempfile
 import time
 from collections.abc import Callable, Iterable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -80,7 +84,10 @@ _SHORT = re.compile(r"[\w.-]+/[\w.-]+")
 #: transports that only fetch, and over none that runs a program (`ext::`, or a helper named in the address).
 _FETCHING = ("-c", "protocol.allow=never", *(part for transport in ("file", "git", "http", "https", "ssh")
                                             for part in ("-c", f"protocol.{transport}.allow=always")))
-_KNOWN = {"library", "version", "license", "summary", "homepage", "voices", "banks", "sounds", "faces"}
+_KNOWN = {"library", "version", "license", "summary", "homepage", "voices", "banks", "sounds", "faces", "personas"}
+_OF_A_PERSONA = {"name", "kind", "bio"}
+#: What a persona is, as the engine keeps them.
+PERSONA_KINDS = ("person", "character")
 _OF_A_VOICE = {"persona", "name", "emotion", "reference", "said", "profile", "engine", "seed", "consent", "tags"}
 
 
@@ -102,6 +109,16 @@ class Voice:
 
 
 @dataclass(frozen=True)
+class About:
+    """Who a persona is, as a library says it."""
+
+    persona: str
+    name: str | None = None
+    kind: str | None = None
+    bio: str | None = None
+
+
+@dataclass(frozen=True)
 class Library:
     name: str
     folder: Path
@@ -112,6 +129,7 @@ class Library:
     banks: tuple[Path, ...]
     sounds: tuple[Path, ...]
     faces: dict[str, Path]
+    personas: dict[str, About] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -291,11 +309,36 @@ def check(folder: str | Path, *, measure: bool = True) -> Checked:
         else:
             faces[persona] = path
 
+    personas: dict[str, About] = {}
+    given = manifest.get("personas", {})
+    if not isinstance(given, dict):
+        problems.append('"personas" should be an object: who each persona is')
+        given = {}
+    for persona, about in given.items():
+        if not _NAME.fullmatch(persona):
+            problems.append(f'"personas": `{persona}` should be a persona\'s slug: lower case letters and numbers, '
+                            "joined by hyphens")
+            continue
+        if not isinstance(about, dict):
+            problems.append(f'"personas": {persona} should be an object, with any of {", ".join(sorted(_OF_A_PERSONA))}')
+            continue
+        for key in sorted(set(about) - _OF_A_PERSONA):
+            notes.append(f'"personas": {persona} has "{key}", which is not something said of a persona; it is ignored')
+        kind = about.get("kind")
+        if kind is not None and kind not in PERSONA_KINDS:
+            problems.append(f'"personas": {persona} is a {" or a ".join(PERSONA_KINDS)}, not {kind!r}')
+            continue
+        wrong = [key for key in ("name", "bio") if about.get(key) is not None and not isinstance(about[key], str)]
+        if wrong:
+            problems.append(f'"personas": {persona} should have words for {" and ".join(wrong)}')
+            continue
+        personas[persona] = About(persona, _text(about.get("name")), kind, _text(about.get("bio")))
+
     if not voices and not banks and not faces and not problems:
         notes.append("it holds no voices, no banks and no faces yet")
     library = None if problems or name is None else Library(
         name, folder, _text(manifest.get("version")), _text(manifest.get("license")), _text(manifest.get("summary")),
-        tuple(voices), banks, sounds, faces)
+        tuple(voices), banks, sounds, faces, personas)
     return Checked(library, tuple(problems), tuple(notes))
 
 
@@ -756,9 +799,12 @@ def voices(name: str, *, only: Iterable[str] = (), replace: bool = False, settin
 
     A persona that is not there yet is added. One that has a voice already,
     from somewhere else, keeps it unless `replace`. Returns who was `given`
-    a voice and who `kept` their own, each as `persona/emotion`.
+    a voice and who `kept` their own, each as `persona/emotion`, and who was
+    `described`: a persona given a voice here, with nothing written about
+    them yet, is given the words the library has. Words already written on
+    this machine are never written over.
     """
-    from . import speech
+    from . import personas, speech
 
     library = load(_one(name, added(settings)).folder)
     wanted = set(only)
@@ -768,7 +814,7 @@ def voices(name: str, *, only: Iterable[str] = (), replace: bool = False, settin
                            + (", ".join(sorted({voice.persona for voice in library.voices})) or "none"))
     has = {(kept.voice.persona, kept.voice.emotion): kept.voice for kept in speech.kept()}
     said = tell or (lambda message: None)
-    done: dict[str, list[str]] = {"given": [], "kept": []}
+    done: dict[str, list[str]] = {"given": [], "kept": [], "described": []}
     for voice in library.voices:
         if wanted and voice.persona not in wanted:
             continue
@@ -788,6 +834,14 @@ def voices(name: str, *, only: Iterable[str] = (), replace: bool = False, settin
         done["given"].append(who)
         said(f"  {who}" + (f", from {voice.reference.relative_to(library.folder)}" if voice.reference else
                            f", the server's `{voice.profile}`"))
+    known = {one.slug: one for one in personas.listing()}
+    for who in sorted({given.split("/")[0] for given in done["given"]}):
+        about, here = library.personas.get(who), known.get(who)
+        if about is None or not about.bio or here is None or here.bio:
+            continue
+        personas.keep(who, kind=about.kind, bio=about.bio)
+        done["described"].append(who)
+        said(f"  {who}: {about.bio}")
     return done
 
 

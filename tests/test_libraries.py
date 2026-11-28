@@ -151,6 +151,21 @@ class CheckTest(InFolder):
         (folder / "banks/weather.sounds").write_text("@sounds\nRAIN: { file: /tmp/rain.flac }\n")
         self.assertIn("a path only this machine has", libraries.check(folder, measure=False).problems[0])
 
+    def test_a_library_says_who_its_personas_are(self):
+        about = {"ada": {"name": "Ada Marsh", "kind": "person", "bio": "Keeps the light."}, "fog": {"kind": "character"}}
+        library = libraries.load(write_library(self.folder / "who", personas=about))
+        self.assertEqual(library.personas["ada"], libraries.About("ada", "Ada Marsh", "person", "Keeps the light."))
+        self.assertEqual(library.personas["fog"], libraries.About("fog", None, "character", None))
+        self.assertEqual(libraries.load(write_library(self.folder / "nobody")).personas, {})
+        self.assertIn('"personas" should be an object', self.problems(personas=["ada"])[0])
+        self.assertIn("`Ada M` should be a persona's slug", self.problems(personas={"Ada M": {}})[0])
+        self.assertIn("ada should be an object", self.problems(personas={"ada": "Keeps the light."})[0])
+        self.assertIn("ada is a person or a character, not 'robot'", self.problems(personas={"ada": {"kind": "robot"}})[0])
+        self.assertIn("ada should have words for bio", self.problems(personas={"ada": {"bio": 7}})[0])
+        noted = libraries.check(write_library(self.folder / "more", personas={"ada": {"age": 40}}), measure=False)
+        self.assertEqual(noted.problems, ())
+        self.assertIn('"personas": ada has "age", which is not something said of a persona; it is ignored', noted.notes)
+
     def test_faces_are_pictures_that_are_there(self):
         self.assertIn("the face of ada, `faces/gone.png`, is not there", self.problems(faces={"ada": "faces/gone.png"})[0])
         self.assertIn("should be a picture", self.problems(faces={"ada": "voices/ada/neutral.flac"})[0])
@@ -719,7 +734,7 @@ class VoicesTest(DatabaseTest):
     def test_the_personas_here_are_given_the_voices_of_a_library(self):
         said = []
         done = libraries.voices("lighthouse", settings=self.settings, tell=said.append)
-        self.assertEqual(done, {"given": ["ada/neutral", "ben/whisper"], "kept": []})
+        self.assertEqual(done, {"given": ["ada/neutral", "ben/whisper"], "kept": [], "described": []})
         self.assertEqual(said, ["  ada/neutral, from voices/ada/neutral.flac", "  ben/whisper, the server's `a-quiet-voice`"])
         ada = speech.StoredVoices().find("ada")
         self.assertEqual((ada.profile, ada.reference_audio, ada.reference_text, ada.seed),
@@ -731,11 +746,28 @@ class VoicesTest(DatabaseTest):
     def test_a_persona_with_a_voice_from_elsewhere_keeps_it_unless_told(self):
         speech.keep(speech.Voice("ada", profile="my-own-ada"), new=True)
         done = libraries.voices("lighthouse", settings=self.settings)
-        self.assertEqual(done, {"given": ["ben/whisper"], "kept": ["ada/neutral"]})
+        self.assertEqual(done, {"given": ["ben/whisper"], "kept": ["ada/neutral"], "described": []})
         self.assertEqual(speech.StoredVoices().find("ada").profile, "my-own-ada")
         done = libraries.voices("lighthouse", only=["ada"], replace=True, settings=self.settings)
-        self.assertEqual(done, {"given": ["ada/neutral"], "kept": []})
+        self.assertEqual(done, {"given": ["ada/neutral"], "kept": [], "described": []})
         self.assertEqual(speech.StoredVoices().find("ada").profile, "ada")
         with self.assertRaises(LibraryError) as raised:
             libraries.voices("lighthouse", only=["cy"], settings=self.settings)
         self.assertIn("has no voice for cy. It has: ada, ben", str(raised.exception))
+
+    def test_a_persona_given_a_voice_is_told_who_they_are_once(self):
+        from constructive_media import personas
+
+        about = {"ada": {"kind": "character", "bio": "Keeps the  light."}, "ben": {"bio": "Says little."},
+                 "cy": {"bio": "Has no voice here."}}
+        write_library(self.library, personas=about)
+        personas.keep("ben", bio="Written on this machine.", new=True)
+        said = []
+        done = libraries.voices("lighthouse", settings=self.settings, tell=said.append)
+        self.assertEqual(done["described"], ["ada"])
+        self.assertEqual(said[-1], "  ada: Keeps the  light.")
+        who = {one.slug: one for one in personas.listing()}
+        self.assertEqual((who["ada"].kind, who["ada"].bio), ("character", "Keeps the light."))
+        self.assertEqual(who["ben"].bio, "Written on this machine.")
+        self.assertNotIn("cy", who)
+        self.assertEqual(libraries.voices("lighthouse", settings=self.settings)["described"], [])

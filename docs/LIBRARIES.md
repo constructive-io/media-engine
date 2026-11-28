@@ -65,7 +65,10 @@ faces/ada.png                a picture for a persona
   ],
   "banks": ["banks"],
   "sounds": ["sounds"],
-  "faces": { "ada": "faces/ada.png" }
+  "faces": { "ada": "faces/ada.png" },
+  "personas": {
+    "ada": { "name": "Ada Marsh", "kind": "person", "bio": "Keeps the light. Dry, exact, fond of weather." }
+  }
 }
 ```
 
@@ -80,6 +83,14 @@ faces/ada.png                a picture for a persona
 | `seed` | always say this voice's lines with this seed |
 | `name`, `tags` | for people reading the library |
 | `consent` | whose voice it is, and by what right it is here. Asked of every voice |
+
+`personas` says who each one is, for whoever writes for them:
+
+| Of a persona | Is |
+| --- | --- |
+| `name` | what they are called |
+| `kind` | `person` or `character` |
+| `bio` | a few words on who they are and how they talk |
 
 Every path is inside the library. Nothing in a library is run: its manifest is
 read, and that is all.
@@ -205,7 +216,10 @@ Once added:
   ```
 
   A persona who is not here yet is added. One who already has a voice from
-  somewhere else keeps it, unless `--replace`.
+  somewhere else keeps it, unless `--replace`. Somebody given a voice, with
+  nothing written about them here yet, is given the library's words on who
+  they are. What you have written yourself, with `media persona --bio`, is
+  never written over.
 
 ## Make the same render on another machine
 

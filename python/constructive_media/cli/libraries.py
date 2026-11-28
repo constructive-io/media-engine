@@ -325,7 +325,8 @@ def run_voices(arguments: argparse.Namespace) -> None:
 
     only = [who.strip() for who in (arguments.only or "").split(",") if who.strip()]
     done = libraries.voices(arguments.name, only=only, replace=arguments.replace, tell=print)
-    print(f"{len(done['given'])} given a voice" + (f", {len(done['kept'])} kept their own" if done["kept"] else ""))
+    print(f"{len(done['given'])} given a voice" + (f", {len(done['kept'])} kept their own" if done["kept"] else "")
+          + (f", {len(done['described'])} said who they are" if done["described"] else ""))
 
 
 def run_lock(arguments: argparse.Namespace) -> None:

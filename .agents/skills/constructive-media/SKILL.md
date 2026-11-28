@@ -373,7 +373,7 @@ voice, who consented:
 media library check my-library              # is it a library, and what is wrong with it
 media library search weather voices         # look in the indexes for a library, by any words
 media library add owner/lighthouse-voices   # a GitHub repository, any git address, a folder, or a name an index lists
-media library voices lighthouse             # give its voices to the personas here
+media library voices lighthouse             # give its voices to the personas here, and its words on who each one is
 media library clip ada recording.wav --by "Ada Marsh" --kind own   # in your own library: clean, cut, words, consent, README
 media library lock                          # write media-libraries.json beside your scripts
 media library install                       # on another machine: the same libraries at the same commits
